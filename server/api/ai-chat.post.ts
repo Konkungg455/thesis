@@ -18,8 +18,15 @@ export default defineEventHandler(async (event) => {
         });
     }
 
-    // Vercel + NUXT_AI_API_KEY → cloud (ไม่ต้องเปิด ngrok / n8n)
+    // Vercel → cloud Groq (ไม่เรียก n8n/ngrok)
     if (shouldUseCloudAi(config)) {
+        if (!hasAiApiKey(config)) {
+            throw createError({
+                statusCode: 503,
+                statusMessage: 'ตั้ง NUXT_AI_API_KEY บน Vercel แล้วกด Redeploy (Groq ฟรี: console.groq.com)',
+                data: { detail: 'NUXT_AI_API_KEY missing on Vercel', mode: 'cloud' },
+            });
+        }
         try {
             return await callCloudAi(config, chatInput);
         } catch (err: unknown) {

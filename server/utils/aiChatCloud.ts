@@ -22,17 +22,18 @@ function aiModel(config: ReturnType<typeof useRuntimeConfig>): string {
 
 /** Vercel / production — ใช้ cloud LLM แทน n8n+ngrok */
 export function shouldUseCloudAi(config: ReturnType<typeof useRuntimeConfig>): boolean {
-    const key = aiApiKey(config);
-    if (!key) return false;
-
     const mode = String(process.env.NUXT_AI_MODE || config.aiMode || '').trim().toLowerCase();
     if (mode === 'n8n') return false;
     if (mode === 'cloud') return true;
 
-    // บน Vercel ใช้ cloud อัตโนมัติเมื่อมี API key (ไม่ต้อง ngrok)
+    // บน Vercel ใช้ cloud เสมอ (ไม่ fallback ไป n8n/ngrok)
     if (process.env.VERCEL) return true;
 
     return false;
+}
+
+export function hasAiApiKey(config: ReturnType<typeof useRuntimeConfig>): boolean {
+    return Boolean(aiApiKey(config));
 }
 
 async function callOpenAiCompatible(
