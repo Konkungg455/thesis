@@ -33,11 +33,17 @@ export default defineEventHandler(async (event) => {
     const payload = { chatInput, sessionId, userName };
     let lastErr: unknown;
 
+    const n8nHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (/ngrok/i.test(n8nBase)) {
+        // ngrok free — ต้องมี header นี้เมื่อเรียกจาก server (Vercel)
+        n8nHeaders['ngrok-skip-browser-warning'] = 'true';
+    }
+
     for (let attempt = 0; attempt < 3; attempt++) {
         try {
             const data = await $fetch<Record<string, unknown>>(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: n8nHeaders,
                 body: payload,
                 timeout: 180_000,
             });
@@ -77,7 +83,9 @@ export default defineEventHandler(async (event) => {
         ? 'workflow ยังไม่ Activate — รัน npm run dev ใหม่ (สคริปต์จะ import + activate ให้อัตโนมัติ)'
         : onVercel && n8nBase.includes('127.0.0.1')
             ? 'ตั้ง NUXT_N8N_INTERNAL_URL ใน Vercel ชี้ไป n8n สาธารณะ (เช่น ngrok http 5678)'
-            : 'ตรวจว่า n8n เปิดอยู่และ Ollama ทำงาน';
+            : /ngrok/i.test(n8nBase)
+                ? 'ตรวจ ngrok ต้อง forward ไป port 5678 (ไม่ใช่ 3001) + n8n workflow Activate'
+                : 'ตรวจว่า n8n เปิดอยู่และ Ollama ทำงาน';
 
     throw createError({
         statusCode: 502,
