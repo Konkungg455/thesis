@@ -31,7 +31,7 @@
             <div v-if="searchStatus" :class="['status-msg', searchStatus.type]">
               <span v-if="searchStatus.type === 'success'"><i class="fa-solid fa-circle-check"></i></span>
               <span v-else-if="searchStatus.type === 'error'"><i class="fa-solid fa-circle-xmark"></i></span>
-              <span v-else><i class="fa-solid fa-tower-broadcast"></i></span>
+              <span v-else><i class="fa-solid fa-circle-info"></i></span>
               {{ searchStatus.text }}
             </div>
           </transition>

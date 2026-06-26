@@ -172,17 +172,15 @@
             </div>
         </nav>
 
-        <!-- 🔔 Toast popup สำหรับแจ้งเตือนแบบ LINE/Facebook (เด้งเมื่อเภสัชกรขอกลับมาคุยต่อ) -->
+        <!-- 🔔 Toast popup แจ้งเตือนแบบ LINE/Facebook -->
         <transition name="bell-toast">
-            <div v-if="bellToastVisible" class="bell-toast" @click="openFollowupChatFromToast">
+            <div v-if="bellToastVisible" class="bell-toast" @click="handleBellToastClick">
                 <div class="bell-toast-icon">
-                    <i class="fa-solid fa-comment-medical"></i>
+                    <i :class="bellToastIcon"></i>
                 </div>
                 <div class="bell-toast-body">
-                    <div class="bell-toast-title">เภสัชกรขอคุยกับคุณต่อ</div>
-                    <div class="bell-toast-desc">
-                        ภก. {{ bellToastPharma }} ติดต่อกลับเพื่อสอบถามอาการ — แตะเพื่อกลับไปห้องแชท
-                    </div>
+                    <div class="bell-toast-title">{{ bellToastTitle }}</div>
+                    <div class="bell-toast-desc">{{ bellToastDesc }}</div>
                 </div>
                 <button class="bell-toast-close" @click.stop="dismissBellToast" aria-label="ปิด">
                     <i class="fa-solid fa-xmark"></i>
@@ -232,7 +230,7 @@ const hasAlert = computed(() => {
     if (Number(s.tracking_active) === 1) return true
     // รอบที่จบแล้ว + ผู้ใช้รีวิวไปแล้ว → ไม่ต้องเด้งเตือนซ้ำ
     if (s.status === 'completed' && Number(s.reviewed) === 1) return false
-    return ['waiting', 'accepted', 'completed'].includes(s.status)
+    return ['waiting', 'accepted', 'completed', 'rejected'].includes(s.status)
 })
 
 // เวลาที่เหลือในช่วงติดตามอาการ (3 วันนับจาก tracking_base) → "X วัน Y ชั่วโมง Z นาที"
@@ -261,11 +259,18 @@ const openTrackingChat = () => {
 
 /* ================= Bell Toast (LINE/Facebook style popup) ================= */
 const bellToastVisible = ref(false)
-const bellToastPharma = ref('เภสัชกร')
+const bellToastTitle = ref('การแจ้งเตือน')
+const bellToastDesc = ref('')
+const bellToastIcon = ref('fa-solid fa-bell')
+const bellToastKind = ref('followup')
 let bellToastTimer = null
 let lastNotifiedFollowupId = 0
+let lastNotifiedAcceptedId = 0
+let lastNotifiedRejectedId = 0
 
 const FOLLOWUP_NOTIFIED_KEY = 'followup-notified-request-id'
+const ACCEPT_NOTIFIED_KEY = 'consult-accepted-notified-id'
+const REJECT_NOTIFIED_KEY = 'consult-rejected-notified-id'
 
 const playNotificationSound = () => {
     try {
@@ -286,32 +291,23 @@ const playNotificationSound = () => {
             osc.start(start)
             osc.stop(start + duration + 0.02)
         }
-        // ทำเสียง "ดิ๊ง-ดอง" สองโน้ตคล้ายแจ้งเตือนของ LINE
         playBeep(880, 0)
         playBeep(660, 0.18)
         setTimeout(() => { try { ctx.close() } catch {} }, 800)
-    } catch (e) {
-        // เงียบไว้ — บางเบราว์เซอร์อาจบล็อก AutoPlay
-    }
+    } catch {}
 }
 
-const tryShowBrowserNotification = (title, body) => {
+const tryShowBrowserNotification = (title, body, tag = 'telebot-alert') => {
     try {
         if (typeof Notification === 'undefined') return
         if (document.visibilityState === 'visible') return
         const fire = () => {
             try {
-                const n = new Notification(title, {
-                    body,
-                    icon: '/favicon.ico',
-                    tag: 'pharma-followup',
-                })
+                const n = new Notification(title, { body, icon: '/favicon.png', tag })
                 n.onclick = () => {
                     window.focus()
                     n.close()
-                    if (consultStatus.value?.id_pharma) {
-                        navigateTo({ path: '/user/chat', query: { id: consultStatus.value.id_pharma } })
-                    }
+                    handleBellToastClick()
                 }
             } catch {}
         }
@@ -323,16 +319,16 @@ const tryShowBrowserNotification = (title, body) => {
     } catch {}
 }
 
-const showBellToast = (pharmaName) => {
-    bellToastPharma.value = pharmaName || 'เภสัชกร'
+const showBellToast = (title, desc, kind = 'followup', icon = 'fa-solid fa-bell') => {
+    bellToastTitle.value = title
+    bellToastDesc.value = desc
+    bellToastKind.value = kind
+    bellToastIcon.value = icon
     bellToastVisible.value = true
     if (bellToastTimer) clearTimeout(bellToastTimer)
     bellToastTimer = setTimeout(() => { bellToastVisible.value = false }, 9000)
     playNotificationSound()
-    tryShowBrowserNotification(
-        'เภสัชกรขอคุยกับคุณต่อ',
-        `ภก. ${bellToastPharma.value} ติดต่อกลับเพื่อสอบถามอาการของคุณ`
-    )
+    tryShowBrowserNotification(title, desc, `telebot-${kind}`)
 }
 
 const dismissBellToast = () => {
@@ -347,8 +343,68 @@ const openFollowupChat = () => {
     navigateTo({ path: '/user/chat', query: { id: consultStatus.value.id_pharma } })
 }
 
-const openFollowupChatFromToast = () => {
-    openFollowupChat()
+const openAcceptedChat = () => {
+    if (!consultStatus.value?.id_pharma) return
+    closeAll()
+    dismissBellToast()
+    navigateTo({ path: '/user/chat', query: { id: consultStatus.value.id_pharma } })
+}
+
+const handleBellToastClick = () => {
+    if (bellToastKind.value === 'accepted') {
+        openAcceptedChat()
+        return
+    }
+    if (bellToastKind.value === 'followup') {
+        openFollowupChat()
+    }
+}
+
+const notifyConsultEvents = (data) => {
+    const reqId = Number(data.id) || 0
+    if (reqId <= 0) return
+    const pharmaName = data.pharma_fullname || data.pharma_name || 'เภสัชกร'
+
+    if (data.status === 'accepted' && Number(data.is_followup) === 1) {
+        if (reqId !== lastNotifiedFollowupId) {
+            lastNotifiedFollowupId = reqId
+            try { localStorage.setItem(FOLLOWUP_NOTIFIED_KEY, String(reqId)) } catch {}
+            showBellToast(
+                'เภสัชกรขอคุยกับคุณต่อ',
+                `ภก. ${pharmaName} ติดต่อกลับเพื่อสอบถามอาการ — แตะเพื่อกลับไปห้องแชท`,
+                'followup',
+                'fa-solid fa-comment-medical'
+            )
+        }
+        return
+    }
+
+    if (data.status === 'accepted') {
+        if (reqId !== lastNotifiedAcceptedId) {
+            lastNotifiedAcceptedId = reqId
+            try { localStorage.setItem(ACCEPT_NOTIFIED_KEY, String(reqId)) } catch {}
+            showBellToast(
+                'เภสัชกรตอบรับแล้ว',
+                `ภก. ${pharmaName} พร้อมให้คำปรึกษาแล้ว — แตะเพื่อเข้าห้องแชท`,
+                'accepted',
+                'fa-solid fa-circle-check'
+            )
+        }
+        return
+    }
+
+    if (data.status === 'rejected') {
+        if (reqId !== lastNotifiedRejectedId) {
+            lastNotifiedRejectedId = reqId
+            try { localStorage.setItem(REJECT_NOTIFIED_KEY, String(reqId)) } catch {}
+            showBellToast(
+                'เภสัชกรไม่สะดวกรับสาย',
+                'กรุณาเลือกเภสัชกรท่านอื่น',
+                'rejected',
+                'fa-solid fa-circle-xmark'
+            )
+        }
+    }
 }
 
 /* ================= Refs ================= */
@@ -380,20 +436,7 @@ const checkConsultStatus = async () => {
 
         if (data && data.id && data.status !== 'none') {
             consultStatus.value = data;
-
-            // 🔔 ตรวจจับการขอ "คุยต่อ" จากเภสัชกร (follow-up) → เด้ง toast + เสียงครั้งเดียว
-            const isFollowup = data.status === 'accepted' && Number(data.is_followup) === 1
-            if (isFollowup) {
-                const reqId = Number(data.id) || 0
-                if (reqId > 0 && reqId !== lastNotifiedFollowupId) {
-                    lastNotifiedFollowupId = reqId
-                    if (import.meta.client) {
-                        try { localStorage.setItem(FOLLOWUP_NOTIFIED_KEY, String(reqId)) } catch {}
-                    }
-                    const pharmaName = data.pharma_fullname || data.pharma_name || 'เภสัชกร'
-                    showBellToast(pharmaName)
-                }
-            }
+            notifyConsultEvents(data);
         } else {
             consultStatus.value = null;
         }
@@ -477,6 +520,10 @@ onMounted(() => {
     try {
         const last = localStorage.getItem(FOLLOWUP_NOTIFIED_KEY)
         if (last) lastNotifiedFollowupId = Number(last) || 0
+        const acc = localStorage.getItem(ACCEPT_NOTIFIED_KEY)
+        if (acc) lastNotifiedAcceptedId = Number(acc) || 0
+        const rej = localStorage.getItem(REJECT_NOTIFIED_KEY)
+        if (rej) lastNotifiedRejectedId = Number(rej) || 0
     } catch {}
 
     // ขอสิทธิ์ Notification ของเบราว์เซอร์แบบเงียบ ๆ (สำหรับ background popup เหมือน LINE/Facebook)

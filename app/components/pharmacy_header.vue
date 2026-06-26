@@ -276,6 +276,32 @@ const theme = ref("LIGHT")
 const incomingRequest = ref(null) 
 const storeStatus = ref(null) // {state: 'active'|'pending'|'unassigned', message, store_name}
 let pollTimer = null
+let lastIncomingReqId = 0
+
+const playNotificationSound = () => {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext
+        if (!AudioCtx) return
+        const ctx = new AudioCtx()
+        const playBeep = (freq, delay, duration = 0.18) => {
+            const osc = ctx.createOscillator()
+            const gain = ctx.createGain()
+            osc.type = 'sine'
+            osc.frequency.value = freq
+            osc.connect(gain)
+            gain.connect(ctx.destination)
+            const start = ctx.currentTime + delay
+            gain.gain.setValueAtTime(0.0001, start)
+            gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02)
+            gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+            osc.start(start)
+            osc.stop(start + duration + 0.02)
+        }
+        playBeep(880, 0)
+        playBeep(660, 0.18)
+        setTimeout(() => { try { ctx.close() } catch {} }, 800)
+    } catch {}
+}
 
 /* ================= Bot History Modal ================= */
 const showBotHistoryModal = ref(false)
@@ -383,10 +409,20 @@ const onImgError = (e) => {
 const checkIncomingRequest = async () => {
     if (!user.value) return;
     try {
-        const data = await $fetch(apiUrl('consult-handler.php?action=check_pharma_request'), {
+        const data = await $fetch(apiUrl(`consult-handler.php?action=check_pharma_request&t=${Date.now()}`), {
             credentials: 'include'
         });
-        incomingRequest.value = data && data.id ? data : null;
+        const next = data && data.id && data.status === 'waiting' ? data : null;
+        const nextId = next ? Number(next.id) : 0;
+        if (nextId > 0 && nextId !== lastIncomingReqId) {
+            if (lastIncomingReqId > 0) {
+                playNotificationSound();
+                if (!activeDropdown.value) activeDropdown.value = 'notification';
+            }
+            lastIncomingReqId = nextId;
+        }
+        if (!next) lastIncomingReqId = 0;
+        incomingRequest.value = next;
     } catch (error) {
         console.error("Pharma Polling Error:", error);
     }

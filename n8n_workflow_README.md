@@ -1,69 +1,72 @@
-# n8n Workflow — AI วินิจฉัย 32 อาการบัตรทอง (ไฟล์เดียว)
+# n8n + Ollama — ใช้งาน local ฟรี (ไม่ใช้ Docker / ไม่ใช้ n8n Cloud)
 
-ใช้ **ไฟล์เดียว** `n8n_workflow_32_symptoms.json` — import แล้วใช้งานได้เลย
+## สิ่งที่ต้องมี
 
-## วิธีใช้ (3 ขั้นตอน)
+| โปรแกรม | วิธีติดตั้ง | พอร์ต |
+|---------|-------------|-------|
+| **Ollama** | https://ollama.com/download/windows | 11434 |
+| **Node.js** | มีอยู่แล้ว (รัน Nuxt) — n8n ใช้ Node 22 อัตโนมัติถ้าเครื่องเป็น v25 | — |
+| **n8n** | รันผ่าน `npx` อัตโนมัติ — **ไม่ต้องติดตั้ง Docker** | 5678 |
 
-### 1. Import workflow
-1. เปิด n8n ที่ `http://localhost:5678`
-2. **Workflows** → **Add Workflow** → **⋯** → **Import from File**
-3. เลือก `n8n_workflow_32_symptoms.json`
+## เริ่มใช้งาน (3 คำสั่ง)
 
-### 2. ตั้ง Credential (ครั้งเดียว)
+```powershell
+cd telebot_pharmacy
 
-**Ollama** (จำเป็น)
-- Credentials → Add → **Ollama**
-- Base URL: `http://localhost:11434` (n8n รันบนเครื่อง) หรือ `http://host.docker.internal:11434` (n8n ใน Docker)
-- Name: `Ollama (local)`
-- ต้องมี model: `gemma3:4b` และ `bge-m3:latest`
+# เปิดเว็บ + Ollama + n8n ในคำสั่งเดียว
+npm run dev
 
-**Qdrant** (สำหรับ RAG — ถ้ายังไม่มี Qdrant ให้รัน `docker run -d -p 6333:6333 qdrant/qdrant`)
-- Credentials → Add → **Qdrant**
-- URL: `http://localhost:6333` หรือ `http://qdrant:6333` (ใน Docker network)
-- API Key: เว้นว่าง
-- Name: `Qdrant (local)`
-
-จากนั้นกด node สีแดงใน workflow → เลือก credential ที่สร้าง
-
-### 3. Ingest train.json (ครั้งเดียว) + Activate
-
-**Ingest ข้อมูล train.json → Qdrant:**
-1. ใน workflow เดียวกัน มองลงด้านล่าง → node **"Ingest train.json (Run Once)"**
-2. แก้ node **Read train.json** ให้ชี้ไปที่ไฟล์ของคุณ เช่น `C:/Users/konku/Downloads/train (1).json`
-3. กด **Execute Workflow** (รอ 15–30 นาที)
-
-**เปิดใช้ chat:**
-- Toggle **Active** มุมขวาบน
-
-### Webhook URL (ใช้กับ Vue)
-```
-http://localhost:5678/webhook/1f5ea30f-2ff0-4d32-b211-eccb342ee0df/chat
+# ตรวจสุขภาพ AI (ถ้าต้องการ)
+npm run ai:check
 ```
 
-## โครงสร้างใน workflow เดียว
+> `npm run dev` จะเปิด Ollama + n8n ให้อัตโนมัติถ้ายังไม่รัน (ไม่ต้อง `npm run ai:start` แยก)
+> ถ้าไม่ต้องการ AI ให้ใช้ `npm run dev:nuxt`
+
+## ตั้งค่า n8n (ครั้งแรกเท่านั้น)
+
+1. เปิด **http://127.0.0.1:5678** → สมัคร account local (เก็บในเครื่อง ไม่ใช่ cloud)
+2. **Workflows** → **Import from File** → เลือก `n8n_workflow_telebot_chat.json`
+3. เปิด node **Ollama Chat Model** → Credentials → **Create new Ollama API**
+   - Base URL: `http://127.0.0.1:11434`
+   - Name: `Ollama (local)`
+4. กด **Save** แล้ว **Activate** (toggle มุมขวาบน — สีเขียว)
+
+## Webhook URL (ตรงกับเว็บ)
 
 ```
-[Chat Trigger] → [Preprocess] → [AI Agent] ← Ollama gemma3:4b
-                                      ↑ Memory (40)
-                                      ↑ Tool: medical_kb (Qdrant + bge-m3)
-
-[Ingest Run Once] → Read train.json → Parse → Split → Qdrant Insert
-                                                      ↑ bge-m3 embed
+http://127.0.0.1:5678/webhook/1f5ea30f-2ff0-4d32-b211-eccb342ee0df/chat
 ```
 
-## ฟีเจอร์ที่รวมไว้แล้ว
+เว็บ Nuxt เรียกผ่าน **`/api/ai-chat`** → proxy ไป URL ด้านบนอัตโนมัติ
 
-| ฟีเจอร์ | รายละเอียด |
-|---|---|
-| 32 อาการบัตรทอง | ซักประวัติ 3 ข้อใหญ่ + สรุป |
-| RAG train.json | tool `medical_kb` ค้น 16,000+ Q&A |
-| ไม่ถามซ้ำ | memory 40 ข้อความ + rule ใน prompt |
-| เพศไม่ตรงโรค | ชายถามเรื่องผู้หญิง → ถามแทน แม่/ภรรยา/น้องสาว |
-| คำถามแปลก | ค้น RAG ก่อน → ถ้าไม่มี แนะปรึกษาเภสัชกร |
-| Red Flags | หยุดถาม แจ้งฉุกเฉินทันที |
+## โครงสร้าง workflow
 
-## โน๊ตบุ๊คไม่แรง
+```
+[Chat Trigger] → [AI Agent — ผู้ช่วยซักประวัติ]
+                        ↑ Ollama gemma3:4b
+                        ↑ Window Buffer Memory (20)
+```
 
-- Ollama ใช้ GPU อัตโนมัติถ้ามี / CPU ถ้าไม่มี
-- ถ้า RAM ไม่พอ เปลี่ยน model เป็น `gemma3:1b` ใน node Ollama Chat Model
-- Qdrant ใช้ RAM ~100 MB
+- **ไม่ต้องใช้ Qdrant / Docker** สำหรับ workflow นี้
+- ถ้าต้องการ RAG 32 อาการแบบเต็ม → ใช้ `n8n_workflow_32_symptoms.json` (ต้องมี Qdrant)
+
+## โน้ตบุ๊ค RAM ไม่พอ
+
+- เปลี่ยน model ใน node **Ollama Chat Model** เป็น `gemma3:1b` หรือ `llama3.2:1b`
+- รัน `ollama pull gemma3:1b` ก่อน
+
+## ใช้ผ่าน ngrok / มือถือ
+
+1. `npm run dev` (port 3001)
+2. `ngrok http 192.168.x.x:3001`
+3. AI ยังทำงานได้ — Nuxt server คุยกับ n8n ที่ `127.0.0.1:5678` ในเครื่องเดียวกัน
+
+## แก้ปัญหา
+
+| อาการ | วิธีแก้ |
+|-------|---------|
+| AI ไม่ตอบ | รัน `npm run ai:check` — ต้อง Activate workflow |
+| Ollama offline | เปิดแอป Ollama จาก Start Menu |
+| n8n ไม่ขึ้น | Node 25 ไม่รองรับ — สคริปต์จะดาวน์โหลด Node 22 ไป `.tools/` อัตโนมัติ |
+| ช้ามาก | ครั้งแรก model โหลดเข้า RAM ใช้เวลา 30–90 วิ |

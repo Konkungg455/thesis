@@ -13,8 +13,7 @@ const isLoading = ref(false)
 const handleFetch = async () => {
   isLoading.value = true
   try {
-    const base = useNuxtApp().$getApiBase()
-    const res = await $fetch(`${base}/get-prescriptions.php`, { credentials: 'include' })
+    const res = await $fetch(useNuxtApp().$apiUrl('get-prescriptions.php'), { credentials: 'include' })
     historyData.value = res.status === 'success' ? res.data : []
   } catch (err) {
     console.error('Fetch error:', err)

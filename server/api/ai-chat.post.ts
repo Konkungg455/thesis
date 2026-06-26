@@ -1,7 +1,8 @@
 /**
  * Proxy ไป n8n webhook — เรียกจาก browser เป็น same-origin (/api/ai-chat)
- * แก้ปัญหา ngrok + Vite proxy /n8n ไม่เสถียร และ timeout สั้นเกิน (Ollama ช้า)
  */
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig();
     const webhookId =
@@ -27,39 +28,58 @@ export default defineEventHandler(async (event) => {
         });
     }
 
-    try {
-        const data = await $fetch<Record<string, unknown>>(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: { chatInput, sessionId, userName },
-            timeout: 180_000, // Ollama ครั้งแรกอาจใช้เวลานาน
-        });
+    const payload = { chatInput, sessionId, userName };
+    let lastErr: unknown;
 
-        // n8n chatTrigger คืน { output: "..." } — normalize ให้ frontend
-        if (typeof data === 'string') {
-            return { output: data };
-        }
-        if (data && typeof data === 'object' && 'output' in data) {
-            return data;
-        }
-        // บาง workflow คืน text ตรง ๆ
-        const text =
-            (data as { text?: string })?.text ||
-            (data as { message?: string })?.message ||
-            JSON.stringify(data);
-        return { output: text };
-    } catch (err: unknown) {
-        const e = err as { statusCode?: number; message?: string; data?: unknown };
-        console.error('[api/ai-chat] n8n failed:', url, e?.message || err);
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            const data = await $fetch<Record<string, unknown>>(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: payload,
+                timeout: 180_000,
+            });
 
-        throw createError({
-            statusCode: 502,
-            statusMessage:
-                'ไม่สามารถเชื่อมต่อ AI ได้ — ตรวจว่า n8n เปิดอยู่และ workflow ถูก Activate',
-            data: {
-                detail: e?.message || String(err),
-                n8nUrl: url,
-            },
-        });
+            if (typeof data === 'string') {
+                return { output: data };
+            }
+            if (data && typeof data === 'object' && 'output' in data) {
+                return data;
+            }
+            const text =
+                (data as { text?: string })?.text ||
+                (data as { message?: string })?.message ||
+                JSON.stringify(data);
+            return { output: text };
+        } catch (err: unknown) {
+            lastErr = err;
+            const e = err as { statusCode?: number; message?: string };
+            const is404 =
+                e?.statusCode === 404 ||
+                String(e?.message || '').includes('404');
+            if (is404 && attempt < 2) {
+                await sleep(2000);
+                continue;
+            }
+            break;
+        }
     }
+
+    const e = lastErr as { statusCode?: number; message?: string };
+    console.error('[api/ai-chat] n8n failed:', url, e?.message || lastErr);
+
+    const is404 =
+        e?.statusCode === 404 || String(e?.message || '').includes('404');
+    const hint = is404
+        ? 'workflow ยังไม่ Activate — รัน npm run dev ใหม่ (สคริปต์จะ import + activate ให้อัตโนมัติ)'
+        : 'ตรวจว่า n8n เปิดอยู่และ Ollama ทำงาน';
+
+    throw createError({
+        statusCode: 502,
+        statusMessage: `ไม่สามารถเชื่อมต่อ AI ได้ — ${hint}`,
+        data: {
+            detail: e?.message || String(lastErr),
+            n8nUrl: url,
+        },
+    });
 });

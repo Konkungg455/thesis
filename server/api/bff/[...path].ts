@@ -1,0 +1,23 @@
+export default defineEventHandler(async (event) => {
+    const pathParam = getRouterParam(event, 'path');
+    const pathname = Array.isArray(pathParam) ? pathParam.join('/') : (pathParam || '');
+
+    if (!isMediaPath(pathname)) {
+        setResponseHeader(event, 'Content-Type', 'application/json; charset=utf-8');
+    }
+
+    if (event.method === 'OPTIONS') {
+        return '';
+    }
+
+    try {
+        return await dispatchBff(event, pathname);
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('[api/bff]', pathname, message);
+        return {
+            status: 'error',
+            message: message || 'เกิดข้อผิดพลาด',
+        };
+    }
+});

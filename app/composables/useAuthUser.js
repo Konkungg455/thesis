@@ -80,6 +80,55 @@ export function useAuthUser() {
 
     const syncFromServer = async () => {
         loadFromStorage();
+
+        const config = useRuntimeConfig();
+        const useBff = Boolean(String(config.public.supabaseUrl || '').trim())
+            && config.public.useSupabaseBackend !== false;
+
+        if (useBff && user.value) {
+            try {
+                const u = user.value;
+                const query = {};
+                if (u.id_account) {
+                    query.id_account = u.id_account;
+                    query.username = u.username || u.username_account;
+                    query.role = u.role || u.role_account;
+                    query.image = u.image;
+                }
+                if (u.id_pharma) {
+                    query.id_pharma = u.id_pharma;
+                    query.username = u.username || u.username_pharma;
+                    query.image = u.image;
+                }
+                if (u.id_store_accounts || u.store_id) {
+                    query.id_store_accounts = u.id_store_accounts || u.store_id;
+                    query.username = u.username || u.firstname;
+                    query.image = u.image;
+                }
+                if (u.id_account_admin) {
+                    query.id_account_admin = u.id_account_admin;
+                    query.username = u.username || u.username_account;
+                    query.image = u.image;
+                }
+
+                const response = await $fetch(apiUrl('get-user-session.php'), { query });
+                if (response.authenticated && response.user) {
+                    const parsed = { ...response.user };
+                    if (parsed.role === 'member') parsed.role = 'user';
+                    persistUser(parsed);
+                    return true;
+                }
+                if (response?.status === 'deleted') {
+                    clearUser();
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                console.warn('syncFromServer (bff) failed, using cached user:', err);
+                return true;
+            }
+        }
+
         try {
             const response = await $fetch(apiUrl('get-user-session.php'), {
                 credentials: 'include',

@@ -125,7 +125,7 @@ const genderLabel = (g) => {
 const approvePharma = async (p) => {
     if (!confirm(`อนุมัติเภสัชกร ${p.fullname} ให้เข้าทำงานในร้านนี้ใช่หรือไม่?`)) return
     try {
-        const data = await $fetch(`${apiBase.value}/approve-pharmacist.php`, {
+        const data = await $fetch(apiUrl('approve-pharmacist.php'), {
             method: 'POST',
             body: { id_pharma: p.id_pharma, store_id: storeId.value },
             credentials: 'include'
@@ -165,7 +165,7 @@ const invitePharma = async (p) => {
 const rejectPharma = async (p) => {
     if (!confirm(`ปฏิเสธคำขอของเภสัชกร ${p.fullname} ใช่หรือไม่?`)) return
     try {
-        const data = await $fetch(`${apiBase.value}/reject-pharmacist.php`, {
+        const data = await $fetch(apiUrl('reject-pharmacist.php'), {
             method: 'POST',
             body: { id_pharma: p.id_pharma, store_id: storeId.value },
             credentials: 'include'
@@ -194,14 +194,14 @@ const loadStatement = async () => {
     isLoadingStmt.value = true
     try {
         const [stmt, slipsData] = await Promise.all([
-            $fetch(`${apiBase.value}/get-store-statement.php`, {
+            $fetch(apiUrl('get-store-statement.php'), {
                 params: { store_id: storeId.value, period: statementPeriod.value, t: Date.now() },
-                credentials: 'include'
+                credentials: 'include',
             }),
-            $fetch(`${apiBase.value}/get-store-billing-slips.php`, {
+            $fetch(apiUrl('get-store-billing-slips.php'), {
                 params: { store_id: storeId.value, t: Date.now() },
-                credentials: 'include'
-            })
+                credentials: 'include',
+            }),
         ])
         if (stmt?.status === 'success') {
             incomeTotal.value = stmt.income_total || 0
@@ -236,7 +236,7 @@ const reviewSlip = async (slip, action) => {
     const label = action === 'approve' ? 'อนุมัติ' : 'ปฏิเสธ'
     if (!confirm(`${label}สลิปจาก ${slip.pharmacist_name} จำนวน ฿ ${formatMoney(slip.amount)} ใช่หรือไม่?`)) return
     try {
-        const data = await $fetch(`${apiBase.value}/review-billing-slip.php`, {
+        const data = await $fetch(apiUrl('review-billing-slip.php'), {
             method: 'POST',
             body: { id: slip.id, store_id: storeId.value, action },
             credentials: 'include'

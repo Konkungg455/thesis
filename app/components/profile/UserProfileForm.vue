@@ -1,5 +1,6 @@
 <script setup>
 const { apiUrl, imagesAccount, apiBase } = useApiBase();
+const { user } = useAuthUser();
 const router = useRouter();
 
 const loading = ref(true);
@@ -32,10 +33,11 @@ const genderLabel = computed(() => {
 const fetchAddress = async () => {
     isLoadingAddress.value = true;
     try {
-        const res = await $fetch(`${apiBase.value}/vue-get-account-address.php`, {
+        const idAccount = profile.value?.id_account || user.value?.id_account || user.value?.id || 0;
+        const res = await $fetch(apiUrl('vue-get-account-address.php'), {
             method: 'POST',
             credentials: 'include',
-            body: {}
+            body: idAccount ? { id_account: idAccount } : {},
         });
         addressData.value = (res?.status === 'success' && res.has_address) ? res.address : null;
     } catch (err) {
@@ -148,9 +150,9 @@ const submit = async () => {
     }
 };
 
-onMounted(() => {
-    loadProfile();
-    fetchAddress();
+onMounted(async () => {
+    await loadProfile();
+    await fetchAddress();
 });
 </script>
 

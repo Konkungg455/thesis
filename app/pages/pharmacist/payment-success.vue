@@ -1,11 +1,13 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useApiBase } from '~/composables/useApiBase';
 
 definePageMeta({ middleware: 'user-only' });
 
 const route = useRoute();
 const router = useRouter();
+const { apiUrl } = useApiBase();
 
 const countdown = ref(5); // ปรับลดเหลือ 5 วินาทีเพื่อให้ทันใจ
 let timer = null;
@@ -28,7 +30,7 @@ const createRequestAndGoHome = async () => {
     body.append('delivery_prepaid', route.query.delivery_prepaid === 'true' ? '1' : '0');
     
     try {
-        const res = await $fetch(`${useNuxtApp().$getApiBase()}/consult-handler.php?action=create_request`, {
+        const res = await $fetch(apiUrl('consult-handler.php?action=create_request'), {
             method: 'POST',
             body,
             credentials: 'include' 

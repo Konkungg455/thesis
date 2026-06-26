@@ -42,48 +42,17 @@
                     <div v-if="activeDropdown === 'notif'" class="dropdown-menu notif-dropdown shadow">
                         <div class="notif-header">การแจ้งเตือน</div>
 
-                        <div v-if="!consultStatus" class="no-notif">ไม่มีการแจ้งเตือนใหม่</div>
+                        <div v-if="!pendingPharmacists.length" class="no-notif">ไม่มีการแจ้งเตือนใหม่</div>
 
                         <div v-else class="notif-body">
-                            <div v-if="consultStatus.status === 'waiting'" class="notif-item">
-                                <div class="notif-icon-box waiting"><i class="fa-solid fa-hourglass-half"></i></div>
+                            <div v-for="p in pendingPharmacists" :key="'pending-' + p.id_pharma" class="notif-item">
+                                <div class="notif-icon-box waiting"><i class="fa-solid fa-user-doctor"></i></div>
                                 <div class="notif-text">
-                                    <strong>กำลังดำเนินการ</strong>
-                                    <p>กรุณารอคุณเภสัชตอบกลับคำปรึกษาของคุณ</p>
-                                </div>
-                            </div>
-
-                            <div v-else-if="consultStatus.status === 'accepted'" class="notif-item">
-                                <div class="notif-icon-box accepted"><i class="fa-solid fa-circle-check"></i></div>
-                                <div class="notif-text">
-                                    <strong>ตอบรับแล้ว</strong>
-                                    <p>ภก. {{ consultStatus.pharma_name }} ตอบรับคำปรึกษาแล้ว</p>
-                                    <button @click="navigateTo({
-                                        path: '/user/chat',
-                                        query: { id: consultStatus.id_pharma }
-                                    })" class="btn-go-chat">
-                                        ไปที่ห้องแชท
+                                    <strong>คำขอเข้าร้านใหม่</strong>
+                                    <p>ภก. {{ p.fullname || p.username }} ขอเข้าร่วมร้านของคุณ</p>
+                                    <button @click="navigateTo('/shop/shop_detail'); closeAll()" class="btn-go-chat">
+                                        ไปอนุมัติ/ปฏิเสธ
                                     </button>
-                                </div>
-                            </div>
-
-                            <div v-else-if="consultStatus.status === 'completed'" class="notif-item">
-                                <div class="notif-icon-box accepted"><i class="fa-solid fa-clipboard-check"></i></div>
-                                <div class="notif-text">
-                                    <strong>จบการปรึกษาแล้ว</strong>
-                                    <p>ครบเวลา 15 นาที กรุณาประเมินผลการให้คำปรึกษาเภสัชกร</p>
-                                    <button @click="navigateTo('/review_write'); closeAll()" class="btn-go-chat">
-                                        <i class="fa-solid fa-user-doctor"></i> ไปหน้าประเมินเภสัช
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div v-else-if="consultStatus.status === 'rejected'" class="notif-item">
-                                <div class="notif-icon-box rejected"><i class="fa-solid fa-circle-xmark"></i></div>
-                                <div class="notif-text">
-                                    <strong>ถูกปฏิเสธ</strong>
-                                    <p>ขออภัย เภสัชกรไม่สะดวกในขณะนี้ กรุณาติดต่อคนใหม่</p>
-                                    <button @click="navigateTo('/user/phamacy')" class="btn-retry">เลือกเภสัชกรใหม่</button>
                                 </div>
                             </div>
                         </div>
@@ -166,13 +135,37 @@ const mobileOpen = ref(false)
 const activeDropdown = ref(null)
 const theme = ref("LIGHT")
 
-/* ================= Notification State (เพิ่มใหม่) ================= */
-const consultStatus = ref(null)
+/* ================= Notification State (ร้านยา) ================= */
+const pendingPharmacists = ref([])
 let pollTimer = null
+let lastPendingCount = 0
 
-const hasAlert = computed(() =>
-    !!consultStatus.value && ['waiting', 'accepted', 'completed'].includes(consultStatus.value.status)
-)
+const hasAlert = computed(() => pendingPharmacists.value.length > 0)
+
+const playNotificationSound = () => {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext
+        if (!AudioCtx) return
+        const ctx = new AudioCtx()
+        const playBeep = (freq, delay, duration = 0.18) => {
+            const osc = ctx.createOscillator()
+            const gain = ctx.createGain()
+            osc.type = 'sine'
+            osc.frequency.value = freq
+            osc.connect(gain)
+            gain.connect(ctx.destination)
+            const start = ctx.currentTime + delay
+            gain.gain.setValueAtTime(0.0001, start)
+            gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02)
+            gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
+            osc.start(start)
+            osc.stop(start + duration + 0.02)
+        }
+        playBeep(880, 0)
+        playBeep(660, 0.18)
+        setTimeout(() => { try { ctx.close() } catch {} }, 800)
+    } catch {}
+}
 
 /* ================= Refs ================= */
 const langRef = ref(null)
@@ -187,36 +180,32 @@ const onImgError = (e) => {
 
 /* ================= Functions ================= */
 
-// ฟังก์ชันเช็คสถานะจากเภสัชกร (ฉบับแก้ปัญหา Session Empty)
-const checkConsultStatus = async () => {
+const checkStoreNotifications = async () => {
     if (!user.value) return;
 
     try {
-        // 🚩 1. ดึง ID จริงๆ ออกมาจากตัวแปร user (เช็คว่าใน user.value ของนายใช้ id หรือ id_account)
-        const userId = user.value.id_account || user.value.id;
-
-        // 🚩 2. ส่ง u_id แนบไปใน URL เลย (ใช้เครื่องหมาย Backtick ` อยู่ใต้ปุ่ม Esc)
-        // การส่ง &u_id=${userId} จะทำให้ PHP รู้ทันทีว่าเป็นใครโดยไม่ต้องพึ่ง Session
-        const data = await $fetch(apiUrl(`consult-handler.php?action=check_user_status&u_id=${userId}&t=${Date.now()}`), {
+        const data = await $fetch(apiUrl(`get-store-pharmacists.php?t=${Date.now()}`), {
             credentials: 'include'
         });
 
-        console.log("ผลลัพธ์จาก PHP:", data); // 🚩 ดูใน Console (F12)
+        const pending = Array.isArray(data?.pending) ? data.pending : [];
+        pendingPharmacists.value = pending;
 
-        if (data && data.id && data.status !== 'none') {
-            consultStatus.value = data;
-        } else {
-            consultStatus.value = null;
+        const count = pending.length;
+        if (count > lastPendingCount && lastPendingCount > 0) {
+            playNotificationSound();
+            if (!activeDropdown.value) activeDropdown.value = 'notif';
         }
+        lastPendingCount = count;
     } catch (error) {
-        console.error("Notification Polling Error:", error);
+        console.error("Store Notification Polling Error:", error);
     }
 }
 
 const checkUserStatus = async () => {
     await syncFromServer()
     if (user.value) {
-        checkConsultStatus()
+        checkStoreNotifications()
     }
 }
 
@@ -288,7 +277,7 @@ onMounted(() => {
     checkUserStatus()
 
     // ตั้งเวลา Polling เช็คสถานะกระดิ่งทุก 5 วินาที
-    pollTimer = setInterval(checkConsultStatus, 5000);
+    pollTimer = setInterval(checkStoreNotifications, 5000);
 })
 
 onBeforeUnmount(() => {

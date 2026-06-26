@@ -13,6 +13,16 @@ import '@/assets/chat-history-page.css';
 
 const route = useRoute();
 const router = useRouter();
+const {
+    getHistory,
+    getDetail,
+    saveMessage: saveChatMessage,
+    deleteSession: deleteChatSession,
+    deleteMessage: deleteChatMessage,
+    readGuestSessions,
+    rememberGuestSession,
+    GUEST_SESSIONS_KEY,
+} = useChatApi();
 
 const queryParam = (key) => {
     const v = route.query[key];
@@ -68,38 +78,11 @@ const symptomName = ref("");
 const sessionList = ref([]);          // [{session_id, symptom_name, message_count, last_at, first_message, round_no, round_total}]
 const isLoadingSessions = ref(false);
 const deletingSession = ref('');
-const GUEST_SESSIONS_KEY = 'telebot_guest_sessions';
-
-// guest mode: เก็บ session_id ที่ตัวเองสร้างไว้ใน localStorage
-const readGuestSessions = () => {
-    if (!import.meta.client) return [];
-    try {
-        const raw = localStorage.getItem(GUEST_SESSIONS_KEY) || '[]';
-        const arr = JSON.parse(raw);
-        return Array.isArray(arr) ? arr.filter(s => typeof s === 'string' && s.length > 0) : [];
-    } catch { return []; }
-};
-const rememberGuestSession = (sid) => {
-    if (!import.meta.client || !sid) return;
-    try {
-        const list = readGuestSessions();
-        if (!list.includes(sid)) {
-            list.unshift(sid);
-            localStorage.setItem(GUEST_SESSIONS_KEY, JSON.stringify(list.slice(0, 200)));
-        }
-    } catch {}
-};
-
 const loadSessionList = async () => {
     isLoadingSessions.value = true;
     try {
-        let url = `${useNuxtApp().$getApiBase()}/get-chat-history.php`;
-        if (import.meta.client && !userProfile.value) {
-            // guest: ส่งรายการ session_id ของตัวเอง
-            const ids = readGuestSessions();
-            if (ids.length > 0) url += `?sessions=${encodeURIComponent(ids.join(','))}`;
-        }
-        const res = await $fetch(url, { credentials: 'include' });
+        const ids = import.meta.client && !userProfile.value ? readGuestSessions() : undefined;
+        const res = await getHistory(ids);
         if (res?.status === 'success' && Array.isArray(res.data)) {
             sessionList.value = res.data;
         }
@@ -162,12 +145,7 @@ const deleteMessage = async (msg, idx, ev) => {
     if (msg.id) {
         deletingMessageId.value = msg.id;
         try {
-            const fd = new FormData();
-            fd.append('message_id', String(msg.id));
-            if (sessionId.value) fd.append('session_id', sessionId.value);
-            const res = await $fetch(`${useNuxtApp().$getApiBase()}/delete-chat-message.php`, {
-                method: 'POST', body: fd, credentials: 'include'
-            });
+            const res = await deleteChatMessage(msg.id, sessionId.value);
             if (res?.status !== 'success') {
                 alert(res?.message || 'ลบไม่สำเร็จ');
                 return;
@@ -195,11 +173,7 @@ const deleteSession = async (item, ev) => {
     if (!confirm(`ลบประวัติแชท "${label}" ออกจากหน้าจอหรือไม่?\nข้อมูลจริงจะถูก freeze เก็บไว้ในฐานข้อมูล`)) return;
     deletingSession.value = item.session_id;
     try {
-        const fd = new FormData();
-        fd.append('session_id', item.session_id);
-        const res = await $fetch(`${useNuxtApp().$getApiBase()}/delete-chat-session.php`, {
-            method: 'POST', body: fd, credentials: 'include'
-        });
+        const res = await deleteChatSession(item.session_id);
         if (res?.status === 'success') {
             // ลบจาก localStorage guest list ด้วย
             if (import.meta.client) {
@@ -441,11 +415,8 @@ const saveMessageToDB = async (role, message, extra = {}) => {
             });
         }
 
-        await $fetch(`${useNuxtApp().$getApiBase()}/save-chat.php`, {
-            method: 'POST',
-            credentials: 'include',
-            body,
-        });
+        rememberGuestSession(sessionId.value);
+        await saveChatMessage(body);
     } catch (err) {
         console.error("Failed to save chat:", err);
     }
@@ -459,9 +430,7 @@ const saveMessageToDB = async (role, message, extra = {}) => {
 const loadChatHistory = async (sid) => {
     isLoading.value = true;
     try {
-        const res = await $fetch(`${useNuxtApp().$getApiBase()}/get-chat-detail.php?session_id=${sid}`, {
-            credentials: 'include'
-        });
+        const res = await getDetail(sid);
 
         if (res?.status === 'success' && Array.isArray(res.data) && res.data.length > 0) {
             symptomName.value = res.symptom_name || symptomName.value || 'ทั่วไป';

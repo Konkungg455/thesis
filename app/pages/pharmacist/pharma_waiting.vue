@@ -7,7 +7,7 @@ definePageMeta({ middleware: 'user-only' });
 
 const route = useRoute();
 const router = useRouter();
-const { imagesPharma } = useApiBase();
+const { imagesPharma, apiUrl } = useApiBase();
 const defaultAvatar = imagesPharma('default.png');
 
 const isCreating = ref(true); 
@@ -54,7 +54,7 @@ const initRequest = async () => {
     }
     
     try {
-        const res = await $fetch(`${useNuxtApp().$getApiBase()}/consult-handler.php?action=create_request`, {
+        const res = await $fetch(apiUrl('consult-handler.php?action=create_request'), {
             method: 'POST',
             body,
             credentials: 'include' 
@@ -78,7 +78,7 @@ const initRequest = async () => {
 const startPolling = () => {
     pollTimer = setInterval(async () => {
         try {
-            const data = await $fetch(`${useNuxtApp().$getApiBase()}/consult-handler.php?action=check_user_status`, {
+            const data = await $fetch(apiUrl('consult-handler.php?action=check_user_status'), {
                 credentials: 'include'
             });
 
@@ -131,7 +131,7 @@ const handleTimeoutExpired = async () => {
     try {
         const fd = new FormData();
         fd.append('status', 'cancelled');
-        await $fetch(`${useNuxtApp().$getApiBase()}/consult-handler.php?action=cancel_user_waiting`, {
+        await $fetch(apiUrl('consult-handler.php?action=cancel_user_waiting'), {
             method: 'POST', body: fd, credentials: 'include'
         }).catch(() => {});
     } catch {}

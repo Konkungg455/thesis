@@ -32,6 +32,7 @@ const goToPharmacist = () => {
 }
 
 const { apiUrl } = useApiBase();
+const { saveMessage: saveChatMessage, rememberGuestSession } = useChatApi();
 
 /* ================= Sidebar mobile drawer ================= */
 const isSidebarOpen = ref(false);
@@ -137,7 +138,7 @@ const displayTitle = computed(() => {
     return 'ปรึกษาเภสัชกร AI';
 });
 
-/* ================= ฟังก์ชันบันทึกลงฐานข้อมูล (MySQL ผ่าน PHP) ================= */
+/* ================= ฟังก์ชันบันทึกลง Supabase (ผ่าน Nuxt API — ไม่ต้องเปิด XAMPP) ================= */
 const saveMessageToDB = async (role, message, extra = {}) => {
     try {
         const body = {
@@ -154,11 +155,8 @@ const saveMessageToDB = async (role, message, extra = {}) => {
                 isReview: !!extra.isReview,
             });
         }
-        await $fetch(`${useNuxtApp().$getApiBase()}/save-chat.php`, {
-            method: 'POST',
-            credentials: 'include',
-            body,
-        });
+        rememberGuestSession(sessionId.value);
+        await saveChatMessage(body);
     } catch (err) {
         console.error("Failed to save chat history:", err);
     }

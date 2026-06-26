@@ -272,11 +272,12 @@ const chatScroll = ref(null);
 const fileInput = ref(null);
 let mainTimer = null;
 let consultCountdownTimer = null;
+let consultCountdownStarting = false;
 
 const CONSULT_DURATION_SECONDS = 15 * 60;
 const TRACKING_DURATION_SECONDS = 3 * 24 * 60 * 60; // 3 วัน สำหรับโหมดติดตามอาการ
 const WARNING_SECONDS = [180, 60];
-const consultTimeLeftText = ref('15:00');
+const consultTimeLeftText = ref('--:--');
 const warnedAt = ref(new Set());
 const showEndConsultFab = ref(false);
 const END_CONSULT_SHOW_SECONDS = 180;
@@ -291,9 +292,12 @@ let consultInfoPollTimer = null;
 // ===== นาฬิกาให้คำปรึกษา (15 นาที) แบบ "กลาง" จาก server =====
 //   - เวลาก้อนเดียวกับฝั่งผู้ใช้ → เห็นตรงกัน (เวลาตามคนที่เหลือน้อยกว่าเสมอ)
 //   - เดินเฉพาะตอนมีคน "เปิดหน้าจอแชทอยู่" อย่างน้อย 1 ฝ่าย (heartbeat)
-const serverRemaining = ref(CONSULT_DURATION_SECONDS);
+const serverRemaining = ref(0);
 const lastSyncAt = ref(0);
+const frozenSecondsLeft = ref(null);
+const timerResyncing = ref(false);
 const activeRequestId = ref(0);
+const timerRequestId = ref(0);
 const activeServiceCode = ref(''); // SRV-xxx ของรอบที่กำลังดู (จาก /tracking หรือ URL)
 
 const resolveViewConsultId = () => {
@@ -325,16 +329,122 @@ const buildChatGetUrl = () => {
 
 let chatTimerHeartbeat = null;
 
+const formatTimer = (seconds) => {
+    const safeSeconds = Math.max(0, Number(seconds) || 0);
+    const m = String(Math.floor(safeSeconds / 60)).padStart(2, '0');
+    const s = String(safeSeconds % 60).padStart(2, '0');
+    return `${m}:${s}`;
+};
+
+const getTimerStorageKey = () => `consult-pharma-${activePatientId.value || 'default'}-deadline`;
+
+const saveTimerCache = (overrideRemaining) => {
+    if (!import.meta.client || !activePatientId.value) return;
+    let remaining = overrideRemaining;
+    if (remaining == null) {
+        if (lastSyncAt.value) {
+            const drift = Math.floor((Date.now() - lastSyncAt.value) / 1000);
+            remaining = Math.max(0, serverRemaining.value - drift);
+        } else {
+            remaining = serverRemaining.value;
+        }
+    }
+    try {
+        sessionStorage.setItem(getTimerStorageKey(), JSON.stringify({
+            remaining,
+            syncedAt: Date.now(),
+            requestId: timerRequestId.value,
+        }));
+    } catch { /* ignore */ }
+};
+
+const restoreTimerCache = () => {
+    if (!import.meta.client || !activePatientId.value || !timerRequestId.value) return;
+    try {
+        const raw = sessionStorage.getItem(getTimerStorageKey());
+        if (!raw) return;
+        const cached = JSON.parse(raw);
+        if (Number(cached?.requestId) !== Number(timerRequestId.value)) return;
+        serverRemaining.value = Math.max(0, Number(cached.remaining) || 0);
+        lastSyncAt.value = Date.now();
+        consultTimeLeftText.value = formatTimer(serverRemaining.value);
+    } catch { /* ignore */ }
+};
+
+const getInterpolatedSecondsLeft = () => {
+    if (!lastSyncAt.value) return frozenSecondsLeft.value;
+    const drift = Math.floor((Date.now() - lastSyncAt.value) / 1000);
+    return Math.max(0, serverRemaining.value - drift);
+};
+
+const persistTimerBeforeLeave = () => {
+    if (!import.meta.client || !activePatientId.value || !timerRequestId.value) return;
+    if (isTrackingMode.value || isTrackingEnded.value) return;
+    const sec = getInterpolatedSecondsLeft();
+    if (sec == null || sec <= 0) return;
+    saveTimerCache(sec);
+};
+
+const freezeTimerOnTabHide = () => {
+    if (isTrackingMode.value || isTrackingEnded.value) return;
+    const sec = getInterpolatedSecondsLeft();
+    if (sec == null) return;
+    frozenSecondsLeft.value = sec;
+    saveTimerCache(sec);
+    lastSyncAt.value = 0;
+};
+
+const applyChatTimerSync = (serverSec, { reset = false } = {}) => {
+    const sec = Math.max(0, Number(serverSec) || 0);
+    if (reset) {
+        serverRemaining.value = sec;
+        lastSyncAt.value = Date.now();
+        saveTimerCache();
+        return;
+    }
+    if (!lastSyncAt.value) {
+        let anchorSec = frozenSecondsLeft.value;
+        if (anchorSec == null && timerRequestId.value) {
+            try {
+                const raw = sessionStorage.getItem(getTimerStorageKey());
+                if (raw) {
+                    const cached = JSON.parse(raw);
+                    if (Number(cached?.requestId) === Number(timerRequestId.value)) {
+                        anchorSec = Math.max(0, Number(cached.remaining) || 0);
+                    }
+                }
+            } catch { /* ignore */ }
+        }
+        if (anchorSec != null && anchorSec > 0 && sec > anchorSec + 2) {
+            serverRemaining.value = anchorSec;
+        } else {
+            serverRemaining.value = sec;
+        }
+        lastSyncAt.value = Date.now();
+        saveTimerCache();
+        return;
+    }
+    const drift = Math.floor((Date.now() - lastSyncAt.value) / 1000);
+    const clientSec = Math.max(0, serverRemaining.value - drift);
+    // กัน server ตอบค่าเก่า (เช่น 900) ขณะ client นับลงไปแล้ว → ไม่ให้เวลากระโดดกลับ 15:00
+    if (sec <= clientSec + 2) {
+        serverRemaining.value = sec;
+        lastSyncAt.value = Date.now();
+        saveTimerCache();
+    }
+};
+
 const syncChatTimer = async ({ reset = false } = {}) => {
     if (!import.meta.client) return;
     if (!activePatientId.value) return;
-    if (isTrackingMode.value) return;           // โหมดติดตาม 3 วัน ไม่ใช้ timer กลาง
+    if (isTrackingMode.value) return;
+    if (!reset && !timerRequestId.value) return;
     // ส่ง heartbeat เฉพาะตอน "เปิดหน้าจออยู่จริง" — ถ้าแท็บถูกซ่อน = ถือว่าไม่อยู่ เวลาหยุด
     if (!reset && typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
     try {
         const body = new FormData();
         body.append('target_id', activePatientId.value);
-        body.append('request_id', activeRequestId.value || 0);
+        body.append('request_id', timerRequestId.value || 0);
         if (reset) body.append('reset', '1');
         const data = await $fetch(apiUrl('chat-timer.php'), {
             method: 'POST',
@@ -342,8 +452,7 @@ const syncChatTimer = async ({ reset = false } = {}) => {
             credentials: 'include'
         });
         if (data?.status === 'success') {
-            serverRemaining.value = Math.max(0, Number(data.remaining_seconds) || 0);
-            lastSyncAt.value = Date.now();
+            applyChatTimerSync(data.remaining_seconds, { reset });
             if (data.ended) handleConsultTimeout();
         }
     } catch (err) {
@@ -351,10 +460,52 @@ const syncChatTimer = async ({ reset = false } = {}) => {
     }
 };
 
-const onChatVisibilityChange = () => {
-    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        syncChatTimer();
+const pauseChatTimerForBackground = () => {
+    freezeTimerOnTabHide();
+    persistTimerBeforeLeave();
+};
+
+const resumeChatTimerFromBackground = () => {
+    if (typeof document === 'undefined' || document.visibilityState !== 'visible') return;
+    if (isTrackingMode.value || isTrackingEnded.value) return;
+    if (timerResyncing.value) return;
+
+    if (frozenSecondsLeft.value != null) {
+        serverRemaining.value = frozenSecondsLeft.value;
+        lastSyncAt.value = Date.now();
+    } else if (timerRequestId.value) {
+        restoreTimerCache();
     }
+
+    timerResyncing.value = true;
+    syncChatTimer().finally(() => {
+        timerResyncing.value = false;
+        if (lastSyncAt.value) frozenSecondsLeft.value = null;
+        tickConsultCountdown();
+    });
+};
+
+const onChatVisibilityChange = () => {
+    if (typeof document === 'undefined') return;
+    if (document.visibilityState === 'hidden') {
+        pauseChatTimerForBackground();
+        return;
+    }
+    resumeChatTimerFromBackground();
+};
+
+const bindChatTimerPageLifecycle = () => {
+    if (typeof document === 'undefined') return;
+    document.addEventListener('visibilitychange', onChatVisibilityChange);
+    window.addEventListener('pagehide', pauseChatTimerForBackground);
+    window.addEventListener('pageshow', resumeChatTimerFromBackground);
+};
+
+const unbindChatTimerPageLifecycle = () => {
+    if (typeof document === 'undefined') return;
+    document.removeEventListener('visibilitychange', onChatVisibilityChange);
+    window.removeEventListener('pagehide', pauseChatTimerForBackground);
+    window.removeEventListener('pageshow', resumeChatTimerFromBackground);
 };
 
 // ===== chatMessagesWithDivider =====
@@ -384,15 +535,6 @@ const chatMessagesWithDivider = computed(() => {
     }
     return out;
 });
-
-const getTimerStorageKey = () => `consult-pharma-${activePatientId.value || 'default'}-deadline`;
-
-const formatTimer = (seconds) => {
-    const safeSeconds = Math.max(0, Number(seconds) || 0);
-    const m = String(Math.floor(safeSeconds / 60)).padStart(2, '0');
-    const s = String(safeSeconds % 60).padStart(2, '0');
-    return `${m}:${s}`;
-};
 
 const handleConsultTimeout = () => {
     showEndConsultFab.value = true;
@@ -439,12 +581,21 @@ const tickConsultCountdown = () => {
     // โหมดให้คำปรึกษาปกติ 15 นาที — ใช้เวลาจาก server timer กลาง
     if (!import.meta.client) return;
 
-    let secondsLeft = serverRemaining.value;
-    // interpolate ให้เลขนับลื่น ๆ เฉพาะตอนเรา "เปิดหน้าจออยู่" (กำลังส่ง heartbeat = เวลากำลังเดิน)
-    if (document.visibilityState === 'visible' && lastSyncAt.value) {
-        const drift = Math.floor((Date.now() - lastSyncAt.value) / 1000);
-        secondsLeft = Math.max(0, serverRemaining.value - drift);
+    if (timerResyncing.value || document.visibilityState !== 'visible') {
+        if (frozenSecondsLeft.value != null) {
+            consultTimeLeftText.value = formatTimer(frozenSecondsLeft.value);
+        }
+        return;
     }
+
+    if (!lastSyncAt.value) {
+        consultTimeLeftText.value = '--:--';
+        return;
+    }
+
+    let secondsLeft = serverRemaining.value;
+    const drift = Math.floor((Date.now() - lastSyncAt.value) / 1000);
+    secondsLeft = Math.max(0, serverRemaining.value - drift);
     consultTimeLeftText.value = formatTimer(secondsLeft);
 
     if (secondsLeft <= END_CONSULT_SHOW_SECONDS) {
@@ -495,6 +646,12 @@ const fetchActiveConsultInfo = async () => {
         const pinnedSrv = String(route.query.srv || '').trim();
         if (!(pinnedCid > 0 || pinnedSrv)) {
             activeRequestId.value = Number(data.id) || 0;
+        }
+        if (String(data.status) === 'accepted') {
+            const liveId = Number(data.id) || 0;
+            if (liveId > 0) {
+                timerRequestId.value = liveId;
+            }
         }
         // โหมดติดตามอาการ:
         //  - follow-up เดิม: consult ยัง accepted + is_followup=1
@@ -630,8 +787,10 @@ const closeEndResult = () => {
     showEndResultModal.value = false;
 };
 
-const startConsultCountdown = () => {
+const startConsultCountdown = async ({ force = false } = {}) => {
     if (!import.meta.client) return;
+    if (consultCountdownStarting) return;
+    if (!force && consultCountdownTimer) return;
 
     if (!activePatientId.value) {
         consultTimeLeftText.value = '--:--';
@@ -639,13 +798,39 @@ const startConsultCountdown = () => {
         return;
     }
 
-    clearConsultCountdown();
-    warnedAt.value = new Set();
+    if (isTrackingEnded.value) {
+        consultTimeLeftText.value = 'สิ้นสุดการติดตามอาการแล้ว';
+        clearConsultCountdown();
+        return;
+    }
 
-    // ดึงเวลาเริ่มต้นจาก server timer กลาง แล้วเดินนาฬิกาในเครื่องแบบลื่น ๆ
-    syncChatTimer();
-    tickConsultCountdown();
-    consultCountdownTimer = setInterval(tickConsultCountdown, 1000);
+    if (isTrackingMode.value) {
+        clearConsultCountdown();
+        tickConsultCountdown();
+        consultCountdownTimer = setInterval(tickConsultCountdown, 1000);
+        return;
+    }
+
+    if (!timerRequestId.value) {
+        consultTimeLeftText.value = '--:--';
+        clearConsultCountdown();
+        return;
+    }
+
+    consultCountdownStarting = true;
+    try {
+        clearConsultCountdown();
+        warnedAt.value = new Set();
+
+        if (!lastSyncAt.value) {
+            restoreTimerCache();
+        }
+        await syncChatTimer();
+        tickConsultCountdown();
+        consultCountdownTimer = setInterval(tickConsultCountdown, 1000);
+    } finally {
+        consultCountdownStarting = false;
+    }
 };
 
 const clearConsultCountdown = () => {
@@ -713,9 +898,11 @@ const fetchMessages = async () => {
                     localStorage.setItem(notifyKey, String(latestMedicineRequest.message_id));
                 }
             }
-            // เลื่อนลงล่างเฉพาะตอนเปิดแชทครั้งแรก — poll รอบถัดไปไม่เลื่อนเอง
+            // เลื่อนลงล่างเมื่อเปิดครั้งแรก หรือมีข้อความใหม่ขณะอยู่ใกล้ล่าง
             if (!initialScrollDone.value) {
                 initialScrollDone.value = true;
+                await scrollToBottom(true);
+            } else if (isNearBottomChat()) {
                 await scrollToBottom(true);
             } else {
                 updateJumpVisibility();
@@ -838,9 +1025,11 @@ const updateJumpVisibility = () => { showJumpToBottom.value = !isNearBottomChat(
 
 const scrollToBottom = async (force = false) => {
     await nextTick();
+    await new Promise((r) => requestAnimationFrame(r));
     if (!chatScroll.value) return;
     if (force || isNearBottomChat()) {
-        chatScroll.value.scrollTo({ top: chatScroll.value.scrollHeight, behavior: 'smooth' });
+        const el = chatScroll.value;
+        el.scrollTop = el.scrollHeight;
         showJumpToBottom.value = false;
     } else {
         showJumpToBottom.value = true;
@@ -850,9 +1039,14 @@ const jumpToBottom = () => scrollToBottom(true);
 const onChatScroll = () => updateJumpVisibility();
 
 /* ================= 7. Interaction & Lifecycle ================= */
+let initRouteGen = 0;
+
 const selectPatient = (id) => {
     const normalized = normalizePatientId(id);
     if (!normalized) return;
+    if (String(normalized) !== String(activePatientId.value)) {
+        persistTimerBeforeLeave();
+    }
 
     messageFetchGen += 1;
     chatMessages.value = [];
@@ -860,7 +1054,6 @@ const selectPatient = (id) => {
     ensurePatientInSidebar(normalized);
     activePatientId.value = normalized;
     router.push({ query: { id: normalized } });
-    // รีเฟรชอาการให้ตรงรอบที่เลือก (ไม่ล้างทิ้งก่อน → ไม่วูบหาย)
     fetchPatientInfo(normalized, { markLoaded: true });
     fetchActiveConsultInfo();
 };
@@ -876,30 +1069,50 @@ watch(() => route.query.consult_done, (done) => {
     }
 });
 
-const initPharmacyFromRoute = (newId) => {
+const initPharmacyFromRoute = async (newId) => {
     if (!import.meta.client) return;
     const normalized = normalizePatientId(newId);
+    if (activePatientId.value && normalized && String(activePatientId.value) !== String(normalized)) {
+        persistTimerBeforeLeave();
+    }
     const routeCid = Number(route.query.consult_id) || 0;
     const routeSrv = String(route.query.srv || '').trim();
-    messageFetchGen += 1;
+    const myGen = ++initRouteGen;
+
     activePatientId.value = normalized;
     showEndConsultFab.value = false;
     activeRequestId.value = routeCid;
+    timerRequestId.value = 0;
     activeServiceCode.value = routeSrv;
     lastSyncAt.value = 0;
-    chatMessages.value = [];
+    serverRemaining.value = 0;
 
     if (normalized) {
+        messageFetchGen += 1;
+        chatMessages.value = [];
+        initialScrollDone.value = false;
+
         const pendingName = localStorage.getItem('bell-incoming-patient-name');
         if (pendingName) {
             setPatientDisplayName(normalized, pendingName);
         }
         ensurePatientInSidebar(normalized);
         fetchPatientInfo(normalized, { consultId: routeCid, markLoaded: true });
-        fetchMessages();
+
+        // โหลด consult + timerRequestId ก่อน sync นาฬิกา — กันรีเฟรชแล้วเวลากลับ 15:00
+        await fetchActiveConsultInfo();
+        if (myGen !== initRouteGen) return;
+
+        await fetchMessages();
+        if (myGen !== initRouteGen) return;
+    } else {
+        chatMessages.value = [];
+        clearConsultCountdown();
+        consultTimeLeftText.value = '--:--';
+        return;
     }
-    startConsultCountdown();
-    fetchActiveConsultInfo();
+
+    await startConsultCountdown();
 };
 
 watch(
@@ -938,8 +1151,6 @@ onMounted(async () => {
         ensurePatientInSidebar(activePatientId.value);
     }
 
-    initPharmacyFromRoute(route.query.id);
-
     await checkExternalBellTrigger();
 
     mainTimer = setInterval(() => { 
@@ -956,18 +1167,15 @@ onMounted(async () => {
 
     // 💓 heartbeat นาฬิกากลางทุก 5 วิ (ส่งเฉพาะตอนเปิดหน้าจออยู่) + เช็คทันทีเมื่อกลับมาที่แท็บ
     chatTimerHeartbeat = setInterval(() => syncChatTimer(), 5000);
-    if (typeof document !== 'undefined') {
-        document.addEventListener('visibilitychange', onChatVisibilityChange);
-    }
+    bindChatTimerPageLifecycle();
 });
 
 onBeforeUnmount(() => {
+    persistTimerBeforeLeave();
     if (mainTimer) clearInterval(mainTimer);
     if (consultInfoPollTimer) clearInterval(consultInfoPollTimer);
     if (chatTimerHeartbeat) clearInterval(chatTimerHeartbeat);
-    if (typeof document !== 'undefined') {
-        document.removeEventListener('visibilitychange', onChatVisibilityChange);
-    }
+    unbindChatTimerPageLifecycle();
     clearConsultCountdown();
     stopCallPolling();
 });

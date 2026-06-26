@@ -13,7 +13,26 @@ const isPrivateLanHost = (hostname: string) =>
 export default defineNuxtPlugin(() => {
     const config = useRuntimeConfig();
 
+    const useSupabaseBackend = () =>
+        Boolean(String(config.public.supabaseUrl || '').trim())
+        && config.public.useSupabaseBackend !== false;
+
+    const getBffBase = () => {
+        if (import.meta.client) {
+            return `${window.location.origin}/api/bff`;
+        }
+
+        const headers = useRequestHeaders(['x-forwarded-host', 'host', 'x-forwarded-proto']);
+        const host = (headers['x-forwarded-host'] || headers.host || 'localhost:3000').split(',')[0].trim();
+        const proto = (headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
+        return `${proto}://${host}/api/bff`;
+    };
+
     const getApiBase = () => {
+        if (useSupabaseBackend()) {
+            return getBffBase();
+        }
+
         if (import.meta.client) {
             const { protocol, hostname, host } = window.location;
 
@@ -86,14 +105,42 @@ export default defineNuxtPlugin(() => {
 
     /** URL สำหรับส่งข้อความไป n8n Chat Trigger */
     const n8nChatUrl = () => {
-        // ฝั่ง browser: ใช้ /n8n บน host เดียวกับ Nuxt → vite proxy → localhost:5678 (ไม่ติด CORS, ไม่พึ่ง XAMPP)
+        // ฝั่ง browser: ใช้ Nuxt proxy /api/ai-chat → n8n ในเครื่อง (เสถียรกว่า /n8n ผ่าน Vite)
         if (import.meta.client) {
-            return `${window.location.origin}/n8n${n8nWebhookPath}`;
+            return '/api/ai-chat';
         }
         // SSR / server: ยิงตรง n8n ในเครื่อง
         const base = (config.public.n8nBase as string || '').trim().replace(/\/$/, '')
             || 'http://127.0.0.1:5678';
         return `${base}${n8nWebhookPath}`;
+    };
+
+    const appendBffAuthQuery = (url: string): string => {
+        if (!useSupabaseBackend() || !import.meta.client) {
+            return url;
+        }
+        try {
+            const saved = localStorage.getItem('user_data');
+            if (!saved) return url;
+            const u = JSON.parse(saved);
+            const params = new URLSearchParams();
+            if (u.id_account) params.set('id_account', String(u.id_account));
+            else if ((u.role || u.role_account) === 'user' && u.id) params.set('id_account', String(u.id));
+            if (u.id_pharma) params.set('id_pharma', String(u.id_pharma));
+            else if ((u.role || u.role_account) === 'pharmacist' && u.id) params.set('id_pharma', String(u.id));
+            const storeId = u.id_store_accounts || u.store_id;
+            if (storeId) params.set('id_store_accounts', String(storeId));
+            else if ((u.role || u.role_account) === 'store' && u.id) params.set('id_store_accounts', String(u.id));
+            if (u.id_account_admin) params.set('id_account_admin', String(u.id_account_admin));
+            const role = u.role || u.role_account;
+            const urlHasRole = /(?:^|[?&])role=/i.test(url);
+            if (role && !urlHasRole) params.set('role', role);
+            const qs = params.toString();
+            if (!qs) return url;
+            return url + (url.includes('?') ? '&' : '?') + qs;
+        } catch {
+            return url;
+        }
     };
 
     return {
@@ -102,7 +149,7 @@ export default defineNuxtPlugin(() => {
             getApiBase,
             apiUrl: (path: string) => {
                 const clean = path.replace(/^\//, '');
-                return `${getApiBase()}/${clean}`;
+                return appendBffAuthQuery(`${getApiBase()}/${clean}`);
             },
             getN8nBase,
             n8nChatUrl,

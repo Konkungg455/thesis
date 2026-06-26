@@ -16,10 +16,11 @@ const overviewPharmas = ref([])   // เภสัชกรทั้งหมด
 // ดึงข้อมูล Overview จาก 3 endpoint พร้อมกัน
 const fetchOverview = async () => {
   isLoading.value = true
-  const base = useNuxtApp().$getApiBase()
+  const { $getApiBase, $apiUrl } = useNuxtApp()
+  const base = $getApiBase()
   try {
     const [prescRes, userRes, pharmaRes] = await Promise.allSettled([
-      $fetch(`${base}/get-prescriptions.php`, { credentials: 'include' }),
+      $fetch($apiUrl('get-prescriptions.php'), { credentials: 'include' }),
       $fetch(`${base}/get-user.php`, { credentials: 'include' }),
       $fetch(`${base}/get-pharma.php`, { credentials: 'include' }),
     ])

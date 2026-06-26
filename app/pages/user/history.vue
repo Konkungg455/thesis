@@ -1,6 +1,8 @@
 <script setup>
 definePageMeta({ middleware: 'user-only' });
 
+const { getHistory, deleteSession } = useChatApi();
+
 const historyList = ref([]);
 const isLoading = ref(true);
 const deletingId = ref('');
@@ -46,9 +48,7 @@ const onPerPageChange = () => { currentPage.value = 1; };
 
 const fetchHistory = async () => {
     try {
-        const res = await $fetch(`${useNuxtApp().$getApiBase()}/get-chat-history.php`, {
-            credentials: 'include'
-        });
+        const res = await getHistory();
         if (res.status === 'success') {
             historyList.value = res.data;
         }
@@ -97,11 +97,7 @@ const deleteChat = async (item, ev) => {
     if (!confirm(`ลบประวัติแชท "${label}" ออกจากหน้าจอหรือไม่?\nข้อมูลจริงจะถูก freeze เก็บไว้ในฐานข้อมูล`)) return;
     deletingId.value = item.session_id;
     try {
-        const fd = new FormData();
-        fd.append('session_id', item.session_id);
-        const res = await $fetch(`${useNuxtApp().$getApiBase()}/delete-chat-session.php`, {
-            method: 'POST', body: fd, credentials: 'include'
-        });
+        const res = await deleteSession(item.session_id);
         if (res?.status === 'success') {
             historyList.value = historyList.value.filter(h => h.session_id !== item.session_id);
         } else {

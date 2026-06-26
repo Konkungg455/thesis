@@ -18,6 +18,7 @@ export default defineNuxtConfig({
       { name: 'useWebRTCCall', from: '~/composables/useWebRTCCall' },
       { name: 'useTablePagination', from: '~/composables/useTablePagination' },
       { name: 'useAppLocale', from: '~/composables/useAppLocale' },
+      { name: 'useChatApi', from: '~/composables/useChatApi' },
     ],
   },
 
@@ -29,10 +30,14 @@ export default defineNuxtConfig({
 
   app: {
     head: {
+      title: 'Telebot Pharmacy',
       meta: [
         { name: 'viewport', content: 'width=device-width, initial-scale=1.0, viewport-fit=cover' }
       ],
       link: [
+        { rel: 'icon', type: 'image/png', href: '/favicon.png' },
+        { rel: 'shortcut icon', type: 'image/png', href: '/favicon.png' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {
@@ -95,13 +100,19 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
+    /** service role — ใช้ฝั่ง server เท่านั้น (optional) */
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
     public: {
       /** ถ้าไม่ตั้ง จะใช้ http://{hostname ปัจจุบัน}/4 อัตโนมัติ */
       apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
       /** n8n base — ถ้าไม่ตั้ง จะใช้ http://{hostname ปัจจุบัน}:5678 อัตโนมัติ */
       n8nBase: process.env.NUXT_PUBLIC_N8N_BASE || '',
       /** webhook ID ของ chatbot ใน n8n */
-      n8nChatWebhookId: process.env.NUXT_PUBLIC_N8N_CHAT_WEBHOOK_ID || '1f5ea30f-2ff0-4d32-b211-eccb342ee0df'
+      n8nChatWebhookId: process.env.NUXT_PUBLIC_N8N_CHAT_WEBHOOK_ID || '1f5ea30f-2ff0-4d32-b211-eccb342ee0df',
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || process.env.SUPABASE_KEY || '',
+      /** true = ใช้ /api/bff + Supabase แทน XAMPP (default เมื่อมี SUPABASE_URL) */
+      useSupabaseBackend: process.env.NUXT_PUBLIC_USE_SUPABASE_BACKEND !== 'false',
     }
   }
 })
