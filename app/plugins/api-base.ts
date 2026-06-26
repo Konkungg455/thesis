@@ -1,3 +1,5 @@
+import { buildSupabasePublicUrl } from '../../shared/utils/mediaStorage';
+
 const isTunnelHost = (hostname: string) =>
     /ngrok/i.test(hostname)
     || hostname.endsWith('.ngrok-free.dev')
@@ -120,13 +122,10 @@ export default defineNuxtPlugin(() => {
 
     const chatWebhookId = (config.public.n8nChatWebhookId as string) || '1f5ea30f-2ff0-4d32-b211-eccb342ee0df';
     const n8nWebhookPath = `/webhook/${chatWebhookId}/chat`;
-    const storageBucket = String(config.public.supabaseStorageBucket || 'media').trim();
 
     const buildSupabaseMediaUrl = (folder: string, filename: string) => {
         const supabaseUrl = String(config.public.supabaseUrl || '').trim();
-        if (!supabaseUrl || !filename) return null;
-        const path = `${folder.replace(/^\/+|\/+$/g, '')}/${filename}`;
-        return `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/${storageBucket}/${path}`;
+        return buildSupabasePublicUrl(supabaseUrl, folder, filename);
     };
 
     /** รูป profile / เภสัช — บน Vercel ใช้ Supabase Storage public URL */

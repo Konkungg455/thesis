@@ -37,10 +37,12 @@ NUXT_PUBLIC_SUPABASE_KEY=sb_publishable_xxx
 SUPABASE_ENABLED=true
 NUXT_PUBLIC_USE_SUPABASE_BACKEND=true
 SUPABASE_SERVICE_ROLE_KEY=eyJ...   # Project Settings → API → service_role (server only)
-SUPABASE_STORAGE_BUCKET=media
 ```
 
-**Storage bucket (ครั้งแรก):** Supabase → **Storage** → New bucket `media` → เปิด **Public**
+**Storage buckets (มีอยู่แล้วใน Supabase — ต้อง Public):**
+- `images-pharma` — รูปเภสัช
+- `images-account` — รูปผู้ใช้/แอดมิน
+- `uploads` — chat, licenses, store_profiles, slips, qr_payment
 
 > อัปโหลดรูป (avatar, chat) บน Vercel ต้องมี `SUPABASE_SERVICE_ROLE_KEY` — ไม่ใช้ `MEDIA_ROOT`
 
@@ -76,11 +78,9 @@ NUXT_PUBLIC_N8N_CHAT_WEBHOOK_ID=1f5ea30f-2ff0-4d32-b211-eccb342ee0df
 
 ### รูปภาพไม่ขึ้น
 
-1. ตั้ง `SUPABASE_SERVICE_ROLE_KEY` + bucket `media` (public) บน Vercel
-2. **รันครั้งเดียวบนเครื่อง:** `npm run media:migrate` (ย้ายรูปจาก XAMPP → Supabase)
-3. หรือ `npm run media:seed` (อัปโหลด default avatar อย่างเดียว)
-4. รูปใหม่ที่อัปโหลดบน Vercel จะเข้า Supabase อัตโนมัติ (ถ้ามี service_role key)
-5. โค้ดใช้ Supabase public URL บน `.vercel.app` (`resolveMediaUrl` / `imagesAccount`)
+1. ตั้ง `SUPABASE_SERVICE_ROLE_KEY` บน Vercel
+2. Buckets ใน Supabase: `images-pharma`, `images-account`, `uploads` (Public)
+3. **รันครั้งเดียวบนเครื่อง:** `npm run media:migrate` (sync จาก XAMPP)
 
 ### โดนดีด logout "เซิร์ฟเวอร์รีสตาร์ท"
 

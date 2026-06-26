@@ -1,10 +1,23 @@
 /**
- * อัปโหลดรูปจาก XAMPP (MEDIA_ROOT) ไป Supabase Storage bucket `media`
+ * อัปโหลดรูปจาก XAMPP (MEDIA_ROOT) ไป Supabase Storage buckets จริง
+ * images-pharma | images-account | uploads/*
  * ใช้: npm run media:migrate
  */
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+function resolveSupabaseObject(folder, filename) {
+    const normalizedFolder = folder.replace(/^\/+|\/+$/g, '');
+    const name = String(filename || 'default.png').trim() || 'default.png';
+    if (normalizedFolder === 'images_account') return { bucket: 'images-account', objectPath: name };
+    if (normalizedFolder === 'images_pharma') return { bucket: 'images-pharma', objectPath: name };
+    if (normalizedFolder.startsWith('uploads/')) {
+        const sub = normalizedFolder.slice('uploads/'.length);
+        return { bucket: 'uploads', objectPath: sub ? `${sub}/${name}` : name };
+    }
+    return { bucket: 'uploads', objectPath: name };
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
@@ -24,7 +37,6 @@ loadEnv();
 
 const supabaseUrl = process.env.SUPABASE_URL?.replace(/\/$/, '');
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const bucket = process.env.SUPABASE_STORAGE_BUCKET || 'media';
 const mediaRoot = process.env.MEDIA_ROOT || 'C:/xampp/htdocs/4';
 
 const MIME = {
@@ -34,6 +46,7 @@ const MIME = {
     '.gif': 'image/gif',
     '.webp': 'image/webp',
     '.ico': 'image/x-icon',
+    '.pdf': 'application/pdf',
 };
 
 if (!supabaseUrl || !serviceKey) {
@@ -46,72 +59,49 @@ const headers = {
     apikey: serviceKey,
 };
 
-async function ensureBucket() {
-    const list = await fetch(`${supabaseUrl}/storage/v1/bucket`, { headers });
-    if (list.ok) {
-        const buckets = await list.json();
-        if (Array.isArray(buckets) && buckets.some((b) => b.id === bucket || b.name === bucket)) {
-            console.log(`bucket "${bucket}" มีอยู่แล้ว`);
-            return;
+async function uploadFolder(folder, localDir) {
+    if (!existsSync(localDir)) return 0;
+    let count = 0;
+    for (const name of readdirSync(localDir)) {
+        const filePath = join(localDir, name);
+        if (!statSync(filePath).isFile()) continue;
+        const { bucket, objectPath } = resolveSupabaseObject(folder, name);
+        const ext = extname(name).toLowerCase();
+        const contentType = MIME[ext] || 'application/octet-stream';
+        const data = readFileSync(filePath);
+
+        const res = await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${objectPath}`, {
+            method: 'POST',
+            headers: { ...headers, 'Content-Type': contentType, 'x-upsert': 'true' },
+            body: data,
+        });
+
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`${bucket}/${objectPath}: ${res.status} ${text}`);
         }
-    }
 
-    const res = await fetch(`${supabaseUrl}/storage/v1/bucket`, {
-        method: 'POST',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: bucket, name: bucket, public: true }),
-    });
-
-    if (!res.ok && res.status !== 409) {
-        const text = await res.text();
-        throw new Error(`สร้าง bucket ไม่ได้: ${res.status} ${text}`);
+        console.log('OK', `${supabaseUrl}/storage/v1/object/public/${bucket}/${objectPath}`);
+        count++;
     }
-    console.log(`สร้าง bucket "${bucket}" (public) แล้ว`);
+    return count;
 }
 
-async function uploadFile(storagePath, filePath) {
-    const data = readFileSync(filePath);
-    const ext = extname(filePath).toLowerCase();
-    const contentType = MIME[ext] || 'application/octet-stream';
-
-    const res = await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${storagePath}`, {
-        method: 'POST',
-        headers: {
-            ...headers,
-            'Content-Type': contentType,
-            'x-upsert': 'true',
-        },
-        body: data,
-    });
-
-    if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`${storagePath}: ${res.status} ${text}`);
+async function uploadUploadsSubdirs() {
+    const uploadsRoot = join(mediaRoot, 'uploads');
+    if (!existsSync(uploadsRoot)) return 0;
+    let count = 0;
+    for (const sub of readdirSync(uploadsRoot)) {
+        const subPath = join(uploadsRoot, sub);
+        if (!statSync(subPath).isDirectory()) continue;
+        count += await uploadFolder(`uploads/${sub}`, subPath);
     }
-
-    console.log('OK', `${supabaseUrl}/storage/v1/object/public/${bucket}/${storagePath}`);
+    return count;
 }
 
-function listFiles(folder) {
-    const dir = join(mediaRoot, folder);
-    if (!existsSync(dir)) return [];
-    return readdirSync(dir)
-        .filter((name) => statSync(join(dir, name)).isFile())
-        .map((name) => ({ name, path: join(dir, name) }));
-}
-
-await ensureBucket();
-
-const folders = ['images_pharma', 'images_account'];
 let total = 0;
+total += await uploadFolder('images_pharma', join(mediaRoot, 'images_pharma'));
+total += await uploadFolder('images_account', join(mediaRoot, 'images_account'));
+total += await uploadUploadsSubdirs();
 
-for (const folder of folders) {
-    const files = listFiles(folder);
-    console.log(`\n${folder}: ${files.length} ไฟล์`);
-    for (const f of files) {
-        await uploadFile(`${folder}/${f.name}`, f.path);
-        total++;
-    }
-}
-
-console.log(`\nเสร็จ — อัปโหลด ${total} ไฟล์`);
+console.log(`\nเสร็จ — อัปโหลด ${total} ไฟล์ → buckets images-pharma / images-account / uploads`);

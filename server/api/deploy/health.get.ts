@@ -13,7 +13,6 @@ export default defineEventHandler(() => {
     const onVercel = Boolean(process.env.VERCEL);
 
     const serviceKey = Boolean(String(process.env.SUPABASE_SERVICE_ROLE_KEY || config.supabaseServiceKey || '').trim());
-    const storageBucket = String(process.env.SUPABASE_STORAGE_BUCKET || 'media').trim();
 
     return {
         status: dbOk && supabaseOk ? 'ok' : 'needs_config',
@@ -21,7 +20,7 @@ export default defineEventHandler(() => {
         database_url: dbOk ? 'configured' : 'missing',
         supabase: supabaseOk ? 'configured' : 'missing',
         supabase_service_role: serviceKey ? 'configured' : 'missing (uploads need this)',
-        storage_bucket: storageBucket,
+        storage_buckets: ['images-pharma', 'images-account', 'uploads'],
         n8n: n8nLocalOnly
             ? (onVercel ? 'needs_public_url (NUXT_N8N_INTERNAL_URL)' : 'local_ok')
             : 'configured',

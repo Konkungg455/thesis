@@ -1,7 +1,6 @@
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-
-const BUCKET = String(process.env.SUPABASE_STORAGE_BUCKET || 'media').trim();
+import { buildSupabasePublicUrl, resolveSupabaseObject } from '../../shared/utils/mediaStorage';
 
 function localRoot(): string {
     return process.env.MEDIA_ROOT || 'C:/xampp/htdocs/4';
@@ -25,9 +24,7 @@ export function mediaStoragePath(folder: string, filename: string): string {
 
 export function getMediaPublicUrl(folder: string, filename: string): string | null {
     const supabaseUrl = String(process.env.SUPABASE_URL || '').trim();
-    if (!supabaseUrl || !filename) return null;
-    const path = mediaStoragePath(folder, filename);
-    return `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/${BUCKET}/${path}`;
+    return buildSupabasePublicUrl(supabaseUrl, folder, filename);
 }
 
 async function uploadToSupabase(
@@ -38,9 +35,9 @@ async function uploadToSupabase(
 ): Promise<{ filename: string; publicUrl: string | null } | null> {
     if (!isSupabaseConfigured()) return null;
 
-    const path = mediaStoragePath(folder, filename);
+    const { bucket, objectPath } = resolveSupabaseObject(folder, filename);
     const supabase = useSupabaseServer();
-    const { error } = await supabase.storage.from(BUCKET).upload(path, data, {
+    const { error } = await supabase.storage.from(bucket).upload(objectPath, data, {
         upsert: true,
         contentType,
     });
@@ -68,7 +65,7 @@ export async function uploadMediaFile(
         throw createError({
             statusCode: 503,
             statusMessage:
-                'อัปโหลดไฟล์ไม่สำเร็จ — ตั้ง SUPABASE_SERVICE_ROLE_KEY + bucket media บน Vercel (ดู VERCEL_DEPLOY.md)',
+                'อัปโหลดไฟล์ไม่สำเร็จ — ตั้ง SUPABASE_SERVICE_ROLE_KEY + buckets images-pharma/images-account/uploads บน Vercel',
         });
     }
 
@@ -81,11 +78,11 @@ export async function uploadMediaFile(
 export async function deleteMediaFile(folder: string, filename: string): Promise<void> {
     if (!filename) return;
 
-    const path = mediaStoragePath(folder, filename);
+    const { bucket, objectPath } = resolveSupabaseObject(folder, filename);
 
     if (isSupabaseConfigured()) {
         try {
-            await useSupabaseServer().storage.from(BUCKET).remove([path]);
+            await useSupabaseServer().storage.from(bucket).remove([objectPath]);
         } catch {
             // ignore
         }
