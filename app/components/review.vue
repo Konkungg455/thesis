@@ -1,0 +1,105 @@
+<template>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  
+  <section class="review-section">
+    <h2 class="section-title">รีวิวจากผู้ใช้บริการ</h2>
+    
+    <div class="review-container">
+      <div v-if="displayedReviews.length === 0" class="no-reviews">
+        <p>ยังไม่มีข้อมูลรีวิวในขณะนี้</p>
+      </div>
+
+      <div v-for="(review, index) in displayedReviews" :key="index" class="review-card">
+        <div class="review-header">
+          <div class="profile">
+            <div class="avatar">
+              <img 
+                :src="review.image" 
+                alt="profile" 
+                @error="(e) => e.target.src='https://via.placeholder.com/50'" 
+              />
+            </div>
+            <span>{{ review.name }}</span>
+          </div>
+          <i class="fa-regular fa-heart heart"></i>
+        </div>
+
+        <div class="stars">
+          <i v-for="star in 5" :key="star" :class="[
+            'fa-star',
+            star <= review.rating ? 'fa-solid' : 'fa-regular'
+          ]" class="fa"></i>
+        </div>
+
+        <p class="review-text">{{ review.text }}</p>
+      </div>
+    </div>
+
+    <div class="review-buttons">
+      <NuxtLink v-if="reviews.length > MAX_REVIEWS" to="/Review" class="btn-outline">
+        ดูรีวิวทั้งหมด ({{ reviews.length }})
+      </NuxtLink>
+      <NuxtLink to="/review_write" class="btn-primary">
+        <i class="fa-solid fa-pen-to-square"></i> เขียนรีวิว
+      </NuxtLink>
+      <button class="btn-outline" @click="fetchReviews">รีเฟรชข้อมูล</button>
+    </div>
+  </section>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+
+const reviews = ref([])
+const MAX_REVIEWS = 3
+
+// แสดงเฉพาะรีวิวคะแนนสูงสุด สูงสุด 3 อัน (ของใหม่สุดมาก่อน หากคะแนนเท่ากัน)
+const displayedReviews = computed(() => {
+    const sorted = [...reviews.value].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    return sorted.slice(0, MAX_REVIEWS);
+})
+
+const fetchReviews = async () => {
+  try {
+    const data = await $fetch(`${useNuxtApp().$getApiBase()}/review-get.php`, {
+      credentials: 'include'
+    });
+    
+    if (data && Array.isArray(data)) {
+      reviews.value = data.map(item => ({
+        name: item.firstname + ' ' + item.lastname,
+        rating: parseInt(item.rating),
+        // ใช้ชื่อคอลัมน์ images_account จาก PHP ให้ตรงกัน
+        image: item.images_account 
+               ? `${useNuxtApp().$getApiBase()}/images_account/${item.images_account}` 
+               : 'https://via.placeholder.com/50',
+        text: item.comment
+      }));
+    }
+  } catch (err) {
+    console.error("Fetch Reviews Error:", err);
+  }
+}
+
+onMounted(() => {
+  fetchReviews();
+})
+</script>
+
+<style scoped>
+@import "@/assets/review.css";
+
+/* ปรับแต่งสีดาว */
+.stars .fa-solid {
+  color: #fcdb3a;
+}
+.stars .fa-regular {
+  color: #ddd;
+}
+.no-reviews {
+  text-align: center;
+  padding: 50px;
+  width: 100%;
+  color: #888;
+}
+</style>

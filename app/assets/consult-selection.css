@@ -1,0 +1,164 @@
+.selection-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container-selection {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 20px;
+    background-color: #ffffff;
+}
+
+/* --- การ์ดปกติ (ธีมสีน้ำเงิน) --- */
+.selection-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 500px;
+    border-radius: 24px;
+    padding: 45px 35px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 70, 156, 0.1);
+    border: 3px solid #00469c; /* ขอบน้ำเงินตอน 100 บาท */
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* --- การ์ดเมื่อใช้สิทธิ์บัตรทอง (ธีมสีเหลืองทอง) --- */
+.selection-card.gold-theme {
+    border-color: #ffcc00; /* ขอบทองตอน 30 บาท */
+    box-shadow: 0 10px 40px rgba(255, 204, 0, 0.25);
+}
+
+.back-arrow {
+    position: absolute;
+    top: 25px;
+    left: 25px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: #00469c;
+}
+
+.title {
+    color: #00469c;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
+.duration {
+    color: #00469c;
+    font-weight: 700;
+    margin-bottom: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 1.2rem;
+}
+
+.method-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+/* --- สไตล์ช่องทางการเลือก --- */
+.method-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 25px;
+    border: 2px solid #00469c;
+    border-radius: 18px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: #00469c;
+    font-weight: 700;
+}
+
+.method-card.active {
+    background: #00469c;
+    color: white;
+}
+
+/* ปรับสีช่องทางเมื่ออยู่ในธีมทอง */
+.gold-theme .method-card {
+    border-color: #ffcc00;
+    color: #ffcc00;
+}
+
+.gold-theme .method-card.active {
+    background: #ffcc00;
+    color: #00469c;
+}
+
+.method-left {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.method-left .icon { font-size: 1.6rem; }
+.price { font-size: 1.1rem; }
+
+.warning-text {
+    color: #ff0000;
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 25px;
+}
+
+/* --- ส่วนของปุ่มกดยืนยันและสลับสิทธิ์ --- */
+.button-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+.btn-submit {
+    background: #00469c;
+    color: white;
+    border: none;
+    padding: 14px 70px;
+    border-radius: 12px;
+    font-weight: 50;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.gold-theme .btn-submit {
+    background: #ffcc00;
+    color: #00469c;
+}
+
+.btn-privilege {
+    background: #ffcc00;
+    color: #00469c;
+    border: none;
+    padding: 10px 30px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.3s;
+    font-size: 1rem;
+}
+
+/* เมื่อสลับไปเป็นสีทอง ปุ่มสลับสิทธิ์จะเน้นสีน้ำเงินเพื่อให้เห็นชัดว่ากลับเป็นปกติได้ */
+.btn-privilege.active-gold {
+    background: #00469c;
+    color: white;
+}
+
+@media (max-width: 768px) {
+    .selection-card { padding: 35px 20px; }
+    .title { font-size: 1.5rem; }
+}

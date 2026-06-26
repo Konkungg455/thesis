@@ -1,0 +1,343 @@
+/**
+ * Global Responsive — iPhone 12 (390x844) และมือถือทั่วไป (≤ 480px / ≤ 768px)
+ *
+ * ใช้กับทุกหน้าโดย import ใน nuxt.config.ts (global CSS)
+ * รวม override ที่ใช้บ่อย: container, flex, table, image, form, modal
+ */
+
+/* ====== Universal safe defaults ====== */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+img, video {
+    max-width: 100%;
+    height: auto;
+}
+
+/* ============================================================
+   Tablet landscape / โน้ตบุ๊กเล็ก (901–1280px) — เช่น 1161 x 835
+   หน้าทั้งหมดยัง render แบบ desktop ในช่วงนี้ (breakpoint มือถืออยู่ ≤900px)
+   จึงเน้น "กันล้นจอ + ย่อ padding ที่กว้างเกิน + ตาราง/กริดปรับตัว"
+   โดยไม่แตะโครงเลย์เอาต์เดสก์ท็อปที่ทำงานดีอยู่
+   ============================================================ */
+@media (min-width: 1025px) and (max-width: 1280px) {
+    /* กันล้นแนวนอนสำหรับ layout ที่มี sidebar (admin / เภสัช / user) */
+    .admin-layout,
+    .user-layout {
+        max-width: 100%;
+        overflow-x: hidden;
+    }
+    .main-content { min-width: 0; }
+    .main-content > *,
+    .history-section,
+    .chat-section,
+    .billing-section { min-width: 0; }
+
+    /* ย่อ padding เนื้อหาที่กว้างเกินบนจอ ~1161 ให้ได้พื้นที่ใช้งานเพิ่ม */
+    .history-section { padding: 24px 24px !important; }
+    .chat-section { padding: 20px !important; }
+    .chart-card,
+    .top-list-card { padding: 22px !important; }
+
+    /* section / container ของหน้ามาร์เก็ตติ้ง — ย่อ padding ด้านข้างเล็กน้อย */
+    section, .container, .page-wrap {
+        padding-left: 28px;
+        padding-right: 28px;
+    }
+
+    /* ตารางกว้าง → เลื่อนแนวนอนได้ ไม่ดันจอจนล้น */
+    .table-wrapper,
+    .table-scroll,
+    .items-table-wrap,
+    .mgmt-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* การ์ด/กริดที่ระยะห่างกว้างเกินบนจอแคบลง → กระชับ gap */
+    .pharma-home__cards { gap: 18px; }
+    .card-grid,
+    .doctor-counte-grid { gap: 18px; }
+
+    /* รูป/วิดีโอ และการ์ด ไม่ให้ดันเกินกรอบ */
+    .card,
+    .review-card,
+    .doctor-card,
+    .pharmacist-card { max-width: 100%; box-sizing: border-box; }
+}
+
+/* ====== ≤ 768px (tablet portrait) ====== */
+@media (max-width: 768px) {
+    /* Header / Footer */
+    .nav-container,
+    .footer-container {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+
+    /* Hero & sections wide padding → ย่อ (ยกเว้นหน้าแชทที่มี drawer sidebar) */
+    section, .container, .page-wrap, .main-content {
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+    }
+    .user-layout .main-content {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    /* ตารางใหญ่ → scroll แนวนอน */
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* ====== ≤ 480px (iPhone 12 portrait + small phones) ====== */
+@media (max-width: 480px) {
+
+    /* ----- Typography ----- */
+    h1 { font-size: 1.6rem !important; line-height: 1.25; }
+    h2 { font-size: 1.35rem !important; line-height: 1.3; }
+    h3 { font-size: 1.1rem !important; }
+    .section-title { font-size: 1.4rem !important; margin-bottom: 24px !important; }
+
+    /* ----- Spacing ----- */
+    section, .container, .page-wrap, .main-content {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+    }
+    .user-layout .main-content {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    .review-section,
+    .hero,
+    .hero-section,
+    .pharmacist-section {
+        padding-top: 32px !important;
+        padding-bottom: 32px !important;
+    }
+
+    /* ----- Card lists → 1 คอลัมน์ ----- */
+    .review-container,
+    .doctor-grid,
+    .pharmacist-grid,
+    .card-grid,
+    .doctor-cards,
+    .doctor-counte-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 16px !important;
+    }
+    .review-card,
+    .doctor-card,
+    .pharmacist-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box;
+    }
+
+    /* ----- Buttons ----- */
+    .review-buttons,
+    .review-actions,
+    .form-actions,
+    .action-btns,
+    .btn-group {
+        flex-direction: column !important;
+        width: 100% !important;
+        gap: 10px !important;
+    }
+    .review-buttons > *,
+    .review-actions > *,
+    .form-actions > * {
+        width: 100% !important;
+        max-width: 100% !important;
+        text-align: center;
+        justify-content: center;
+    }
+
+    /* ----- Forms ----- */
+    input, select, textarea, .form-input {
+        font-size: 16px !important; /* กัน iOS zoom-in */
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+    .form-row,
+    .input-row,
+    .form-grid {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+
+    /* ----- Auth pages ----- */
+    .auth-container,
+    .login-card,
+    .register-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        padding: 24px 18px !important;
+    }
+    .auth-wrap, .auth-layout {
+        min-height: 100vh;
+        display: flex;
+        align-items: stretch;
+    }
+
+    /* ----- Header (Nuxt) ----- */
+    .nav-container { padding: 10px 12px !important; }
+    .logo, .nav-logo { font-size: 1rem !important; }
+    .nav-right { gap: 6px !important; }
+    .username-label {
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* ----- Pharmacy chat workspace (เภสัช) — sidebar drawer มีใน pharmacy_web.css เอง ----- */
+    .chat-section,
+    .chat-wrapper,
+    .chat-container {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+    .consult-timer,
+    .line-call-btn {
+        font-size: 0.78rem !important;
+        padding: 6px 10px !important;
+    }
+
+    /* ----- Chat input ----- */
+    .chat-input-area {
+        flex-wrap: wrap;
+        gap: 6px !important;
+        padding: 8px !important;
+    }
+    .chat-input-area input[type="text"] {
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+    .chat-messages {
+        padding: 12px !important;
+    }
+    .message-bubble {
+        max-width: 85% !important;
+        word-break: break-word;
+    }
+
+    /* ----- Video / Voice call ----- */
+    .call-card.incoming,
+    .call-card.outgoing {
+        min-width: auto !important;
+        width: calc(100vw - 24px) !important;
+        padding: 24px 18px !important;
+    }
+    .avatar-ring.big,
+    .avatar-animation.big {
+        width: 130px !important;
+        height: 130px !important;
+    }
+    .video-caller-banner {
+        top: 10px !important;
+        left: 10px !important;
+        padding: 6px 12px 6px 6px !important;
+    }
+    .banner-avatar {
+        width: 36px !important;
+        height: 36px !important;
+    }
+    .banner-name { font-size: 0.85rem !important; }
+    .local-video-pip {
+        width: 110px !important;
+        height: 160px !important;
+        right: 12px !important;
+        bottom: 12px !important;
+    }
+    .video-call-controls {
+        gap: 14px !important;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .video-control-btn {
+        width: 50px !important;
+        height: 50px !important;
+        font-size: 20px !important;
+    }
+    .btn-hangup-main {
+        width: 60px !important;
+        height: 60px !important;
+        font-size: 22px !important;
+    }
+
+    /* ----- Tables (tracking / history / dashboard) ----- */
+    .table-wrapper, .table-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    th, td {
+        padding: 8px !important;
+        font-size: 0.82rem !important;
+    }
+
+    /* ----- Summary / Prescription view ----- */
+    .summary-page,
+    .prescription-view {
+        padding: 12px !important;
+    }
+    .receipt-container,
+    .prescription-container {
+        padding: 16px !important;
+    }
+    .drug-item {
+        flex-direction: column !important;
+        gap: 6px !important;
+        padding: 8px !important;
+    }
+
+    /* ----- Dropdown menus ----- */
+    .dropdown-menu {
+        right: 0 !important;
+        left: auto !important;
+        min-width: 200px !important;
+        max-width: 90vw !important;
+    }
+    .notif-dropdown,
+    .notification-dropdown {
+        width: calc(100vw - 24px) !important;
+        max-width: 320px !important;
+    }
+
+    /* ----- Modals / overlays ----- */
+    .modal, .modal-content {
+        width: calc(100vw - 24px) !important;
+        max-width: 100% !important;
+        padding: 18px !important;
+        border-radius: 16px !important;
+    }
+
+    /* ----- Hide non-essential decoration ----- */
+    .hide-on-mobile { display: none !important; }
+    .desktop-only { display: none !important; }
+}
+
+/* ===== ≤ 390px (iPhone SE / iPhone 12 mini) ===== */
+@media (max-width: 390px) {
+    h1 { font-size: 1.4rem !important; }
+    h2 { font-size: 1.2rem !important; }
+    .section-title { font-size: 1.25rem !important; }
+    .nav-right > .dropdown { font-size: 0.85rem; }
+    .btn-primary, .btn-outline, .btn-signin {
+        padding: 9px 16px !important;
+        font-size: 0.9rem !important;
+    }
+}

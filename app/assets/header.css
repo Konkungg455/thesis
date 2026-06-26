@@ -1,0 +1,364 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Inter", sans-serif;
+}
+
+/* NAVBAR */
+.navbar {
+  display: flex;
+  align-items: center;
+  padding: 10px 40px;
+  background: var(--app-header-bg, #0d4c9e);
+  position: relative;
+  z-index: 1000;
+  height: 80px; /* กำหนดความสูงให้คงที่ */
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.mobile-only {
+  display: none;
+}
+
+.nav-left img {
+  height: 60px;
+  display: block;
+}
+
+.nav-menu {
+  display: flex;
+  list-style: none;
+  gap: 30px;
+  margin-left: 30px;
+}
+
+.nav-menu a {
+  color: #fff;
+  text-decoration: none;
+  font-weight: 500;
+  transition: 0.2s;
+  white-space: nowrap; /* กันชื่อเมนูตัดขึ้น 2 บรรทัดบนจอแคบ */
+}
+
+.nav-menu a:hover, .nav-menu a.router-link-active {
+  color: #3DBDEC;
+}
+
+.nav-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: #fff;
+}
+
+/* ICON & TRIGGER */
+.icon-btn, .language, .mode {
+  background: none;
+  border: 0;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: 0.2s;
+}
+
+.icon-btn:hover, .language:hover, .mode:hover {
+  opacity: 0.8;
+}
+
+/* BUTTON SIGNIN - แก้ไขชื่อคลาสเป็น .btn-signin */
+.btn-signin {
+  background: linear-gradient(135deg, #3dbdec 0%, #2a9fd1 100%);
+  color: #ffffff !important;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 50px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(61, 189, 236, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden; /* สำหรับ Effect แสงวิ่ง */
+}
+
+/* Effect แสงวิ่งผ่านปุ่ม (Shine Effect) */
+.btn-signin::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 20%;
+  height: 200%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(30deg);
+  transition: all 0s;
+}
+
+.btn-signin:hover::after {
+  left: 120%;
+  transition: all 0.6s ease;
+}
+
+.btn-signin:hover {
+  background: linear-gradient(135deg, #4fc9f7 0%, #3dbdec 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(61, 189, 236, 0.4);
+}
+
+.btn-signin:active {
+  transform: translateY(0);
+}
+
+/* ทำให้ลูกศรหมุนเวลาเปิดเมนู หรือ Hover */
+.btn-signin .arrow {
+  font-size: 10px;
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.btn-signin:hover .arrow {
+  transform: rotate(180deg);
+}
+/* DROPDOWN SYSTEM */
+.dropdown {
+  position: relative;
+}
+
+/* แก้ไขให้ Dropdown Menu แสดงผลเมื่อ Vue สั่ง v-if */
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 15px); /* เว้นระยะห่างจากปุ่มเล็กน้อย */
+  right: 0;
+  min-width: 180px;
+  background: var(--app-surface, #ffffff);
+  border: 1px solid var(--app-border, transparent);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  padding: 8px 0;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* ตกแต่งข้างใน Dropdown */
+.dropdown-menu a, 
+.dropdown-menu button {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  color: var(--app-text, #333) !important;
+  text-decoration: none;
+  text-align: left;
+  background: none;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.dropdown-menu a:hover, 
+.dropdown-menu button:hover {
+  background: color-mix(in srgb, var(--app-primary, #0d4c9e) 12%, transparent);
+  color: var(--app-primary, #0d4c9e) !important;
+}
+
+/* ตัวอย่าง Style เบื้องต้น */
+.user-profile-trigger {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    padding: 5px 10px;
+    border-radius: 20px;
+    transition: background 0.3s;
+}
+
+.user-profile-trigger:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+}
+
+.avatar-mini {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255, 255, 255, 0.55);
+}
+
+.logout-link {
+    color: #ff4d4d !important; /* สีแดงสำหรับปุ่มออกจากระบบ */
+}
+
+.user-name-text {
+    font-weight: 500;
+    color: var(--app-text, #333);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* MOBILE SETTINGS */
+.btn-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+/* ===== Tablet/โน้ตบุ๊กเล็ก (1025–1280px เช่น 1161px) =====
+   เมนูเต็มยังโชว์อยู่ แต่พื้นที่ไม่พอ เมนูเลยตัดขึ้น 2 บรรทัด/กระดิ่งทับ
+   → ย่อ gap / ฟอนต์ / padding ให้อยู่บรรทัดเดียว ไม่ต้องเปลี่ยนเป็น hamburger */
+@media (min-width: 1025px) and (max-width: 1280px) {
+  .navbar { padding: 10px 20px; }
+  .nav-menu {
+    gap: 16px;
+    margin-left: 16px;
+    flex-wrap: nowrap;
+  }
+  .nav-menu a { font-size: 0.9rem; }
+  .nav-right { gap: 11px; }
+  .icon-btn, .language, .mode { font-size: 13px; }
+  .nav-left img { height: 50px; }
+}
+
+/* ≤1024px — พื้นที่ไม่พอสำหรับเมนูเต็ม → สลับเป็น hamburger (ตรงกับ sidebar drawer ≤1024) */
+@media (max-width: 1024px) {
+  .navbar {
+    padding: 0 20px;
+  }
+
+  .btn-hamburger {
+    display: block;
+  }
+
+  .nav-menu {
+    display: none; /* ซ่อนเมนูหลัก */
+    flex-direction: column;
+    position: absolute;
+    top: 80px;
+    left: 0;
+    width: 100%;
+    background: var(--app-header-bg, #0d4c9e);
+    padding: 20px;
+    margin-left: 0;
+    gap: 20px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .nav-menu.show-mobile {
+    display: flex; /* แสดงเมื่อกด Hamburger */
+  }
+
+  /* ปรับตำแหน่ง Logo ให้อยู่กลางบนมือถือ */
+  .nav-left {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* ซ่อน Dropdown แบบ Desktop บนมือถือเพื่อใช้ Mobile Stack แทน */
+  .nav-right .dropdown:not(:last-child), 
+  .nav-right .icon-btn {
+    display: none;
+  }
+
+  /* 🚩 กระดิ่ง: ซ่อน button ฝั่ง nav-right แต่เก็บ wrapper ไว้ให้ dropdown popup ใช้ position ได้
+     ผู้ใช้จะคลิกกระดิ่งจาก hamburger dropdown menu แทน (.mobile-bell) */
+  .nav-right .dropdown:has(.bell-btn) {
+    display: block !important;
+    width: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    pointer-events: none; /* ปุ่ม trigger ของกระดิ่งไม่รับ click */
+  }
+  .nav-right .dropdown:has(.bell-btn) .dropdown-menu,
+  .nav-right .dropdown:has(.bell-btn) .notif-dropdown,
+  .nav-right .dropdown:has(.bell-btn) .notification-dropdown {
+    pointer-events: auto; /* แต่ panel ที่ popup ออกมาให้คลิกได้ตามปกติ */
+  }
+
+  /* Notification dropdown — ตอน popup บนมือถือ ให้ติดด้านบนขวา (ใต้ Header) */
+  .nav-right .dropdown:has(.bell-btn) .notif-dropdown,
+  .nav-right .dropdown:has(.bell-btn) .notification-dropdown,
+  .nav-right .dropdown:has(.bell-btn) .dropdown-menu {
+    position: fixed !important;
+    top: 90px;
+    right: 12px;
+    left: auto;
+    width: calc(100vw - 24px);
+    max-width: 360px;
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+    z-index: 2500;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  }
+
+  .mobile-only {
+    display: block;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 20px;
+  }
+
+  .mobile-item {
+    color: white;
+    padding: 12px 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-radius: 10px;
+    transition: background 0.18s;
+    position: relative;
+  }
+  .mobile-item:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  
+  /* 🚩 กระดิ่งใน hamburger dropdown */
+  .mobile-item.mobile-bell {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    font-weight: 600;
+  }
+  .mobile-item.mobile-bell:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+  .mobile-item.mobile-bell.has-alert {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.45);
+  }
+  .mobile-item.mobile-bell i.fa-bell {
+    font-size: 1.1rem;
+  }
+  .mobile-item.mobile-bell.has-alert i.fa-bell {
+    color: #fca5a5;
+    text-shadow: 0 0 8px rgba(252, 165, 165, 0.45);
+  }
+  .mobile-bell-dot {
+    position: absolute;
+    right: 14px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+    animation: bellDotPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes bellDotPulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.25); }
+  }
+}

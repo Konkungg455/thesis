@@ -1,0 +1,5 @@
+﻿Thesis Demo URLs - 2026-06-25 14:16
+
+Public (QR Code):  https://trimester-transpire-dares.ngrok-free.dev
+LAN:               http://192.168.1.117:3001
+API (local):       http://127.0.0.1/4

@@ -1,0 +1,169 @@
+.payment-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container-payment {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 20px;
+    background-color: #ffffff;
+}
+
+.payment-card {
+    background: white;
+    width: 100%;
+    max-width: 500px;
+    border-radius: 20px;
+    padding: 45px 35px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    border: 3px solid #00469c;
+    transition: all 0.3s ease;
+}
+
+/* เพิ่มเส้นขอบสีทองถ้าเป็นสิทธิ์บัตรทอง */
+.gold-card-border {
+    border-color: #ffcc00 !important;
+}
+
+.privilege-badge {
+    background: #fff9e6;
+    color: #d4a017;
+    padding: 8px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.back-arrow {
+    position: absolute;
+    top: 25px;
+    left: 25px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: #00469c;
+}
+
+.title {
+    color: #00469c;
+    font-size: 1.7rem;
+    font-weight: 700;
+    margin-bottom: 30px;
+}
+
+.card-type-section {
+    text-align: left;
+    margin-bottom: 25px;
+}
+
+.section-label {
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+}
+
+.card-icons {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.icon-img {
+    border: 1px solid #e2e8f0;
+    padding: 5px 10px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+}
+
+.card-icons img {
+    height: 25px;
+}
+
+.see-all {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333;
+    margin-left: 5px;
+}
+
+.form-payment {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.input-block {
+    text-align: left;
+    flex: 1;
+}
+
+.input-block label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.custom-input {
+    width: 100%;
+    padding: 12px 15px;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    outline: none;
+}
+
+.custom-input:focus {
+    border-color: #00469c;
+}
+
+.input-row {
+    display: flex;
+    gap: 15px;
+}
+
+/* ปุ่มจ่ายเงิน */
+.btn-pay-submit {
+    width: 100%;
+    background: #00469c;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 25px;
+    border-radius: 12px;
+    border: none;
+    font-weight: 700;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+/* สีปุ่มตอนเป็นบัตรทอง */
+.btn-pay-submit.btn-gold {
+    background: #ffcc00;
+    color: #00469c;
+}
+
+.btn-pay-submit:hover {
+    opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .payment-card {
+        max-width: 420px;
+        padding: 35px 20px;
+    }
+    .title { font-size: 1.5rem; }
+}

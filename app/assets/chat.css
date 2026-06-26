@@ -1,0 +1,1125 @@
+.user-layout {
+    min-height: 100vh;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-content {
+    display: flex;
+    flex: 1;
+    align-items: stretch;
+}
+
+/* 2. Main Content - ใช้ Flex เพื่อให้ Sidebar ยืดชิดขอบ */
+/*  position:relative + min-height = วิธีเดียวกับหน้า /pharmacy_web
+    ทำให้ .main-content (positioned) ถูก paint ทับคลื่น footer (static sibling)
+    → ช่องพิมพ์/ปุ่มส่งไม่โดน footer-wave บัง */
+.main-content {
+    display: flex;
+    flex: 1;
+    margin: 0;
+    padding: 0;
+    align-items: stretch;
+    position: relative;
+    min-height: calc(100vh - 200px);
+}
+
+/* ===================== Sidebar (User Chat) — โทนฟ้าอ่อน ===================== */
+.sidebar {
+    width: 250px;
+    background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%);
+    color: white;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 4px 0 16px rgba(37, 99, 235, 0.2);
+    position: relative;
+}
+
+.sidebar-brand {
+    color: #fef3c7;
+    font-weight: 800;
+    font-size: 1rem;
+    padding: 16px 22px;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border-bottom: 2px solid #fcdb3a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    margin-bottom: 8px;
+    position: relative;
+}
+
+.sidebar-close {
+    display: none;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    font-size: 1rem;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+}
+.sidebar-close:hover { background: rgba(255, 255, 255, 0.25); }
+
+.menu-item {
+    color: #ffffff;
+    padding: 13px 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    border-left: 4px solid transparent;
+    transition: background 0.2s, color 0.2s, border-left 0.2s;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.menu-item:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+.menu-item.active,
+.menu-item.router-link-active {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fcdb3a;
+    border-left: 4px solid #fcdb3a;
+    font-weight: 800;
+}
+
+/* ===== Mobile Topbar (hamburger เปิด/ปิด sidebar) ===== */
+.mobile-topbar {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    position: sticky;
+    top: 0;
+    z-index: 90;
+}
+.hamburger {
+    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+    color: #fff;
+    border: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    transition: transform 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.hamburger:hover { transform: scale(1.05); }
+.mobile-title {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #2563eb;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+html.dark .mobile-topbar {
+    background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    border-bottom-color: #1e293b;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+html.dark .hamburger {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.32);
+}
+html.dark .mobile-title {
+    color: #93c5fd;
+}
+
+.sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.62);
+    z-index: 1900;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+/* footer divider — แถบสีฟ้า 250px เฉพาะ desktop */
+@media (min-width: 1025px) {
+    :deep(.footer-divider) {
+        background: linear-gradient(to right, #2563eb 250px, #ffffff 250px) !important;
+        line-height: 0;
+        margin-top: -1px;
+    }
+}
+:deep(.footer-wave) { margin-top: 0 !important; }
+:deep(header), :deep(.navbar) { margin-bottom: 0 !important; }
+
+/* แล็ปท็อปจอแคบ / แท็บเล็ตแนวนอน (1025–1280) — ย่อ sidebar กันล้น (แนวทางเดียวกับ pharmacy_web) */
+@media (min-width: 1025px) and (max-width: 1280px) {
+    .sidebar { width: 240px; }
+    .chat-section { padding: 18px; }
+    :deep(.footer-divider) {
+        background: linear-gradient(to right, #2563eb 240px, #ffffff 240px) !important;
+    }
+}
+
+/* จอ ≤1280 — ซ่อน label ยาว "เหลือเวลาในการติดตามอาการ:" ให้ timer กระชับ
+   (เหลือแค่ไอคอน + ตัวเลขเวลา เหมือน /pharmacy_web) ชื่อเภสัชจะมีพื้นที่อยู่แถวเดียว */
+@media (max-width: 1280px) {
+    .consult-timer .timer-label-mini { display: none; }
+}
+
+/* ============================ RESPONSIVE (User Chat) ============================ */
+/* ≤1024 (รวมช่วง 901–1024) — ใช้ drawer + แชทเต็มจอ แทน sidebar ค้างซ้ายที่ยาวเกินเนื้อหา
+   (วิธีเดียวกับ /pharmacy_web) */
+@media (max-width: 1024px) {
+    .mobile-topbar { display: flex; }
+
+    .user-layout .main-content {
+        position: relative;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    .sidebar {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 86% !important;
+        max-width: 360px !important;
+        z-index: 2000 !important;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease, visibility 0.3s;
+        flex-direction: column;
+        padding: 0;
+        overflow-y: auto;
+        box-shadow: none;
+    }
+    .sidebar:not(.is-open) {
+        visibility: hidden;
+        pointer-events: none;
+    }
+    .sidebar.is-open {
+        transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+    }
+    .sidebar-close { display: inline-flex !important; }
+
+    /* แชทเต็มจอ — ซ่อน footer (ซ้อนไว้ใต้แชท) ให้ช่องพิมพ์อยู่ติดขอบล่างเสมอ
+       (วิธีเดียวกับ /pharmacy_web) */
+    .user-layout {
+        height: 100vh;
+        height: 100dvh;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow: hidden;
+    }
+    .user-layout .main-content {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .chat-section {
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+        min-height: 0;
+        height: 100%;
+        flex: 1;
+    }
+
+    /* แชทเต็มจอ ชิดขอบ — จำกัดความสูงให้ scrollbar โผล่ในกล่องแชท */
+    .chat-container {
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        max-height: none !important;
+        height: 100%;
+        min-height: 0;
+        flex: 1;
+    }
+    .chat-messages {
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* ซ่อน footer ทั้งหมดบนจอเล็ก — แชทเต็มจอไม่มีช่องว่างด้านล่าง */
+    :deep(.footer-wave) { display: none !important; }
+    :deep(.footer-divider) { display: none !important; }
+}
+
+@media (max-width: 480px) {
+    .sidebar { width: 100% !important; max-width: 100% !important; }
+}
+
+/* 4. Chat UI */
+.chat-section {
+    flex: 1;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: calc(100vh - 200px);
+    max-height: calc(100vh - 80px);
+}
+
+.chat-container {
+    background: white;
+    flex: 1;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    min-height: 0;
+    max-height: 100%;
+}
+
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    align-content: flex-start;
+    padding: 14px 20px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-bottom: 1px solid #e2e8f0;
+    gap: 12px;
+    flex-wrap: wrap;
+    flex: 0 0 auto;
+}
+
+/* ===== ป้ายบอกบทบาทสีน้ำเงิน (หน้าผู้ป่วย) — แยกจากหน้าเภสัชกร (เขียว) ===== */
+.role-banner {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 8px 16px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    color: #ffffff;
+}
+.role-banner i { font-size: 1.05rem; }
+.role-banner--patient {
+    background: linear-gradient(90deg, #1d4ed8 0%, #3b82f6 100%);
+}
+
+/* ธีมน้ำเงิน ฝั่งผู้ป่วย — ให้มองเห็นต่างจากฝั่งเภสัชกร (กรอบสีขาวเหมือนเดิม) */
+.chat-container--patient .chat-header {
+    background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 100%);
+    border-bottom: 2px solid #93c5fd;
+}
+.chat-container--patient .chat-messages {
+    background:
+        radial-gradient(circle at 12% 18%, rgba(59, 130, 246, 0.08), transparent 42%),
+        radial-gradient(circle at 88% 82%, rgba(37, 99, 235, 0.06), transparent 42%),
+        #eff6ff;
+}
+
+@media (max-width: 720px) {
+    .role-banner { font-size: 0.86rem; padding: 7px 12px; gap: 7px; }
+    .role-banner i { font-size: 0.95rem; }
+}
+
+.pharma-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.pharma-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #00a86b 0%, #16a34a 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
+    overflow: hidden;
+    border: 2px solid #ffffff;
+    position: relative;
+}
+.pharma-avatar.has-img { background: #e2e8f0; }
+.pharma-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    display: block;
+}
+.pharma-info { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.pharma-info h3 {
+    margin: 0;
+    font-size: 1.02rem;
+    color: #0f172a;
+    font-weight: 800;
+    line-height: 1.25;
+    /* กันชื่อภาษาไทยแตกทีละตัวเมื่อพื้นที่แคบ — ให้อยู่บรรทัดเดียว ถ้าไม่พอค่อยตัด … */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pharma-status {
+    color: #64748b;
+    font-size: 0.78rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.header-actions,
+.header-call-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+}
+
+.consult-timer {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    border-radius: 20px;
+    padding: 6px 13px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.chat-messages {
+    flex: 1;
+    min-height: 0;
+    padding: 18px 18px 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background:
+        radial-gradient(circle at 12% 18%, rgba(0, 70, 156, 0.04), transparent 40%),
+        radial-gradient(circle at 88% 82%, rgba(34, 197, 94, 0.05), transparent 40%),
+        #f8fafc;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    will-change: scroll-position;
+}
+/* ===== Slider/Scrollbar เด่นๆ สำหรับ chat messages ===== */
+.chat-messages {
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 rgba(59, 130, 246, 0.08);
+}
+.chat-messages::-webkit-scrollbar {
+    width: 10px;
+}
+.chat-messages::-webkit-scrollbar-track {
+    background: rgba(59, 130, 246, 0.08);
+    border-radius: 8px;
+    margin: 6px 0;
+}
+.chat-messages::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+    border-radius: 8px;
+    border: 2px solid #f8fafc;
+    transition: background 0.2s;
+}
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+}
+
+/* ----- Welcome state ----- */
+.chat-welcome {
+    margin: auto;
+    text-align: center;
+    color: #94a3b8;
+    padding: 40px 20px;
+}
+.welcome-icon {
+    font-size: 56px;
+    margin-bottom: 12px;
+    animation: float 3s ease-in-out infinite;
+}
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+.chat-welcome h4 {
+    color: #475569;
+    font-size: 1.1rem;
+    margin: 8px 0;
+    font-weight: 700;
+}
+.chat-welcome p {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    margin: 0;
+}
+
+/* --- บับเบิลแชท --- */
+.message-bubble {
+    max-width: 75%;
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-size: 0.94rem;
+    line-height: 1.5;
+    word-wrap: break-word;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+    animation: bubble-in 0.25s ease-out;
+    position: relative;
+}
+.message-bubble:hover .msg-actions { opacity: 1; pointer-events: auto; }
+.msg-actions {
+    position: absolute;
+    top: -10px;
+    right: 8px;
+    display: flex;
+    gap: 4px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 3px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 2;
+}
+.msg-act-btn {
+    background: transparent;
+    border: none;
+    color: #475569;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.72rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+}
+.msg-act-btn:hover { background: #f1f5f9; color: #00469c; }
+.msg-act-btn.delete:hover { background: #fee2e2; color: #b91c1c; }
+
+.edited-mark {
+    font-size: 0.7rem;
+    opacity: 0.65;
+    margin-left: 4px;
+    font-style: italic;
+}
+
+.msg-edit-box {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.edit-input {
+    width: 100%;
+    min-width: 200px;
+    border: 1.5px solid #ffffff;
+    background: rgba(255, 255, 255, 0.95);
+    color: #0f172a;
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 0.9rem;
+    outline: none;
+    resize: vertical;
+    font-family: inherit;
+}
+.pharma .edit-input { border-color: #cbd5e1; background: #fff; }
+.edit-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.edit-btn {
+    border: none;
+    border-radius: 14px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+.edit-btn.cancel { background: rgba(255, 255, 255, 0.25); color: #fff; }
+.pharma .edit-btn.cancel { background: #e2e8f0; color: #475569; }
+.edit-btn.save { background: #fcdb3a; color: #422006; }
+.edit-btn.save:hover { background: #fbbf24; }
+@keyframes bubble-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.me {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #00469c 0%, #003d92 100%);
+    color: white;
+    border-bottom-right-radius: 6px;
+    box-shadow: 0 3px 10px rgba(0, 70, 156, 0.2);
+}
+.pharma {
+    align-self: flex-start;
+    background: #ffffff;
+    color: #1e293b;
+    border-bottom-left-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+.time {
+    font-size: 0.66rem;
+    margin-top: 4px;
+    opacity: 0.7;
+    font-weight: 500;
+}
+.me .time { text-align: right; color: #cfe2ff; }
+.pharma .time { text-align: left; color: #94a3b8; }
+
+.msg-image-wrap { margin-bottom: 6px; }
+.msg-image {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 12px;
+    display: block;
+    cursor: zoom-in;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+.msg-image:hover { transform: scale(1.02); }
+
+.pdf-box {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.pharma .pdf-box {
+    background: rgba(0, 70, 156, 0.08);
+    border: 1px solid rgba(0, 70, 156, 0.15);
+}
+.pdf-icon { font-size: 24px; }
+.pdf-meta { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.pdf-title { font-size: 0.78rem; font-weight: 700; }
+.pharma .pdf-title { color: #0f172a; }
+.me .pdf-title { color: #fff; }
+.pdf-link {
+    color: inherit;
+    text-decoration: underline;
+    font-size: 0.75rem;
+    margin-top: 2px;
+}
+
+/* Input Area */
+.chat-input-area {
+    padding: 12px 16px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    background: #fff;
+}
+.chat-input-area.input-disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+.input-wrap {
+    flex: 1;
+    min-width: 0;
+    background: #f1f5f9;
+    border: 1.5px solid transparent;
+    border-radius: 24px;
+    padding: 4px 6px;
+    transition: border 0.15s, background 0.15s;
+}
+.input-wrap:focus-within {
+    background: #fff;
+    border-color: #00469c;
+    box-shadow: 0 0 0 4px rgba(0, 70, 156, 0.08);
+}
+.chat-input-area input {
+    width: 100%;
+    padding: 9px 14px;
+    border: none;
+    border-radius: 25px;
+    outline: none;
+    font-size: 0.95rem;
+    background: transparent;
+    color: #0f172a;
+}
+.icon-btn-attach {
+    background: #f1f5f9;
+    color: #00469c;
+    border: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+    transition: background 0.2s, transform 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.icon-btn-attach:hover { background: #e2e8f0; transform: rotate(-10deg); }
+
+.btn-send {
+    background: linear-gradient(135deg, #00469c 0%, #003d92 100%);
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    height: 42px;
+    border-radius: 22px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.88rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 3px 10px rgba(0, 70, 156, 0.25);
+    transition: transform 0.15s, box-shadow 0.2s;
+    flex-shrink: 0;
+}
+.btn-send:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 14px rgba(0, 70, 156, 0.4);
+}
+.btn-send:disabled {
+    background: #cbd5e1;
+    box-shadow: none;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+.online {
+    background: #22c55e;
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6);
+    animation: online-pulse 2s ease-out infinite;
+}
+@keyframes online-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(34, 197, 94, 0.6); }
+    70%  { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);   }
+    100% { box-shadow: 0 0 0 0   rgba(34, 197, 94, 0);   }
+}
+.offline { background: #94a3b8; }
+
+.empty-state {
+    text-align: center;
+    color: #ccc;
+    margin-top: 50px;
+}
+
+.line-call-btn,
+.video-call-btn {
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 22px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+}
+.line-call-btn {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    box-shadow: 0 4px 14px rgba(34, 197, 94, 0.3);
+}
+.line-call-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(34, 197, 94, 0.4); }
+.video-call-btn {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+}
+.video-call-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(59, 130, 246, 0.4); }
+
+/* Call Overlay (หน้าจอตอนโทร) */
+.call-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(7, 20, 38, 0.95);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+}
+
+.call-card {
+    text-align: center;
+}
+
+.avatar-animation {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    margin: 0 auto 30px;
+}
+
+.profile-img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 4px solid #52d05a;
+    position: relative;
+    z-index: 2;
+}
+
+.pulse-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: 4px solid #52d05a;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1.5);
+        opacity: 0;
+    }
+}
+
+.call-actions {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 40px;
+}
+
+.btn-accept {
+    background: #52d05a;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 30px;
+    cursor: pointer;
+}
+
+.btn-hangup {
+    background: #ff3b30;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 30px;
+    cursor: pointer;
+}
+
+/* ===================== Active Call Bar (แถบตอนกำลังคุย) ===================== */
+.active-call-bar {
+    background: linear-gradient(90deg, #fee2e2 0%, #fef2f2 100%);
+    color: #1e293b;
+    padding: 11px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #fecaca;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.88rem;
+}
+.active-call-bar .call-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+.active-call-bar .call-info-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    color: #475569;
+}
+.call-state-label { color: #b91c1c; font-weight: 800; }
+.timer-pill {
+    background: #fff;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-weight: 700;
+    font-size: 0.78rem;
+    box-shadow: 0 2px 6px rgba(185, 28, 28, 0.1);
+}
+.blink-dot {
+    width: 9px;
+    height: 9px;
+    background: #64748b;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+    margin: 0;
+    animation: none;
+}
+.blink-dot.in-call-active {
+    background: #ef4444;
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55);
+    animation: live-pulse 1.4s ease-out infinite;
+}
+@keyframes live-pulse {
+    0%   { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0.6); }
+    70%  { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);   }
+    100% { box-shadow: 0 0 0 0   rgba(239, 68, 68, 0);   }
+}
+.btn-hangup-bar {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.82rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 3px 10px rgba(239, 68, 68, 0.3);
+    transition: transform 0.15s;
+}
+.btn-hangup-bar:hover { transform: translateY(-2px); }
+
+.btn-end-small {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid white;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+    transition: opacity 0.5s;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+    opacity: 0;
+}
+
+/* Fullscreen Overlay */
+.video-call-full-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: #000;
+    z-index: 10000; /* ทับทุกส่วนของเว็บ */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.remote-video-bg {
+    width: 100%; height: 100%; object-fit: cover;
+}
+
+/* จอตัวเองเล็กๆ มุมซ้ายบน */
+.local-video-pip {
+    position: absolute;
+    top: 50px; left: 20px;
+    width: 100px; height: 150px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: #222;
+}
+
+.local-video-stream { width: 100%; height: 100%; object-fit: cover; }
+
+/* แผงควบคุมปุ่ม */
+.video-call-controls {
+    position: absolute;
+    bottom: 60px;
+    display: flex;
+    align-items: center;
+    gap: 40px; /* ระยะห่างระหว่างปุ่ม */
+}
+
+/* ปุ่มวงกลมทั่วไป */
+.video-control-btn {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+    font-size: 1.4rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: 0.3s;
+}
+
+.btn-device-off {
+    background: rgba(0, 0, 0, 0.6) !important;
+}
+
+/* ปุ่มวางสายสีแดงตรงกลาง */
+.btn-hangup-main {
+    width: 75px; height: 75px;
+    border-radius: 50%;
+    background: #ff3b30;
+    color: white;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255, 59, 48, 0.4);
+    transition: 0.3s;
+}
+
+.btn-hangup-main:hover { transform: scale(1.1); background: #d63027; }
+
+/* Animation ตอนเด้งขึ้นมา */
+.video-pop-enter-active, .video-pop-leave-active { transition: all 0.4s ease; }
+.video-pop-enter-from, .video-pop-leave-to { opacity: 0; transform: scale(1.05); }
+
+/* ===================== Chat — Responsive ===================== */
+@media (max-width: 720px) {
+    .chat-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .pharma-profile {
+        width: 100%;
+        flex: none;
+    }
+
+    .pharma-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .pharma-info h3 {
+        font-size: 0.96rem;
+        white-space: normal;
+    }
+
+    .header-actions {
+        width: 100%;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+        gap: 6px;
+    }
+
+    .consult-timer {
+        margin-right: auto;
+        flex: 1 1 auto;
+        flex-shrink: 1;
+        min-width: 0;
+        max-width: calc(100% - 150px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        pointer-events: none;
+    }
+
+    .btn-label { display: none; }
+    .line-call-btn,
+    .video-call-btn,
+    .btn-exit-chat-header {
+        padding: 0;
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .btn-send {
+        padding: 0;
+        width: 42px;
+        gap: 0;
+        justify-content: center;
+    }
+    .pharma-avatar { width: 40px; height: 40px; font-size: 1rem; }
+    .pharma-status { font-size: 0.72rem; }
+}
+
+@media (max-width: 480px) {
+    .chat-header { padding: 12px 14px; gap: 8px; }
+    .pharma-profile { gap: 10px; }
+    .pharma-avatar { width: 38px; height: 38px; }
+    .pharma-info h3 { font-size: 0.92rem; }
+    .consult-timer { padding: 5px 10px; font-size: 0.74rem; }
+    .header-actions { gap: 5px; }
+
+    .active-call-bar { padding: 9px 14px; font-size: 0.82rem; }
+    .timer-pill { font-size: 0.72rem; padding: 2px 8px; }
+    .btn-hangup-bar { padding: 6px 12px; font-size: 0.76rem; }
+
+    .chat-welcome { padding: 30px 16px; }
+    .welcome-icon { font-size: 44px; }
+    .chat-welcome h4 { font-size: 0.98rem; }
+    .chat-welcome p { font-size: 0.82rem; }
+
+    .chat-messages { padding: 12px; gap: 8px; }
+    .message-bubble {
+        max-width: 88%;
+        padding: 9px 13px;
+        font-size: 0.9rem;
+    }
+    .msg-image { max-width: 170px; max-height: 170px; }
+
+    .chat-input-area { padding: 9px 10px; gap: 6px; }
+    .chat-input-area input { padding: 8px 12px; font-size: 16px; }
+    .btn-send { height: 40px; width: 40px; }
+    .icon-btn-attach { width: 40px; height: 40px; font-size: 1rem; }
+}
+
+@media (max-width: 390px) {
+    .chat-header { padding: 10px 12px; }
+    .pharma-avatar { width: 36px; height: 36px; font-size: 0.9rem; }
+    .pharma-info h3 { font-size: 0.88rem; }
+    .line-call-btn,
+    .video-call-btn,
+    .btn-exit-chat-header { width: 40px; height: 40px; }
+    .consult-timer { max-width: calc(100% - 132px); }
+    .btn-send { height: 38px; width: 38px; }
+    .icon-btn-attach { width: 38px; height: 38px; }
+}

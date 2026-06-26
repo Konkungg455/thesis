@@ -1,0 +1,300 @@
+/* ============================================================
+   Hero Section — คงคำเดิมเป๊ะ, ปรับให้ดูทางการ + แก้รูปถูกตัด
+   ============================================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Inter", sans-serif;
+}
+
+/* พื้นหลัง hero + พื้นที่เหนือคลื่น — สีเดียวเรียบ (#f6faff) ไม่มีแถบ/ขอบสี */
+.hero-wave-wrap {
+    background: #f6faff;
+}
+
+.hero {
+    position: relative;
+    z-index: 3;            /* ให้เนื้อหา hero (รวมปุ่ม) อยู่หน้า wave */
+    min-height: 78vh;
+    display: flex;
+    align-items: center;
+    padding: 70px 0 0;
+    overflow: hidden;
+    background: transparent;
+    isolation: isolate;
+}
+
+/* Decorative blurred shapes — ปิดไว้ เพราะทำให้เกิดแถบ/ขอบสีบนพื้นหลัง */
+.hero-blob {
+    display: none;
+}
+.blob-top {
+    width: 380px;
+    height: 380px;
+    top: -120px;
+    left: -100px;
+    background: radial-gradient(circle, rgba(61, 189, 236, 0.30) 0%, transparent 70%);
+}
+.blob-bottom {
+    width: 460px;
+    height: 460px;
+    bottom: -160px;
+    right: -140px;
+    background: radial-gradient(circle, rgba(0, 70, 157, 0.22) 0%, transparent 70%);
+}
+
+.hero-container {
+    position: relative;
+    z-index: 2;
+    width: 92%;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 50px;
+}
+
+/* ===== LEFT ===== */
+.hero-left {
+    color: #00469D;
+    max-width: 600px;
+    flex: 1;
+}
+
+.hero-left h1 {
+    font-size: 36px;
+    line-height: 1.25;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    color: #00264f;
+}
+
+.hero-left h1 span {
+    color: #3DBDEC;
+    background: linear-gradient(135deg, #3DBDEC 0%, #00469D 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.hero-left p {
+    margin-top: 18px;
+    font-size: 17px;
+    line-height: 1.7;
+    color: #475569;
+    opacity: 0.95;
+}
+
+/* CTA */
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 28px;
+    padding: 13px 34px;
+    background: linear-gradient(135deg, #00469D 0%, #2267b2 60%, #3DBDEC 100%);
+    color: #ffffff;
+    font-size: 16px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 700;
+    transition: transform 0.25s, box-shadow 0.25s, filter 0.25s;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgba(0, 70, 157, 0.28);
+}
+.btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 30px rgba(0, 70, 157, 0.38);
+    filter: brightness(1.06);
+}
+
+/* ===== RIGHT ===== */
+.hero-right {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.hero-image-frame {
+    position: relative;
+    width: 100%;
+    max-width: 440px;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+/* วงกลม gradient ด้านหลังภาพ */
+.frame-circle {
+    position: absolute;
+    inset: 8%;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e0f2fe 0%, #3DBDEC 55%, #00469D 100%);
+    box-shadow: 0 30px 60px rgba(0, 70, 157, 0.30);
+    z-index: 0;
+}
+/* วงแหวน dashed รอบนอก */
+.frame-ring {
+    position: absolute;
+    inset: 0%;
+    border-radius: 50%;
+    border: 2px dashed rgba(0, 70, 157, 0.22);
+    z-index: 0;
+    animation: spin-slow 40s linear infinite;
+}
+@keyframes spin-slow {
+    from { transform: rotate(0); }
+    to   { transform: rotate(360deg); }
+}
+
+/* รูปเภสัชกร — แสดงเต็มภาพ ไม่ถูกตัด */
+.hero-image {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;          /* 🚩 แก้บั๊ครูปถูกตัด (เดิม cover) */
+    object-position: center bottom;
+    filter: drop-shadow(0 24px 28px rgba(0, 70, 157, 0.22));
+    animation: gentle-float 6s ease-in-out infinite;
+}
+@keyframes gentle-float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+}
+
+/* Wave — ใช้ margin-top ลบ แทน top (relative) กันช่องว่างขาวใต้คลื่น */
+.wave-up {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: -180px;
+    margin-bottom: -1px;
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+    line-height: 0;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 1024px) {
+    .hero { padding: 60px 0 80px; min-height: auto; }
+    .hero-container { gap: 30px; }
+    .hero-left h1 { font-size: 30px; }
+    .hero-image-frame { max-width: 380px; }
+}
+
+@media (max-width: 768px) {
+    .hero { padding: 40px 0 70px; }
+
+    .hero-container {
+        flex-direction: column;
+        text-align: center;
+        gap: 24px;
+        padding-top: 20px;
+    }
+
+    .hero-left { max-width: 100%; }
+    .hero-left h1 { font-size: 24px; line-height: 1.3; }
+    .hero-left p { font-size: 16px; margin-top: 14px; }
+
+    .btn-primary {
+        margin-top: 22px;
+        padding: 12px 30px;
+        font-size: 15px;
+    }
+
+    .hero-right { order: -1; width: 100%; }
+    .hero-image-frame { max-width: 260px; }
+
+    .blob-top  { width: 240px; height: 240px; }
+    .blob-bottom { width: 280px; height: 280px; }
+
+    .wave-up {
+        margin-top: -60px;
+        margin-bottom: -1px;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-left h1 { font-size: 20px; }
+    .hero-left p  { font-size: 14px; }
+    .hero-image-frame { max-width: 220px; }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .frame-ring, .hero-image { animation: none !important; }
+}
+
+/* ============================================================
+   Dark Mode
+   ============================================================ */
+html.dark .hero-wave-wrap {
+    background: #0f172a !important;
+}
+
+html.dark .hero {
+    background:
+        radial-gradient(circle at 74% 35%, rgba(56, 189, 248, 0.16) 0%, transparent 30%),
+        linear-gradient(180deg, #0f172a 0%, #0b1120 100%) !important;
+}
+
+html.dark .hero-left {
+    color: #f8fafc !important;
+}
+
+html.dark .hero-left h1 {
+    color: #f8fafc !important;
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
+}
+
+html.dark .hero-left h1 span {
+    background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 45%, #60a5fa 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+html.dark .hero-left p {
+    color: #cbd5e1 !important;
+    opacity: 1;
+}
+
+html.dark .frame-circle {
+    background: linear-gradient(135deg, #164e63 0%, #0ea5e9 52%, #1d4ed8 100%);
+    box-shadow: 0 30px 70px rgba(14, 165, 233, 0.22);
+}
+
+html.dark .frame-ring {
+    border-color: rgba(125, 211, 252, 0.32);
+}
+
+html.dark .hero-image {
+    filter: drop-shadow(0 26px 32px rgba(0, 0, 0, 0.42));
+}
+
+html.dark .wave-up {
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    margin-top: -180px !important;
+    margin-bottom: -1px !important;
+    transform: none !important;
+    background: transparent !important;
+}
+
+html.dark .wave-up rect {
+    fill: #0b1120 !important;
+}
+
+html.dark .wave-up path {
+    fill: #020617 !important;
+}

@@ -1,0 +1,107 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Inter", sans-serif;
+}
+
+.online-bar {
+    background-color: #0d4c9e;
+    border-radius: 16px;
+    padding: 30px 30px;
+    width: 60%;  
+    margin: 0 auto;  
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.left-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.store-icon {
+    font-size: 32px;
+}
+
+.text-group .title {
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.text-group .status {
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.users {
+    margin-top: 5px;
+    font-size: 20px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.users .number {
+    font-size: 22px;
+}
+
+.action-btn {
+    background-color: #5dadee;
+    color: white;
+    border: none;
+    padding: 12px 26px;
+    border-radius: 25px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.3s ease;
+    text-decoration: none;   /* 👈 เอาขีดใต้ออก */
+}
+
+.action-btn:hover {
+    background-color: #abd2f1;
+    transform: translateY(-2px);
+}
+
+@media (max-width: 900px) {
+
+    body {
+        padding: 15px;
+    }
+
+ .online-bar {
+    border-radius: 16px;
+    padding: 30px 30px;
+    width: 100%;  
+    margin: 0 auto;  
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+    .left-section {
+        width: 100%;
+    }
+
+    .users {
+        font-size: 18px;
+    }
+
+    .users .number {
+        font-size: 20px;
+    }
+
+    .action-btn {
+        width: 40%;   /* ปุ่มเต็มจอ */
+        text-align: center;
+        padding: 14px;
+        font-size: 16px;
+    }
+    .online-bar {
+    width: 95%;  
+    justify-content: space-between;
+    align-items: center;
+}
+}

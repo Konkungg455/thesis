@@ -1,0 +1,3486 @@
+:root {
+  --app-bg: #f8fafc;
+  --app-surface: #ffffff;
+  --app-surface-2: #f1f5f9;
+  --app-surface-3: #e2e8f0;
+  --app-text: #0f172a;
+  --app-text-muted: #475569;
+  --app-text-soft: #64748b;
+  --app-border: #e2e8f0;
+  --app-primary: #0d4c9e;
+  --app-primary-2: #3dbdec;
+  --app-shadow: 0 16px 38px rgba(15, 23, 42, 0.12);
+  --app-input-bg: #ffffff;
+  --app-input-text: #0f172a;
+  --app-input-border: #cbd5e1;
+  --app-header-bg: #0d4c9e;
+  --app-header-bg-2: #073b7f;
+  --footer-bg: #00469d;
+  --footer-wave-fill: var(--footer-bg);
+  --footer-pre-bg: var(--app-bg);
+  --footer-text: #ffffff;
+  --footer-heading: #ffffff;
+  --footer-link-hover: #ffffff;
+  --footer-border: rgba(255, 255, 255, 0.35);
+}
+
+html.dark {
+  color-scheme: dark;
+  --app-bg: #0f172a;
+  --app-surface: #111827;
+  --app-surface-2: #1e293b;
+  --app-surface-3: #263449;
+  --app-text: #f8fafc;
+  --app-text-muted: #cbd5e1;
+  --app-text-soft: #94a3b8;
+  --app-border: rgba(148, 163, 184, 0.28);
+  --app-primary: #38bdf8;
+  --app-primary-2: #60a5fa;
+  --app-shadow: 0 22px 52px rgba(0, 0, 0, 0.42);
+  --app-input-bg: #0b1220;
+  --app-input-text: #e2e8f0;
+  --app-input-border: rgba(148, 163, 184, 0.36);
+  --app-header-bg: #020617;
+  --app-header-bg-2: #0b1120;
+  --footer-bg: #020617;
+  --footer-wave-fill: #020617;
+  --footer-pre-bg: #0f172a;
+  --footer-text: #cbd5e1;
+  --footer-heading: #f8fafc;
+  --footer-link-hover: #7dd3fc;
+  --footer-border: rgba(148, 163, 184, 0.28);
+}
+
+html,
+body,
+#__nuxt {
+  min-height: 100%;
+  background: var(--app-bg);
+  color: var(--app-text);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+body {
+  background: var(--app-bg) !important;
+  color: var(--app-text);
+}
+
+html.dark body,
+html.dark main,
+html.dark .page,
+html.dark .content,
+html.dark .main-content,
+html.dark .main-content-wrapper,
+html.dark [class*="page"],
+html.dark [class*="container"] {
+  color: var(--app-text);
+}
+
+html.dark .main-content,
+html.dark .main-content-wrapper {
+  background: var(--app-bg) !important;
+}
+
+html.dark .navbar,
+html.dark .nav-menu.show-mobile {
+  background: linear-gradient(135deg, var(--app-header-bg) 0%, var(--app-header-bg-2) 100%) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+}
+
+html.dark .navbar .nav-menu a {
+  color: #e2e8f0 !important;
+}
+
+html.dark .navbar .nav-menu a font,
+html.dark .navbar .nav-menu a span {
+  color: inherit !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html.dark .navbar .nav-menu a:hover {
+  color: #0f172a !important;
+  background: rgba(125, 211, 252, 0.92) !important;
+  border: 1px solid rgba(186, 230, 253, 0.85) !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+}
+
+html.dark .navbar .nav-menu a:hover font,
+html.dark .navbar .nav-menu a:hover span {
+  color: inherit !important;
+  background: transparent !important;
+}
+
+html.dark .navbar .nav-menu a.router-link-active,
+html.dark .navbar .nav-menu a.router-link-exact-active {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  background: linear-gradient(135deg, #fbbf24 0%, #fde68a 100%) !important;
+  border: 1px solid rgba(251, 191, 36, 0.7) !important;
+  border-radius: 999px !important;
+  padding: 7px 13px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 20px rgba(251, 191, 36, 0.28) !important;
+}
+
+html.dark .navbar .nav-menu a.router-link-active font,
+html.dark .navbar .nav-menu a.router-link-exact-active font,
+html.dark .navbar .nav-menu a.router-link-active span,
+html.dark .navbar .nav-menu a.router-link-exact-active span {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+html.dark .dropdown-menu,
+html.dark .notif-dropdown,
+html.dark .notification-dropdown {
+  background: var(--app-surface) !important;
+  border: 1px solid var(--app-border) !important;
+  box-shadow: var(--app-shadow) !important;
+}
+
+html.dark .dropdown-menu a,
+html.dark .dropdown-menu button,
+html.dark .dropdown-menu .menu-link,
+html.dark .notif-text strong,
+html.dark .notif-header,
+html.dark .no-notif,
+html.dark .username-label {
+  color: var(--app-text) !important;
+}
+
+html.dark .dropdown-menu a:hover,
+html.dark .dropdown-menu button:hover,
+html.dark .dropdown-menu .menu-link:hover {
+  background: rgba(56, 189, 248, 0.12) !important;
+  color: #7dd3fc !important;
+}
+
+html.dark .notif-dropdown,
+html.dark .notification-dropdown {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+}
+
+html.dark .notif-header {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #f8fafc !important;
+}
+
+html.dark .notif-item,
+html.dark .notif-wrapper,
+html.dark .alert-block,
+html.dark .notif-item.followup {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #f8fafc !important;
+}
+
+html.dark .notif-item:hover {
+  background: #172033 !important;
+}
+
+html.dark .notif-text strong,
+html.dark .user-text strong,
+html.dark .bell-toast-title {
+  color: #f8fafc !important;
+}
+
+html.dark .notif-text p,
+html.dark .alert-desc,
+html.dark .user-text span,
+html.dark .bell-toast-desc,
+html.dark .notif-empty,
+html.dark .no-notif {
+  color: #cbd5e1 !important;
+}
+
+html.dark .notif-icon-box,
+html.dark .alert-icon-box {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #7dd3fc !important;
+}
+
+html.dark .notif-icon-box.waiting {
+  background: rgba(251, 191, 36, 0.18) !important;
+  color: #fde68a !important;
+}
+
+html.dark .notif-icon-box.accepted {
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #86efac !important;
+}
+
+html.dark .notif-icon-box.rejected {
+  background: rgba(248, 113, 113, 0.18) !important;
+  color: #fca5a5 !important;
+}
+
+html.dark .notif-header.danger {
+  color: #fca5a5 !important;
+}
+
+html.dark .notif-header.warn {
+  color: #fde68a !important;
+}
+
+html.dark .alert-block.alert-warn {
+  background: rgba(251, 191, 36, 0.12) !important;
+  border-color: rgba(251, 191, 36, 0.32) !important;
+}
+
+html.dark .welcome-join-block {
+  background: #0b1220 !important;
+  border-color: rgba(34, 197, 94, 0.34) !important;
+}
+
+html.dark .welcome-join-title,
+html.dark .welcome-join-msg strong {
+  color: #bbf7d0 !important;
+}
+
+html.dark .welcome-join-msg {
+  color: #cbd5e1 !important;
+}
+
+html.dark .user-text .symptom-line {
+  background: rgba(251, 191, 36, 0.14) !important;
+  border-left-color: #fbbf24 !important;
+  color: #fde68a !important;
+}
+
+html.dark .user-text .symptom-empty,
+html.dark .user-text .wait-text {
+  color: #cbd5e1 !important;
+}
+
+html.dark .btn-view-history,
+html.dark .btn-go-chat,
+html.dark .btn-retry {
+  background: #020617 !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark .btn-go-chat,
+html.dark .btn-go-chat.followup-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #0284c7 100%) !important;
+  border: 1px solid rgba(125, 211, 252, 0.38) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+html.dark .btn-go-chat:hover,
+html.dark .btn-go-chat.followup-btn:hover {
+  filter: brightness(1.12) !important;
+}
+
+html.dark .btn-view-history i.fa-robot {
+  color: #93c5fd !important;
+}
+
+html.dark .btn-reject {
+  background: rgba(248, 113, 113, 0.14) !important;
+  color: #fecaca !important;
+  border: 1px solid rgba(248, 113, 113, 0.28) !important;
+}
+
+html.dark .btn-reject:hover {
+  background: rgba(248, 113, 113, 0.22) !important;
+}
+
+html.dark .bell-toast {
+  background: #111827 !important;
+  border-left-color: #38bdf8 !important;
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.46), 0 0 0 1px rgba(56, 189, 248, 0.26) !important;
+  color: #f8fafc !important;
+}
+
+html.dark .bell-toast-close {
+  color: #cbd5e1 !important;
+}
+
+html.dark .bell-toast-close:hover {
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #f8fafc !important;
+}
+
+html.dark p,
+html.dark span,
+html.dark label,
+html.dark small,
+html.dark li,
+html.dark td,
+html.dark th {
+  color: inherit;
+}
+
+html.dark h1,
+html.dark h2,
+html.dark h3,
+html.dark h4,
+html.dark h5,
+html.dark h6,
+html.dark strong {
+  color: var(--app-text);
+}
+
+html.dark a {
+  color: #7dd3fc;
+}
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background: var(--app-input-bg) !important;
+  color: var(--app-input-text) !important;
+  border-color: var(--app-input-border) !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark .card,
+html.dark [class*="card"],
+html.dark [class*="panel"],
+html.dark [class*="box"],
+html.dark [class*="modal"],
+html.dark [class*="sidebar"],
+html.dark [class*="list"],
+html.dark table {
+  border-color: var(--app-border) !important;
+}
+
+html.dark .card,
+html.dark [class*="card"],
+html.dark [class*="panel"],
+html.dark [class*="modal"],
+html.dark [class*="dialog"],
+html.dark [class*="box"] {
+  background-color: var(--app-surface) !important;
+  color: var(--app-text) !important;
+}
+
+html.dark table,
+html.dark thead,
+html.dark tbody,
+html.dark tr {
+  background: var(--app-surface) !important;
+  color: var(--app-text) !important;
+}
+
+html.dark th {
+  background: var(--app-surface-2) !important;
+  color: var(--app-text) !important;
+}
+
+html.dark td {
+  border-color: var(--app-border) !important;
+}
+
+html.dark .bg-white,
+html.dark [style*="background: white"],
+html.dark [style*="background:white"],
+html.dark [style*="background-color: white"],
+html.dark [style*="background-color:white"] {
+  background: var(--app-surface) !important;
+}
+
+html.dark [style*="background: #fff"],
+html.dark [style*="background:#fff"],
+html.dark [style*="background-color: #fff"],
+html.dark [style*="background-color:#fff"],
+html.dark [style*="background: #ffffff"],
+html.dark [style*="background:#ffffff"],
+html.dark [style*="background-color: #ffffff"],
+html.dark [style*="background-color:#ffffff"] {
+  background: var(--app-surface) !important;
+}
+
+html.dark .text-gray-500,
+html.dark .text-gray-600,
+html.dark .text-muted,
+html.dark [class*="muted"],
+html.dark [class*="desc"],
+html.dark [class*="subtitle"] {
+  color: var(--app-text-muted) !important;
+}
+
+html.dark .footer-divider {
+  background: var(--footer-pre-bg) !important;
+  margin-bottom: -1px;
+  overflow: hidden;
+}
+
+html.dark .footer-divider svg {
+  fill: var(--footer-wave-fill) !important;
+  display: block;
+  transform: translateY(1px);
+}
+
+html.dark .footer-wave {
+  background: var(--footer-bg) !important;
+  color: var(--footer-text) !important;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+html.dark .footer-wave__heading,
+html.dark .footer-wave__heading * {
+  color: var(--footer-heading) !important;
+}
+
+html.dark .footer-wave a,
+html.dark .footer-wave p,
+html.dark .footer-wave li,
+html.dark .footer-wave__copyright,
+html.dark .footer-dark__social a {
+  color: var(--footer-text) !important;
+}
+
+html.dark .footer-wave a:hover,
+html.dark .footer-dark__social a:hover {
+  color: var(--footer-link-hover) !important;
+}
+
+/* Auth pages: global override for /auth, login, sign-in and register screens. */
+html.dark body #__nuxt .auth-page {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.1) 0%, transparent 34%),
+    #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-card {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.28) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.48) !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-header h1 {
+  color: #f8fafc !important;
+  text-shadow: none !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-header p,
+html.dark body #__nuxt .auth-page .auth-footer,
+html.dark body #__nuxt .auth-page .auth-footer-label,
+html.dark body #__nuxt .auth-page .auth-field label,
+html.dark body #__nuxt .auth-page .auth-remember,
+html.dark body #__nuxt .auth-page .auth-hub-text span {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-hub-card {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.36) !important;
+  color: #f8fafc !important;
+  box-shadow: none !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-hub-card:hover {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 16px 34px rgba(14, 165, 233, 0.18) !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-hub-text strong {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-hub-card::after {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-hub-card:hover::after {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-back,
+html.dark body #__nuxt .auth-page .auth-role-chip {
+  background: rgba(125, 211, 252, 0.12) !important;
+  border-color: rgba(125, 211, 252, 0.32) !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-role-links {
+  border-top-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-footer a,
+html.dark body #__nuxt .auth-page .auth-forgot {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-field input,
+html.dark body #__nuxt .auth-page .auth-field textarea,
+html.dark body #__nuxt .auth-page .auth-field select,
+html.dark body #__nuxt .auth-page .auth-work-row input,
+html.dark body #__nuxt .auth-page .auth-work-row select {
+  background: #020617 !important;
+  border-color: rgba(125, 211, 252, 0.36) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-field input::placeholder,
+html.dark body #__nuxt .auth-page .auth-field textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-toggle-pw {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .auth-page .auth-notice {
+  background: rgba(251, 146, 60, 0.14) !important;
+  border-color: rgba(251, 146, 60, 0.36) !important;
+  color: #fed7aa !important;
+}
+
+/* Logout confirmation dialog */
+html.dark body .logout-overlay {
+  background: rgba(2, 6, 23, 0.78) !important;
+}
+
+html.dark body .logout-dialog {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.58) !important;
+}
+
+html.dark body .logout-title,
+html.dark body .logout-body,
+html.dark body .logout-dialog h3 {
+  color: #f8fafc !important;
+}
+
+html.dark body .logout-desc,
+html.dark body .logout-dialog p {
+  color: #cbd5e1 !important;
+}
+
+html.dark body .logout-badge {
+  background: rgba(125, 211, 252, 0.12) !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body .logout-close,
+html.dark body .logout-btn-cancel {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  color: #e2e8f0 !important;
+}
+
+/* User profile page */
+html.dark body #__nuxt .profile-page,
+html.dark body #__nuxt .profile-shell {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 34%),
+    #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .profile-card {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42) !important;
+}
+
+html.dark body #__nuxt .profile-title,
+html.dark body #__nuxt .profile-display-name,
+html.dark body #__nuxt .profile-section-title,
+html.dark body #__nuxt .profile-field label {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .profile-back,
+html.dark body #__nuxt .profile-loading,
+html.dark body #__nuxt .profile-field .hint,
+html.dark body #__nuxt .profile-field small {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .profile-back,
+html.dark body #__nuxt .addr-back {
+  background: #0b1220 !important;
+  border: 1px solid rgba(125, 211, 252, 0.34) !important;
+  color: #e0f2fe !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28) !important;
+}
+
+html.dark body #__nuxt .profile-back:hover,
+html.dark body #__nuxt .addr-back:hover {
+  background: #111827 !important;
+  border-color: #38bdf8 !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .profile-avatar {
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38) !important;
+}
+
+html.dark body #__nuxt .profile-avatar-btn {
+  background: #2563eb !important;
+  border-color: #e0f2fe !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.36) !important;
+}
+
+html.dark body #__nuxt .profile-avatar-btn:hover {
+  background: #1d4ed8 !important;
+}
+
+html.dark body #__nuxt .profile-field input,
+html.dark body #__nuxt .profile-field select,
+html.dark body #__nuxt .profile-schedule-row input,
+html.dark body #__nuxt .profile-schedule-row select {
+  background: #020617 !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .profile-field input.readonly {
+  background: #0b1220 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .profile-license-box,
+html.dark body #__nuxt .profile-badge {
+  background: rgba(125, 211, 252, 0.12) !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .section-head {
+  color: #e0f2fe !important;
+  border-bottom-color: rgba(125, 211, 252, 0.28) !important;
+}
+
+html.dark body #__nuxt .optional-tag,
+html.dark body #__nuxt .hint {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .help-card {
+  background: #0b1220 !important;
+  border-color: rgba(56, 189, 248, 0.32) !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .help-card *,
+html.dark body #__nuxt .help-title,
+html.dark body #__nuxt .help-steps,
+html.dark body #__nuxt .help-steps li,
+html.dark body #__nuxt .help-steps li b,
+html.dark body #__nuxt .help-note {
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .help-note {
+  background: rgba(251, 191, 36, 0.14) !important;
+  border: 1px solid rgba(251, 191, 36, 0.32) !important;
+  color: #fde68a !important;
+}
+
+html.dark body #__nuxt .addr-suggest {
+  background: #0b1220 !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34) !important;
+}
+
+html.dark body #__nuxt .addr-suggest li {
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .addr-suggest li:hover {
+  background: rgba(56, 189, 248, 0.14) !important;
+}
+
+html.dark body #__nuxt .addr-box {
+  background: #0b1220 !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28) !important;
+}
+
+html.dark body #__nuxt .addr-box:hover {
+  border-color: #38bdf8 !important;
+}
+
+html.dark body #__nuxt .addr-box__line {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .addr-box__body,
+html.dark body #__nuxt .addr-box--loading {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .addr-box__meta {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .addr-box__btn--edit,
+html.dark body #__nuxt .addr-box__btn--add {
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
+  border: 1px solid rgba(125, 211, 252, 0.36) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28) !important;
+}
+
+html.dark body #__nuxt .addr-box__btn--edit:hover,
+html.dark body #__nuxt .addr-box__btn--add:hover {
+  filter: brightness(1.12) !important;
+}
+
+html.dark body #__nuxt .addr-box__body--empty {
+  color: #cbd5e1 !important;
+}
+
+/* User AI history page */
+html.dark body #__nuxt .history-page {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 34%),
+    #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .history-page .header-section h1,
+html.dark body #__nuxt .history-page .card-title,
+html.dark body #__nuxt .history-page .pagination-info strong {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .history-page .header-section p,
+html.dark body #__nuxt .history-page .chat-preview,
+html.dark body #__nuxt .history-page .meta-row,
+html.dark body #__nuxt .history-page .state-container,
+html.dark body #__nuxt .history-page .pagination-info,
+html.dark body #__nuxt .history-page .pagination-perpage {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .history-page .history-card,
+html.dark body #__nuxt .history-page .pagination-bar {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.22) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28) !important;
+}
+
+html.dark body #__nuxt .history-page .history-card:hover {
+  border-color: #38bdf8 !important;
+  background: #111827 !important;
+}
+
+html.dark body #__nuxt .history-page .view-hint {
+  color: #7dd3fc !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .history-page .pg-btn,
+html.dark body #__nuxt .history-page .pg-num,
+html.dark body #__nuxt .history-page .pagination-perpage select {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Chat history page */
+html.dark body #__nuxt .chat-history-page,
+html.dark body #__nuxt .chat-history-page .main-content,
+html.dark body #__nuxt .chat-history-page .chat-container {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .chat-history-page .session-sidebar,
+html.dark body #__nuxt .chat-history-page .sidebar,
+html.dark body #__nuxt .chat-history-page .chat-main,
+html.dark body #__nuxt .chat-history-page .chat-panel,
+html.dark body #__nuxt .chat-history-page .chat-header,
+html.dark body #__nuxt .chat-history-page .chat-input-area {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.22) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .chat-history-page .pharma-profile h3,
+html.dark body #__nuxt .chat-history-page .pharma-profile h3 font,
+html.dark body #__nuxt .user-layout .pharma-profile h3,
+html.dark body #__nuxt .user-layout .pharma-profile h3 font {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .chat-history-page .pharma-profile small.session-id,
+html.dark body #__nuxt .chat-history-page .pharma-profile small.session-id font,
+html.dark body #__nuxt .user-layout .pharma-profile small.session-id,
+html.dark body #__nuxt .user-layout .pharma-profile small.session-id font {
+  color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .chat-history-page .real-pharma-btn,
+html.dark body #__nuxt .user-layout .real-pharma-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(125, 211, 252, 0.45) !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+}
+
+html.dark body #__nuxt .chat-history-page .real-pharma-btn i,
+html.dark body #__nuxt .chat-history-page .real-pharma-btn font,
+html.dark body #__nuxt .user-layout .real-pharma-btn i,
+html.dark body #__nuxt .user-layout .real-pharma-btn font {
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .chat-history-page .real-pharma-btn:hover,
+html.dark body #__nuxt .user-layout .real-pharma-btn:hover {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.45) !important;
+}
+
+html.dark body #__nuxt .chat-history-page .session-item,
+html.dark body #__nuxt .chat-history-page .bubble {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .chat-history-page .message-bubble {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.18) !important;
+  color: #f8fafc !important;
+}
+
+/* Thanks bubble — ปุ่ม/หัวข้อ contrast ใน dark mode */
+html.dark body #__nuxt .chat-history-page .message-bubble.thanks-bubble,
+html.dark body #__nuxt .user-layout .message-bubble.thanks-bubble {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(245, 158, 11, 0.14) 0%, transparent 52%),
+    linear-gradient(135deg, #1e293b 0%, #0f172a 100%) !important;
+  border: 2px solid transparent !important;
+  box-shadow:
+    0 8px 24px -4px rgba(245, 158, 11, 0.22),
+    0 2px 10px rgba(0, 0, 0, 0.35) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .chat-history-page .thanks-header,
+html.dark body #__nuxt .user-layout .thanks-header {
+  border-bottom-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+html.dark body #__nuxt .chat-history-page .thanks-header__title,
+html.dark body #__nuxt .user-layout .thanks-header__title {
+  background: linear-gradient(135deg, #fde68a 0%, #fbbf24 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+html.dark body #__nuxt .chat-history-page .thanks-actions,
+html.dark body #__nuxt .user-layout .thanks-actions {
+  border-top-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+html.dark body #__nuxt .chat-history-page .thanks-action-btn--primary,
+html.dark body #__nuxt .user-layout .thanks-action-btn--primary {
+  background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 5px 14px rgba(124, 58, 237, 0.4) !important;
+}
+
+html.dark body #__nuxt .chat-history-page .thanks-action-btn--primary i,
+html.dark body #__nuxt .chat-history-page .thanks-action-btn--primary font,
+html.dark body #__nuxt .user-layout .thanks-action-btn--primary i,
+html.dark body #__nuxt .user-layout .thanks-action-btn--primary font {
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .chat-history-page .thanks-action-btn--secondary,
+html.dark body #__nuxt .user-layout .thanks-action-btn--secondary {
+  background: #0b1220 !important;
+  color: #93c5fd !important;
+  border: 1.5px solid rgba(125, 211, 252, 0.5) !important;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.28) !important;
+}
+
+html.dark body #__nuxt .chat-history-page .thanks-action-btn--secondary i,
+html.dark body #__nuxt .chat-history-page .thanks-action-btn--secondary font,
+html.dark body #__nuxt .user-layout .thanks-action-btn--secondary i,
+html.dark body #__nuxt .user-layout .thanks-action-btn--secondary font {
+  color: #93c5fd !important;
+}
+
+html.dark body #__nuxt .chat-history-page .thanks-action-btn--secondary:hover,
+html.dark body #__nuxt .user-layout .thanks-action-btn--secondary:hover {
+  background: rgba(56, 189, 248, 0.16) !important;
+  border-color: #38bdf8 !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .chat-history-page .thanks-action-btn--secondary:hover i,
+html.dark body #__nuxt .chat-history-page .thanks-action-btn--secondary:hover font,
+html.dark body #__nuxt .user-layout .thanks-action-btn--secondary:hover i,
+html.dark body #__nuxt .user-layout .thanks-action-btn--secondary:hover font {
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .chat-history-page .ai-text .q-block {
+  background: #0b1220 !important;
+  border: 1px solid rgba(125, 211, 252, 0.18) !important;
+  border-radius: 14px !important;
+  padding: 10px !important;
+}
+
+html.dark body #__nuxt .chat-history-page .ai-text .q-line {
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 55%, #7c3aed 100%) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .chat-history-page .ai-text .sub-q-list,
+html.dark body #__nuxt .chat-history-page .ai-text .q-hint {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .chat-history-page .ai-text .sub-q-text,
+html.dark body #__nuxt .chat-history-page .ai-text .t-line {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .chat-history-page .ai-text .sub-q-hint,
+html.dark body #__nuxt .chat-history-page .ai-text .ack-line,
+html.dark body #__nuxt .chat-history-page .ai-text .q-hint-label {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .chat-history-page .ai-text .q-input-hint {
+  background: rgba(251, 191, 36, 0.14) !important;
+  border: 1px solid rgba(251, 191, 36, 0.34) !important;
+  color: #fde68a !important;
+}
+
+html.dark body #__nuxt .chat-history-page .ai-text .q-hint-chip {
+  background: #020617 !important;
+  border-color: rgba(125, 211, 252, 0.38) !important;
+  color: #e0f2fe !important;
+  box-shadow: none !important;
+}
+
+html.dark body #__nuxt .chat-history-page .session-item.active,
+html.dark body #__nuxt .chat-history-page .session-item:hover {
+  border-color: #38bdf8 !important;
+}
+
+html.dark body #__nuxt .chat-history-page .session-item__title {
+  color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .chat-history-page .session-item__preview {
+  color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .chat-history-page .session-item__meta,
+html.dark body #__nuxt .chat-history-page .session-item__meta span {
+  color: #e2e8f0 !important;
+  opacity: 1 !important;
+  font-weight: 700 !important;
+}
+
+html.dark body #__nuxt .chat-history-page .session-item__round {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
+  color: #111827 !important;
+  border: 1px solid rgba(251, 191, 36, 0.55) !important;
+  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.24) !important;
+}
+
+html.dark body #__nuxt .chat-history-page .session-item__icon {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .chat-history-page input,
+html.dark body #__nuxt .chat-history-page textarea {
+  background: #020617 !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+/* User consult archive page */
+html.dark body #__nuxt .consult-history-page {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 34%),
+    #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .consult-history-page .page-header h1,
+html.dark body #__nuxt .consult-history-page .panel-title,
+html.dark body #__nuxt .consult-history-page .session-name {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .consult-history-page .page-sub,
+html.dark body #__nuxt .consult-history-page .session-date,
+html.dark body #__nuxt .consult-history-page .session-meta,
+html.dark body #__nuxt .consult-history-page .meta-banner,
+html.dark body #__nuxt .consult-history-page .loading,
+html.dark body #__nuxt .consult-history-page .empty,
+html.dark body #__nuxt .consult-history-page .loading-mini,
+html.dark body #__nuxt .consult-history-page .empty-mini {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .consult-history-page .page-sub {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.24) !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.24) !important;
+}
+
+html.dark body #__nuxt .consult-history-page .page-sub i {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .consult-history-page .page-sub strong {
+  color: #93c5fd !important;
+}
+
+html.dark body #__nuxt .consult-history-page .page-sub-text {
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .consult-history-page .sessions-panel,
+html.dark body #__nuxt .consult-history-page .messages-panel {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.22) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28) !important;
+}
+
+html.dark body #__nuxt .consult-history-page .session-item,
+html.dark body #__nuxt .consult-history-page .meta-banner,
+html.dark body #__nuxt .consult-history-page .msg-row.theirs .msg-bubble {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .consult-history-page .session-item.active,
+html.dark body #__nuxt .consult-history-page .session-item:hover {
+  border-color: #38bdf8 !important;
+}
+
+html.dark body #__nuxt .consult-history-page .session-code,
+html.dark body #__nuxt .consult-history-page .meta-banner strong {
+  color: #7dd3fc !important;
+}
+
+/* Live user chat page */
+html.dark body #__nuxt .user-layout {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .user-layout .chat-container,
+html.dark body #__nuxt .user-layout .chat-container--patient,
+html.dark body #__nuxt .user-layout .chat-header,
+html.dark body #__nuxt .user-layout .chat-messages,
+html.dark body #__nuxt .user-layout .input-area,
+html.dark body #__nuxt .user-layout .chat-input-area,
+html.dark body #__nuxt .user-layout .pharma-profile {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.22) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .user-layout .sidebar {
+  background: #0b1220 !important;
+  border-right: 1px solid rgba(125, 211, 252, 0.22) !important;
+  box-shadow: 8px 0 24px rgba(0, 0, 0, 0.26) !important;
+}
+
+html.dark body #__nuxt .user-layout .footer-divider {
+  background: linear-gradient(to right, #0b1220 280px, #0f172a 280px) !important;
+  background-image: linear-gradient(to right, #0b1220 280px, #0f172a 280px) !important;
+}
+
+html.dark body #__nuxt .user-layout .footer-divider svg {
+  fill: #020617 !important;
+}
+
+@media (min-width: 1025px) and (max-width: 1280px) {
+  html.dark body #__nuxt .user-layout .footer-divider {
+    background: linear-gradient(to right, #0b1220 280px, #0f172a 280px) !important;
+    background-image: linear-gradient(to right, #0b1220 280px, #0f172a 280px) !important;
+  }
+}
+
+html.dark body #__nuxt .user-layout .sidebar-brand {
+  background: #111827 !important;
+  border-bottom-color: rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+  text-shadow: none !important;
+}
+
+html.dark body #__nuxt .user-layout .menu-item {
+  color: #dbeafe !important;
+  text-shadow: none !important;
+}
+
+html.dark body #__nuxt .user-layout .menu-item:hover,
+html.dark body #__nuxt .user-layout .menu-item.active,
+html.dark body #__nuxt .user-layout .menu-item.router-link-active {
+  background: rgba(56, 189, 248, 0.12) !important;
+  color: #f8fafc !important;
+  border-left-color: #38bdf8 !important;
+}
+
+html.dark body #__nuxt .user-layout .chat-container--patient .chat-header {
+  background: #111827 !important;
+  border-bottom: 1px solid rgba(125, 211, 252, 0.22) !important;
+}
+
+html.dark body #__nuxt .user-layout .chat-container--patient .chat-messages {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.06), transparent 42%),
+    #0f172a !important;
+}
+
+html.dark body #__nuxt .user-layout .role-banner,
+html.dark body #__nuxt .user-layout .role-banner--patient {
+  background: linear-gradient(90deg, #1d4ed8 0%, #0284c7 100%) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .user-layout .pharma-info h3,
+html.dark body #__nuxt .user-layout .caller-name {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .user-layout .pharma-status,
+html.dark body #__nuxt .user-layout .caller-sub,
+html.dark body #__nuxt .user-layout .timer-label-mini {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .user-layout .message-bubble,
+html.dark body #__nuxt .user-layout .message-bubble.patient,
+html.dark body #__nuxt .user-layout .message-bubble.doctor {
+  background: #0b1220 !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .user-layout .message-bubble.doctor,
+html.dark body #__nuxt .user-layout .msg-row.mine .msg-bubble {
+  background: linear-gradient(135deg, #2563eb, #0284c7) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .user-layout input,
+html.dark body #__nuxt .user-layout textarea,
+html.dark body #__nuxt .user-layout .edit-input {
+  background: #020617 !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .user-layout .med-req-card,
+html.dark body #__nuxt .user-layout .med-req-modal,
+html.dark body #__nuxt .user-layout .exit-chat-card,
+html.dark body #__nuxt .user-layout .call-card,
+html.dark body #__nuxt .user-layout .voice-call-card {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+}
+
+/* Setup address page */
+html.dark body #__nuxt .addr-page {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 34%),
+    #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .addr-card,
+html.dark body #__nuxt .addr-page .form-section {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42) !important;
+}
+
+html.dark body #__nuxt .addr-hero {
+  background: #0b1220 !important;
+  border-bottom-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+html.dark body #__nuxt .addr-hero h1,
+html.dark body #__nuxt .section-head h3,
+html.dark body #__nuxt .form-field label {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .hero-sub,
+html.dark body #__nuxt .section-head small {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .addr-back,
+html.dark body #__nuxt .addr-back i {
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .addr-back {
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 41, 59, 0.96) 100%) !important;
+  border-color: rgba(125, 211, 252, 0.44) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+html.dark body #__nuxt .addr-back:hover {
+  background:
+    linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(37, 99, 235, 0.78) 100%) !important;
+  border-color: #7dd3fc !important;
+  color: #ffffff !important;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(125, 211, 252, 0.22) !important;
+}
+
+html.dark body #__nuxt .addr-back:hover i {
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .form-field input,
+html.dark body #__nuxt .addr-suggest {
+  background: #020617 !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .addr-suggest li {
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .addr-suggest li:hover {
+  background: rgba(56, 189, 248, 0.14) !important;
+}
+
+html.dark body #__nuxt .hint-line {
+  background: rgba(56, 189, 248, 0.12) !important;
+  border-color: rgba(56, 189, 248, 0.32) !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .hint-line strong {
+  color: #f8fafc !important;
+}
+
+/* Pharmacist workspace pages */
+html.dark body #__nuxt .pharma-home-page,
+html.dark body #__nuxt .pharma-home {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 34%),
+    #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .pharma-home__title,
+html.dark body #__nuxt .pharma-home__card-title {
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .pharma-home__subtitle {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .pharma-home__card {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34) !important;
+}
+
+html.dark body #__nuxt .pharma-home__count {
+  color: #60a5fa !important;
+  text-shadow: 0 0 18px rgba(96, 165, 250, 0.28) !important;
+}
+
+html.dark body #__nuxt .pharma-home__btn {
+  background: linear-gradient(135deg, #2563eb 0%, #0284c7 100%) !important;
+  border: 1px solid rgba(125, 211, 252, 0.36) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.28) !important;
+}
+
+html.dark body #__nuxt .admin-layout {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .main-content {
+  flex: 1 0 auto !important;
+  align-items: stretch !important;
+  background: linear-gradient(to right, #0b1220 0, #0b1220 300px, #0f172a 300px, #0f172a 100%) !important;
+}
+
+html.dark body #__nuxt .admin-layout .footer-divider {
+  position: relative !important;
+  background: linear-gradient(to right, #0b1220 0, #0b1220 300px, #0f172a 300px, #0f172a 100%) !important;
+}
+
+html.dark body #__nuxt .admin-layout .footer-divider::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 auto 0 0 !important;
+  width: 300px !important;
+  background: #0b1220 !important;
+  pointer-events: none !important;
+  z-index: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .footer-divider svg {
+  fill: #020617 !important;
+}
+
+html.dark body #__nuxt .admin-layout .footer-wave {
+  background: linear-gradient(to right, #0b1220 0, #0b1220 300px, #020617 300px, #020617 100%) !important;
+  background-color: #020617 !important;
+}
+
+html.dark body #__nuxt .admin-layout .sidebar {
+  background: linear-gradient(180deg, #0b1220 0%, #111827 54%, #0b1220 100%) !important;
+  border-right: 1px solid rgba(125, 211, 252, 0.22) !important;
+  box-shadow: 8px 0 28px rgba(0, 0, 0, 0.3) !important;
+  align-self: stretch !important;
+  min-height: 100% !important;
+}
+
+@media (min-width: 901px) and (max-width: 1280px) {
+  html.dark body #__nuxt .admin-layout .main-content {
+    background: linear-gradient(to right, #0b1220 0, #0b1220 280px, #0f172a 280px, #0f172a 100%) !important;
+  }
+
+  html.dark body #__nuxt .admin-layout .footer-divider {
+    background: linear-gradient(to right, #0b1220 0, #0b1220 280px, #0f172a 280px, #0f172a 100%) !important;
+  }
+
+  html.dark body #__nuxt .admin-layout .footer-divider::before {
+    width: 280px !important;
+  }
+
+  html.dark body #__nuxt .admin-layout .footer-wave {
+    background: linear-gradient(to right, #0b1220 0, #0b1220 280px, #020617 280px, #020617 100%) !important;
+    background-color: #020617 !important;
+  }
+}
+
+@media (max-width: 900px) {
+  html.dark body #__nuxt .admin-layout,
+  html.dark body #__nuxt .admin-layout .main-content,
+  html.dark body #__nuxt .admin-layout .view-container {
+    background: #0f172a !important;
+    background-color: #0f172a !important;
+  }
+
+  html.dark body #__nuxt .admin-layout .sidebar {
+    background: #0b1220 !important;
+    background-color: #0b1220 !important;
+  }
+
+  html.dark body #__nuxt .admin-layout .footer-divider::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  html.dark body #__nuxt .admin-layout :deep(.footer-divider),
+  html.dark body #__nuxt .admin-layout .footer-divider {
+    background: #0f172a !important;
+    background-image: none !important;
+  }
+
+  html.dark body #__nuxt .admin-layout .footer-divider svg {
+    fill: #0b1220 !important;
+  }
+
+  html.dark body #__nuxt .admin-layout .footer-wave {
+    background: #020617 !important;
+    background-color: #020617 !important;
+  }
+}
+
+html.dark body #__nuxt .admin-layout .sidebar-brand {
+  background: #111827 !important;
+  border-bottom-color: rgba(125, 211, 252, 0.28) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .sidebar-brand > span,
+html.dark body #__nuxt .admin-layout .sidebar-brand font,
+html.dark body #__nuxt .admin-layout .menu-item font {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: unset !important;
+  word-break: break-word !important;
+}
+
+html.dark body #__nuxt .admin-layout .sidebar-header {
+  background: linear-gradient(135deg, #111827 0%, #1e293b 100%) !important;
+  border-bottom: 1px solid rgba(125, 211, 252, 0.24) !important;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.03) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .sidebar-header > span,
+html.dark body #__nuxt .admin-layout .sidebar-header i {
+  color: #fef3c7 !important;
+  text-shadow: 0 1px 8px rgba(251, 191, 36, 0.22) !important;
+}
+
+html.dark body #__nuxt .admin-layout .menu-item {
+  color: #e2e8f0 !important;
+  text-shadow: none !important;
+}
+
+html.dark body #__nuxt .admin-layout .menu-item:hover,
+html.dark body #__nuxt .admin-layout .menu-item.active,
+html.dark body #__nuxt .admin-layout .menu-item.router-link-active {
+  background: rgba(56, 189, 248, 0.14) !important;
+  border-left-color: #38bdf8 !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .admin-layout .menu-list,
+html.dark body #__nuxt .admin-layout .menu-btn,
+html.dark body #__nuxt .admin-layout .menu-btn span,
+html.dark body #__nuxt .admin-layout .menu-btn i {
+  color: #e2e8f0 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+html.dark body #__nuxt .admin-layout .menu-btn {
+  background: rgba(30, 41, 59, 0.86) !important;
+}
+
+html.dark body #__nuxt .admin-layout .menu-btn:hover {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .admin-layout .menu-btn.active {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+html.dark body #__nuxt .admin-layout .menu-btn.active span,
+html.dark body #__nuxt .admin-layout .menu-btn.active i {
+  color: #0f172a !important;
+}
+
+/* ปุ่มคอลัมน์ "จัดการ" หน้า tracking — สีสด + ตัวอักษรขาว อ่านง่ายบน Dark Mode */
+html.dark body #__nuxt .admin-layout .btn-group > button,
+html.dark body #__nuxt .admin-layout .card-actions > button {
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28) !important;
+  border: 1px solid transparent !important;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.35) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .admin-layout .btn-group > button font,
+html.dark body #__nuxt .admin-layout .card-actions > button font,
+html.dark body #__nuxt .admin-layout .btn-group > button i,
+html.dark body #__nuxt .admin-layout .card-actions > button i {
+  color: #ffffff !important;
+  background: transparent !important;
+  text-shadow: none !important;
+}
+
+html.dark body #__nuxt .admin-layout .btn-group .btn-chat,
+html.dark body #__nuxt .admin-layout .card-actions .btn-chat {
+  background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important;
+  color: #ffffff !important;
+  border-color: #2dd4bf !important;
+  box-shadow: 0 4px 14px rgba(13, 148, 136, 0.5) !important;
+}
+
+html.dark body #__nuxt .admin-layout .btn-group .btn-archive,
+html.dark body #__nuxt .admin-layout .card-actions .btn-archive {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  color: #ffffff !important;
+  border-color: #60a5fa !important;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.5) !important;
+}
+
+html.dark body #__nuxt .admin-layout .btn-group .btn-pdf,
+html.dark body #__nuxt .admin-layout .card-actions .btn-pdf {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+  color: #ffffff !important;
+  border-color: #fca5a5 !important;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.5) !important;
+}
+
+html.dark body #__nuxt .admin-layout .btn-group .btn-write-rx,
+html.dark body #__nuxt .admin-layout .card-actions .btn-write-rx {
+  background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) !important;
+  color: #ffffff !important;
+  border-color: #fdba74 !important;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.5) !important;
+}
+
+html.dark body #__nuxt .admin-layout .btn-group .btn-complete,
+html.dark body #__nuxt .admin-layout .card-actions .btn-complete {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%) !important;
+  color: #ffffff !important;
+  border-color: #86efac !important;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.5) !important;
+}
+
+html.dark body #__nuxt .admin-layout .btn-group .btn-reopen,
+html.dark body #__nuxt .admin-layout .card-actions .btn-reopen {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+  color: #ffffff !important;
+  border-color: #fcd34d !important;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.5) !important;
+}
+
+html.dark body #__nuxt .admin-layout .btn-group > button:hover,
+html.dark body #__nuxt .admin-layout .card-actions > button:hover {
+  filter: brightness(1.12) !important;
+  transform: translateY(-1px);
+}
+
+html.dark body #__nuxt .admin-layout .mobile-topbar {
+  background: #111827 !important;
+  border-bottom-color: rgba(125, 211, 252, 0.22) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .mobile-title,
+html.dark body #__nuxt .admin-layout .header-bar,
+html.dark body #__nuxt .admin-layout .header-bar h2,
+html.dark body #__nuxt .admin-layout .hero-content h2 {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .header-sub,
+html.dark body #__nuxt .admin-layout .hero-content p,
+html.dark body #__nuxt .admin-layout .search-info,
+html.dark body #__nuxt .admin-layout .search-info strong {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .history-section {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+/* การ์ดสรุปยอด /billing — ตัวอักษรเข้มบนพื้นมืดอ่านยาก */
+html.dark body #__nuxt .admin-layout .billing-section .stat-card {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.3) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .stat-label {
+  color: #e2e8f0 !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .stat-value {
+  color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .stat-meta {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .stat-card.stat-total .stat-value {
+  color: #6ee7b7 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .stat-card.stat-pending .stat-value {
+  color: #fbbf24 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .stat-card.stat-rejected .stat-value {
+  color: #f87171 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .stat-label font,
+html.dark body #__nuxt .admin-layout .billing-section .stat-value font,
+html.dark body #__nuxt .admin-layout .billing-section .stat-meta font {
+  color: inherit !important;
+  background: transparent !important;
+}
+
+/* ฟอร์มส่งสลิป /billing — label, input, upload zone */
+html.dark body #__nuxt .admin-layout .billing-section .upload-card,
+html.dark body #__nuxt .admin-layout .billing-section .history-card {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.3) !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .card-collapse-btn {
+  background: linear-gradient(135deg, #0c4a6e 0%, #1e3a8a 52%, #155e75 100%) !important;
+  border-bottom: 1px solid rgba(125, 211, 252, 0.38) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .card-title {
+  color: #f0f9ff !important;
+  background: rgba(15, 23, 42, 0.55) !important;
+  padding: 7px 14px !important;
+  border-radius: 10px !important;
+  border: 1px solid rgba(186, 230, 253, 0.35) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .card-title i {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .chevron {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .card-body {
+  background: #111827 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .field label {
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .field label i {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .field label .req {
+  color: #fca5a5 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .field input,
+html.dark body #__nuxt .admin-layout .billing-section .field textarea {
+  background: #020617 !important;
+  border: 1.5px solid rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .field input::placeholder,
+html.dark body #__nuxt .admin-layout .billing-section .field textarea::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .field input:focus,
+html.dark body #__nuxt .admin-layout .billing-section .field textarea:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.18) !important;
+  background: #0b1220 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .input-prefix .prefix-icon {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .upload-box {
+  background: rgba(2, 6, 23, 0.65) !important;
+  border: 2px dashed rgba(125, 211, 252, 0.42) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .upload-box:hover {
+  border-color: #38bdf8 !important;
+  background: rgba(15, 23, 42, 0.85) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .upload-box.has-file {
+  border-style: solid !important;
+  border-color: rgba(52, 211, 153, 0.55) !important;
+  background: rgba(6, 78, 59, 0.22) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .upload-big-icon {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .upload-text strong {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .upload-text small {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .preview-info strong {
+  color: #6ee7b7 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .preview-info small {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .preview-thumb {
+  border-color: rgba(125, 211, 252, 0.35) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .form-actions {
+  border-top-color: rgba(125, 211, 252, 0.22) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .btn-secondary {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border: 1px solid rgba(148, 163, 184, 0.35) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .btn-secondary:hover:not(:disabled) {
+  background: #334155 !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .upload-msg {
+  background: rgba(16, 185, 129, 0.16) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(52, 211, 153, 0.45) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .upload-msg.is-error {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(248, 113, 113, 0.45) !important;
+}
+
+/* แท็บ + ค้นหา + ตารางประวัติสลิป */
+html.dark body #__nuxt .admin-layout .billing-section .tabs {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .tabs button {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .tabs button:hover {
+  background: rgba(56, 189, 248, 0.12) !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .search-box input {
+  background: #020617 !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .search-box input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .search-box i.fa-magnifying-glass {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .clear-btn {
+  background: #1e293b !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .history-table thead th {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-bottom-color: rgba(125, 211, 252, 0.22) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .history-table tbody td {
+  background: #111827 !important;
+  color: #e2e8f0 !important;
+  border-bottom-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .history-table tbody tr:hover {
+  background: #172033 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .cell-main {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .cell-sub,
+html.dark body #__nuxt .admin-layout .billing-section .text-muted,
+html.dark body #__nuxt .admin-layout .billing-section .reviewed-note {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .amount-text {
+  color: #6ee7b7 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .store-info {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .store-info i {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .note-cell {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .mobile-card {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .mc-store {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .mc-date,
+html.dark body #__nuxt .admin-layout .billing-section .mc-row {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section label font,
+html.dark body #__nuxt .admin-layout .billing-section .upload-text font {
+  color: inherit !important;
+  background: transparent !important;
+}
+
+html.dark body #__nuxt .admin-layout .billing-section .card-title font {
+  color: inherit !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+html.dark body #__nuxt .admin-layout .shadow-card,
+html.dark body #__nuxt .admin-layout .table-container.shadow-card {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.24) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Scrollbar หน้า /history และ /tracking — ไม่ให้แถบเลื่อนสีอ่อนตัดกับ Dark Mode */
+html.dark body:has(#__nuxt .admin-layout) {
+  scrollbar-width: auto;
+  scrollbar-color: #94a3b8 #1e293b;
+}
+
+html.dark body:has(#__nuxt .admin-layout)::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+html.dark body:has(#__nuxt .admin-layout)::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+html.dark body:has(#__nuxt .admin-layout)::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 6px;
+  border: none;
+  min-height: 48px;
+}
+
+html.dark body:has(#__nuxt .admin-layout)::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+html.dark body #__nuxt .admin-layout .table-container.shadow-card,
+html.dark body #__nuxt .admin-layout .sidebar {
+  scrollbar-width: auto;
+  scrollbar-color: #7dd3fc #1e293b;
+}
+
+html.dark body #__nuxt .admin-layout .table-container.shadow-card::-webkit-scrollbar,
+html.dark body #__nuxt .admin-layout .sidebar::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+html.dark body #__nuxt .admin-layout .table-container.shadow-card::-webkit-scrollbar-track,
+html.dark body #__nuxt .admin-layout .sidebar::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+html.dark body #__nuxt .admin-layout .table-container.shadow-card::-webkit-scrollbar-thumb,
+html.dark body #__nuxt .admin-layout .sidebar::-webkit-scrollbar-thumb {
+  background: #7dd3fc;
+  border-radius: 6px;
+  border: none;
+  min-height: 40px;
+}
+
+html.dark body #__nuxt .admin-layout .table-container.shadow-card::-webkit-scrollbar-thumb:hover,
+html.dark body #__nuxt .admin-layout .sidebar::-webkit-scrollbar-thumb:hover {
+  background: #bae6fd;
+}
+
+html.dark body #__nuxt .admin-layout .search-toolbar,
+html.dark body #__nuxt .admin-layout .filter-bar,
+html.dark body #__nuxt .admin-layout .table-wrap,
+html.dark body #__nuxt .admin-layout .history-card,
+html.dark body #__nuxt .admin-layout .patient-card,
+html.dark body #__nuxt .admin-layout .tracking-card,
+html.dark body #__nuxt .admin-layout .card-list .card {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark body #__nuxt .admin-layout input,
+html.dark body #__nuxt .admin-layout select,
+html.dark body #__nuxt .admin-layout .history-search-input input {
+  background: #020617 !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .admin-layout table,
+html.dark body #__nuxt .admin-layout thead,
+html.dark body #__nuxt .admin-layout tbody,
+html.dark body #__nuxt .admin-layout tr,
+html.dark body #__nuxt .admin-layout th,
+html.dark body #__nuxt .admin-layout td {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .admin-layout thead th,
+html.dark body #__nuxt .admin-layout .history-table th {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout tr:hover,
+html.dark body #__nuxt .admin-layout .history-table tr:hover {
+  background: #172033 !important;
+}
+
+html.dark body #__nuxt .admin-layout .patient-name,
+html.dark body #__nuxt .admin-layout .patient-name-strong,
+html.dark body #__nuxt .admin-layout .patient-line--name,
+html.dark body #__nuxt .admin-layout .patient-cell__body,
+html.dark body #__nuxt .admin-layout .patient-info {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .patient-line,
+html.dark body #__nuxt .admin-layout .patient-line span,
+html.dark body #__nuxt .admin-layout .patient-hn,
+html.dark body #__nuxt .admin-layout .card-label,
+html.dark body #__nuxt .admin-layout .card-value {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .patient-phone-link,
+html.dark body #__nuxt .admin-layout .patient-phone-inline {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .date-main,
+html.dark body #__nuxt .admin-layout .row-no-label {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .code-chip {
+  background: rgba(251, 191, 36, 0.18) !important;
+  border: 1px solid rgba(251, 191, 36, 0.42) !important;
+  color: #fde68a !important;
+  box-shadow: none !important;
+}
+
+html.dark body #__nuxt .admin-layout .date-time,
+html.dark body #__nuxt .admin-layout .med-col,
+html.dark body #__nuxt .admin-layout .med-text,
+html.dark body #__nuxt .admin-layout .symptom-text,
+html.dark body #__nuxt .admin-layout .text-muted,
+html.dark body #__nuxt .admin-layout .search-info {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .med-text {
+  color: #e0f2fe !important;
+  font-weight: 700 !important;
+}
+
+html.dark body #__nuxt .admin-layout .status-badge.waiting {
+  background: rgba(251, 191, 36, 0.16) !important;
+  color: #fde68a !important;
+  border: 1px solid rgba(251, 191, 36, 0.34) !important;
+}
+
+html.dark body #__nuxt .admin-layout .status-badge.done,
+html.dark body #__nuxt .admin-layout .status-badge.completed {
+  background: rgba(34, 197, 94, 0.16) !important;
+  color: #bbf7d0 !important;
+  border: 1px solid rgba(34, 197, 94, 0.34) !important;
+}
+
+html.dark body #__nuxt .admin-layout .alert,
+html.dark body #__nuxt .admin-layout .alert-success,
+html.dark body #__nuxt .admin-layout .success-message,
+html.dark body #__nuxt .store-banner.banner-success,
+html.dark body #__nuxt .profile-msg.success {
+  background: rgba(34, 197, 94, 0.14) !important;
+  border-color: rgba(34, 197, 94, 0.38) !important;
+  color: #bbf7d0 !important;
+}
+
+html.dark body #__nuxt .admin-layout .alert *,
+html.dark body #__nuxt .admin-layout .alert-success *,
+html.dark body #__nuxt .admin-layout .success-message *,
+html.dark body #__nuxt .store-banner.banner-success *,
+html.dark body #__nuxt .profile-msg.success * {
+  color: #bbf7d0 !important;
+}
+
+/* Store owner pages */
+html.dark body #__nuxt .partner-layout {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .partner-layout .sidebar {
+  background: linear-gradient(180deg, #020617 0%, #0b1220 52%, #111827 100%) !important;
+  border-right: 1px solid rgba(125, 211, 252, 0.22) !important;
+  box-shadow: 8px 0 28px rgba(0, 0, 0, 0.32) !important;
+}
+
+html.dark body #__nuxt .partner-layout .sidebar-header {
+  background: #0b1220 !important;
+  border-bottom-color: rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .partner-layout .menu-btn {
+  background: rgba(15, 23, 42, 0.76) !important;
+  border: 1px solid rgba(148, 163, 184, 0.22) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .partner-layout .menu-btn:hover {
+  background: rgba(56, 189, 248, 0.14) !important;
+  border-color: rgba(125, 211, 252, 0.38) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .partner-layout .menu-btn.active {
+  background: linear-gradient(135deg, #2563eb 0%, #0284c7 100%) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.32) !important;
+}
+
+html.dark body #__nuxt .partner-layout .menu-btn.active i,
+html.dark body #__nuxt .partner-layout .menu-btn.active .menu-text,
+html.dark body #__nuxt .partner-layout .menu-btn.active span {
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .partner-layout .menu-btn.register {
+  border-color: rgba(125, 211, 252, 0.36) !important;
+}
+
+html.dark body #__nuxt .partner-layout .content-area {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .partner-layout .mobile-topbar,
+html.dark body #__nuxt .partner-layout .content-header,
+html.dark body #__nuxt .partner-layout .data-card,
+html.dark body #__nuxt .partner-layout .income-card,
+html.dark body #__nuxt .partner-layout .schedule-card,
+html.dark body #__nuxt .partner-layout .history-panel,
+html.dark body #__nuxt .partner-layout .pending-banner,
+html.dark body #__nuxt .partner-layout .modal-card {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32) !important;
+}
+
+html.dark body #__nuxt .partner-layout .content-header input,
+html.dark body #__nuxt .partner-layout .search-input,
+html.dark body #__nuxt .partner-layout .period-select {
+  background: #0b1220 !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .partner-layout .content-header .search-input {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.24) !important;
+  border-radius: 999px !important;
+  min-height: 40px !important;
+  padding: 0 16px !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03) !important;
+}
+
+html.dark body #__nuxt .partner-layout .search-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .partner-layout .btn-refresh,
+html.dark body #__nuxt .partner-layout .sch-edit-btn {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .partner-layout .btn-refresh:hover,
+html.dark body #__nuxt .partner-layout .sch-edit-btn:hover {
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .partner-layout .empty-state,
+html.dark body #__nuxt .partner-layout .empty-state-small {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .partner-layout .details .name,
+html.dark body #__nuxt .partner-layout .income-head h2,
+html.dark body #__nuxt .partner-layout .income-value,
+html.dark body #__nuxt .partner-layout .schedule-head h2,
+html.dark body #__nuxt .partner-layout .sch-day-label,
+html.dark body #__nuxt .partner-layout .user-name,
+html.dark body #__nuxt .partner-layout .slip-from,
+html.dark body #__nuxt .partner-layout .modal-card h3 {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .partner-layout .details .role,
+html.dark body #__nuxt .partner-layout .text-muted,
+html.dark body #__nuxt .partner-layout .income-currency,
+html.dark body #__nuxt .partner-layout .income-meta,
+html.dark body #__nuxt .partner-layout .brk-item span,
+html.dark body #__nuxt .partner-layout .sch-time,
+html.dark body #__nuxt .partner-layout .staff-ref,
+html.dark body #__nuxt .partner-layout .meta-info,
+html.dark body #__nuxt .partner-layout .slip-note,
+html.dark body #__nuxt .partner-layout .slip-meta,
+html.dark body #__nuxt .partner-layout .summary-row,
+html.dark body #__nuxt .partner-layout .pharma-role {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .partner-layout .income-breakdown,
+html.dark body #__nuxt .partner-layout .tx-tabs {
+  border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+html.dark body #__nuxt .partner-layout .brk-item,
+html.dark body #__nuxt .partner-layout .schedule-row,
+html.dark body #__nuxt .partner-layout .transaction-item,
+html.dark body #__nuxt .partner-layout .slip-summary,
+html.dark body #__nuxt .partner-layout .slip-item {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .partner-layout .brk-item.highlight,
+html.dark body #__nuxt .partner-layout .transaction-item.is-slip {
+  background: rgba(34, 197, 94, 0.12) !important;
+  border-color: rgba(34, 197, 94, 0.34) !important;
+}
+
+html.dark body #__nuxt .partner-layout .brk-item strong,
+html.dark body #__nuxt .partner-layout .price,
+html.dark body #__nuxt .partner-layout .slip-amount {
+  color: #86efac !important;
+}
+
+html.dark body #__nuxt .partner-layout .tx-tab {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .partner-layout .tx-tab:hover,
+html.dark body #__nuxt .partner-layout .tx-tab.active {
+  background: rgba(56, 189, 248, 0.12) !important;
+  color: #e0f2fe !important;
+  border-bottom-color: #38bdf8 !important;
+}
+
+html.dark body #__nuxt .partner-layout .tx-tab-count {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .partner-layout .avatar img,
+html.dark body #__nuxt .partner-layout .modal-avatar img {
+  background: #0b1220 !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+}
+
+html.dark body #__nuxt .shop-presc-page,
+html.dark body #__nuxt .shop-presc-main {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .shop-presc-filter,
+html.dark body #__nuxt .shop-presc-table-wrap,
+html.dark body #__nuxt .shop-presc-page .state-block {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark body #__nuxt .shop-presc-page .filter-search input,
+html.dark body #__nuxt .shop-presc-page .filter-select select {
+  background: #0b1220 !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .shop-presc-page .filter-search input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .shop-presc-page .filter-select label,
+html.dark body #__nuxt .shop-presc-page .date-cell,
+html.dark body #__nuxt .shop-presc-page .hn-line,
+html.dark body #__nuxt .shop-presc-page .td-no {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .shop-presc-table,
+html.dark body #__nuxt .shop-presc-table thead,
+html.dark body #__nuxt .shop-presc-table tbody,
+html.dark body #__nuxt .shop-presc-table tr,
+html.dark body #__nuxt .shop-presc-table td {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .shop-presc-table thead th {
+  background: #1e293b !important;
+  color: #f8fafc !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+html.dark body #__nuxt .shop-presc-table tbody tr:hover {
+  background: #172033 !important;
+}
+
+html.dark body #__nuxt .shop-presc-table tbody td strong {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .shop-presc-page .pharma-chip {
+  background: rgba(56, 189, 248, 0.14) !important;
+  border: 1px solid rgba(125, 211, 252, 0.34) !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .shop-presc-page .med-cell,
+html.dark body #__nuxt .shop-presc-page .med-cell i {
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .shop-presc-page .amount-cell {
+  color: #86efac !important;
+}
+
+html.dark body #__nuxt .shop-presc-page .clear-btn {
+  background: #111827 !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .shop-presc-page .clear-btn:hover {
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .partner-layout .btn-link {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .partner-layout .btn-yellow {
+  background: #fbbf24 !important;
+  color: #111827 !important;
+}
+
+html.dark body #__nuxt .partner-layout .modal-header,
+html.dark body #__nuxt .partner-layout .modal-footer {
+  border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+html.dark body #__nuxt .partner-layout .modal-header h2,
+html.dark body #__nuxt .partner-layout .modal-top h3,
+html.dark body #__nuxt .partner-layout .info-grid span {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .partner-layout .modal-close {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .partner-layout .modal-close:hover {
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .partner-layout .info-grid,
+html.dark body #__nuxt .partner-layout .license-img {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+html.dark body #__nuxt .partner-layout .info-grid label,
+html.dark body #__nuxt .partner-layout .license-section label,
+html.dark body #__nuxt .partner-layout .license-hint {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .partner-layout .badge-green {
+  background: rgba(34, 197, 94, 0.16) !important;
+  color: #bbf7d0 !important;
+  border: 1px solid rgba(34, 197, 94, 0.34) !important;
+}
+
+html.dark body #__nuxt .partner-layout .badge-yellow,
+html.dark body #__nuxt .partner-layout .license-missing {
+  background: rgba(251, 191, 36, 0.14) !important;
+  color: #fde68a !important;
+  border-color: rgba(251, 191, 36, 0.32) !important;
+}
+
+html.dark body #__nuxt .partner-layout .license-missing small {
+  color: #fde68a !important;
+}
+
+html.dark body #__nuxt .pharma-detail-modal {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.58) !important;
+}
+
+html.dark body #__nuxt .pharma-detail-modal .modal-body,
+html.dark body #__nuxt .pharma-detail-modal .modal-footer {
+  background: #111827 !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .pharma-detail-modal .pharma-modal-head,
+html.dark body #__nuxt .pharma-detail-modal .modal-footer {
+  border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+html.dark body #__nuxt .pharma-detail-modal .pharma-modal-head h3 {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .pharma-detail-modal .pharma-role,
+html.dark body #__nuxt .pharma-detail-modal .pharma-field label {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .pharma-detail-modal .pharma-value,
+html.dark body #__nuxt .pharma-detail-modal .pharma-license-box {
+  background: #0b1220 !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .pharma-detail-modal .license-empty,
+html.dark body #__nuxt .pharma-detail-modal .license-empty i {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .pharma-detail-modal .btn-grey {
+  background: #e2e8f0 !important;
+  color: #111827 !important;
+}
+
+/* Admin shared management pages */
+html.dark body #__nuxt .management-view,
+html.dark body #__nuxt .search-section {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .mgmt-search,
+html.dark body #__nuxt .presc-search,
+html.dark body #__nuxt .mgmt-card,
+html.dark body #__nuxt .mgmt-empty,
+html.dark body #__nuxt .mgmt-loading,
+html.dark body #__nuxt .presc-empty,
+html.dark body #__nuxt .presc-table-card,
+html.dark body #__nuxt .service-list-card,
+html.dark body #__nuxt .chart-empty,
+html.dark body #__nuxt .empty-state-mini {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark body #__nuxt .mgmt-search input,
+html.dark body #__nuxt .presc-search input,
+html.dark body #__nuxt .input-editable {
+  background: #0b1220 !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .mgmt-search input::placeholder,
+html.dark body #__nuxt .presc-search input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .mgmt-search-clear,
+html.dark body #__nuxt .presc-search-clear,
+html.dark body #__nuxt .btn-refresh-service {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .mgmt-search,
+html.dark body #__nuxt .presc-search {
+  background: #111827 !important;
+  border: 1px solid rgba(51, 65, 85, 0.85) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 10px 28px rgba(0, 0, 0, 0.18) !important;
+}
+
+html.dark body #__nuxt .mgmt-search:focus-within,
+html.dark body #__nuxt .presc-search:focus-within {
+  border-color: rgba(56, 189, 248, 0.42) !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12), 0 12px 30px rgba(0, 0, 0, 0.2) !important;
+}
+
+html.dark body #__nuxt .mgmt-search input,
+html.dark body #__nuxt .presc-search input {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .mgmt-search > i,
+html.dark body #__nuxt .presc-search > i {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .mgmt-hero-title,
+html.dark body #__nuxt .mgmt-card-name,
+html.dark body #__nuxt .mgmt-card-name span,
+html.dark body #__nuxt .mgmt-empty h3,
+html.dark body #__nuxt .presc-hero-title,
+html.dark body #__nuxt .presc-empty h3,
+html.dark body #__nuxt .service-list-title,
+html.dark body #__nuxt .service-cell-value,
+html.dark body #__nuxt .service-detail-value {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .mgmt-hero-subtitle,
+html.dark body #__nuxt .mgmt-stat-label,
+html.dark body #__nuxt .mgmt-card-meta,
+html.dark body #__nuxt .mgmt-search-hint,
+html.dark body #__nuxt .mgmt-empty p,
+html.dark body #__nuxt .presc-hero-subtitle,
+html.dark body #__nuxt .presc-empty p,
+html.dark body #__nuxt .presc-search-hint,
+html.dark body #__nuxt .service-list-subtitle,
+html.dark body #__nuxt .service-cell-label,
+html.dark body #__nuxt .service-detail-label {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .mgmt-stat-card,
+html.dark body #__nuxt .presc-stat-card,
+html.dark body #__nuxt .mgmt-tag,
+html.dark body #__nuxt .service-filter-chip {
+  background: rgba(15, 23, 42, 0.72) !important;
+  border-color: rgba(125, 211, 252, 0.24) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .mgmt-stat-value,
+html.dark body #__nuxt .presc-stat-value {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .presc-table,
+html.dark body #__nuxt .presc-table thead,
+html.dark body #__nuxt .presc-table tbody,
+html.dark body #__nuxt .presc-table tr,
+html.dark body #__nuxt .presc-table td {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .presc-table th,
+html.dark body #__nuxt .service-table-header {
+  background: #1e293b !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .presc-table tbody tr:nth-child(even),
+html.dark body #__nuxt .service-row {
+  background: #111827 !important;
+}
+
+html.dark body #__nuxt .presc-table tbody tr:hover,
+html.dark body #__nuxt .service-row:hover {
+  background: #172033 !important;
+}
+
+html.dark body #__nuxt .service-row,
+html.dark body #__nuxt .service-detail-item {
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .service-detail-card,
+html.dark body #__nuxt .modal-overlay .user-detail-card {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.58) !important;
+}
+
+html.dark body #__nuxt .service-modal-head,
+html.dark body #__nuxt .user-detail-card .modal-header,
+html.dark body #__nuxt .user-detail-card .modal-footer {
+  border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+html.dark body #__nuxt .modal-overlay .user-detail-card .profile-preview h2,
+html.dark body #__nuxt .modal-overlay .user-detail-card .profile-preview h3,
+html.dark body #__nuxt .modal-overlay .user-detail-card .form-group label,
+html.dark body #__nuxt .modal-overlay .user-detail-card label {
+  color: #dbeafe !important;
+}
+
+html.dark body #__nuxt .modal-overlay .user-detail-card .role-badge {
+  background: rgba(226, 232, 240, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.72) !important;
+  color: #334155 !important;
+}
+
+html.dark body #__nuxt .modal-overlay .user-detail-card .input-readonly,
+html.dark body #__nuxt .modal-overlay .user-detail-card .input-editable,
+html.dark body #__nuxt .modal-overlay .user-detail-card .work-time-box,
+html.dark body #__nuxt .modal-overlay .user-detail-card textarea {
+  background: #020617 !important;
+  border-color: rgba(125, 211, 252, 0.38) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .modal-overlay .user-detail-card .license-viewer,
+html.dark body #__nuxt .modal-overlay .user-detail-card .license-empty {
+  background: #0b1220 !important;
+  border-color: rgba(203, 213, 225, 0.58) !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .modal-overlay .user-detail-card .license-hint,
+html.dark body #__nuxt .modal-overlay .user-detail-card small {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .close-x,
+html.dark body #__nuxt .service-close-x {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .close-x:hover,
+html.dark body #__nuxt .service-close-x:hover {
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .section-head {
+  border-color: rgba(125, 211, 252, 0.28) !important;
+  color: #bfdbfe !important;
+}
+
+html.dark body #__nuxt .partner-actions,
+html.dark body #__nuxt .verify-actions {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+html.dark body #__nuxt .empty-schedule,
+html.dark body #__nuxt .schedule-row {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .sched-day,
+html.dark body #__nuxt .sched-time {
+  background: #020617 !important;
+  border-color: rgba(125, 211, 252, 0.3) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .sched-day:disabled,
+html.dark body #__nuxt .sched-time:disabled,
+html.dark body #__nuxt .sched-time[readonly] {
+  background: #111827 !important;
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .btn-cancel {
+  background: #1e293b !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .td-no-badge,
+html.dark body #__nuxt .pharma-chip {
+  background: rgba(56, 189, 248, 0.14) !important;
+  border: 1px solid rgba(125, 211, 252, 0.34) !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .date-cell {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+html.dark body #__nuxt .date-cell i,
+html.dark body #__nuxt .pharma-chip i {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .presc-table .pharma-chip {
+  background: linear-gradient(135deg, #dbeafe 0%, #bae6fd 100%) !important;
+  border: 1px solid #60a5fa !important;
+  color: #0f172a !important;
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.18) !important;
+}
+
+html.dark body #__nuxt .presc-table .pharma-chip i,
+html.dark body #__nuxt .presc-table .pharma-chip span {
+  color: #0f172a !important;
+}
+
+html.dark body #__nuxt .presc-table .pharma-store {
+  background: linear-gradient(90deg, #eef2ff 0%, #dbeafe 100%) !important;
+  border: 1px solid #93c5fd !important;
+  border-left: 4px solid #6366f1 !important;
+  color: #1e1b4b !important;
+}
+
+html.dark body #__nuxt .presc-table .pharma-store i {
+  color: #4338ca !important;
+}
+
+html.dark body #__nuxt .presc-table .pharma-store--empty {
+  background: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+  border-left-color: #64748b !important;
+  color: #334155 !important;
+}
+
+html.dark body #__nuxt .presc-table .pharma-store--empty i {
+  color: #64748b !important;
+}
+
+html.dark body #__nuxt .patient-cell strong,
+html.dark body #__nuxt .presc-table td strong,
+html.dark body #__nuxt .med-cell,
+html.dark body #__nuxt .med-cell span {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .patient-cell small,
+html.dark body #__nuxt .patient-cell small i,
+html.dark body #__nuxt .pharma-cell small {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .med-cell i {
+  background: rgba(16, 185, 129, 0.16) !important;
+  color: #86efac !important;
+}
+
+html.dark body #__nuxt .service-type-badge.type-gold_card,
+html.dark body #__nuxt .service-status-badge.status-pending {
+  background: rgba(245, 158, 11, 0.18) !important;
+  border-color: rgba(251, 191, 36, 0.42) !important;
+  color: #fde68a !important;
+}
+
+html.dark body #__nuxt .service-type-badge.type-normal,
+html.dark body #__nuxt .service-format-badge.format-online,
+html.dark body #__nuxt .service-status-badge.status-in_progress {
+  background: rgba(56, 189, 248, 0.14) !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .service-format-badge.format-in_store,
+html.dark body #__nuxt .service-status-badge.status-completed {
+  background: rgba(34, 197, 94, 0.16) !important;
+  border-color: rgba(34, 197, 94, 0.34) !important;
+  color: #bbf7d0 !important;
+}
+
+html.dark body #__nuxt .service-status-badge.status-cancelled {
+  background: rgba(239, 68, 68, 0.16) !important;
+  border-color: rgba(248, 113, 113, 0.34) !important;
+  color: #fecaca !important;
+}
+
+html.dark body #__nuxt .admins-wrap .tabs {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.28) !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28) !important;
+}
+
+html.dark body #__nuxt .admins-wrap .tabs button {
+  background: #0b1220 !important;
+  border: 1px solid rgba(148, 163, 184, 0.26) !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admins-wrap .tabs button i {
+  color: #93c5fd !important;
+}
+
+html.dark body #__nuxt .admins-wrap .tabs button.active {
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.36) !important;
+}
+
+html.dark body #__nuxt .admins-wrap .tabs button.active i {
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .admins-wrap .tabs .badge {
+  background: #e2e8f0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.65) !important;
+  color: #0f172a !important;
+}
+
+html.dark body #__nuxt .admins-wrap .tabs button.active .badge {
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #1e1b4b !important;
+}
+
+html.dark body #__nuxt .admin-layout .modal-overlay {
+  background: rgba(2, 6, 23, 0.82) !important;
+}
+
+html.dark body #__nuxt .admin-layout .modal-card {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.28) !important;
+  color: #e5e7eb !important;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.68) !important;
+}
+
+html.dark body #__nuxt .admin-layout .modal-body {
+  background: #111827 !important;
+  color: #e5e7eb !important;
+}
+
+html.dark body #__nuxt .admin-layout .modal-body p,
+html.dark body #__nuxt .admin-layout .modal-body label,
+html.dark body #__nuxt .admin-layout .note-label {
+  color: #dbeafe !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .modal-body strong {
+  color: #ffffff !important;
+  font-weight: 900 !important;
+}
+
+html.dark body #__nuxt .admin-layout .modal-body textarea {
+  background: #020617 !important;
+  border-color: rgba(147, 197, 253, 0.45) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .modal-body textarea::placeholder {
+  color: #bfdbfe !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .modal-body textarea:focus {
+  background: #020617 !important;
+  border-color: #93c5fd !important;
+  box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.18) !important;
+}
+
+html.dark body #__nuxt .admin-layout .modal-foot {
+  background: #111827 !important;
+  border-top-color: rgba(125, 211, 252, 0.24) !important;
+}
+
+/* Archive modal — ประวัติบทสนทนา (/tracking) */
+html.dark body #__nuxt .admin-layout .archive-overlay {
+  background: rgba(2, 6, 23, 0.82) !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.28) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-header {
+  background: linear-gradient(135deg, #1e3a8a 0%, #0f172a 100%) !important;
+  border-bottom: 1px solid rgba(125, 211, 252, 0.22) !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-header h3,
+html.dark body #__nuxt .admin-layout .archive-header h3 font,
+html.dark body #__nuxt .admin-layout .archive-sub,
+html.dark body #__nuxt .admin-layout .archive-sub font,
+html.dark body #__nuxt .admin-layout .archive-sub strong {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .retention-note {
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-sessions {
+  background: #0b1220 !important;
+  border-right-color: rgba(125, 211, 252, 0.22) !important;
+}
+
+html.dark body #__nuxt .admin-layout .sessions-title,
+html.dark body #__nuxt .admin-layout .sessions-title font,
+html.dark body #__nuxt .admin-layout .sessions-title i {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .session-item {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .session-item:hover {
+  background: rgba(56, 189, 248, 0.1) !important;
+  border-color: #38bdf8 !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .session-item.active {
+  background: rgba(56, 189, 248, 0.16) !important;
+  border-color: #38bdf8 !important;
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.22) !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .session-code,
+html.dark body #__nuxt .admin-layout .archive-modal .session-code font {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .session-date,
+html.dark body #__nuxt .admin-layout .archive-modal .session-date font {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .session-symptom,
+html.dark body #__nuxt .admin-layout .archive-modal .session-symptom font {
+  color: #fde68a !important;
+  background: rgba(245, 158, 11, 0.14) !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .session-meta,
+html.dark body #__nuxt .admin-layout .archive-modal .session-meta font {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .session-meta .days-left {
+  color: #86efac !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .session-meta .days-left.warn {
+  color: #fde68a !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .btn-delete-card {
+  background: #1e293b !important;
+  color: #94a3b8 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35) !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .btn-delete-card:hover {
+  background: rgba(220, 38, 38, 0.22) !important;
+  color: #fca5a5 !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-messages {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.06), transparent 42%),
+    #0f172a !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .messages-meta-banner,
+html.dark body #__nuxt .admin-layout .archive-modal .messages-meta-banner font {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .messages-meta-banner strong,
+html.dark body #__nuxt .admin-layout .archive-modal .messages-meta-banner strong font {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .messages-meta-banner .expires strong,
+html.dark body #__nuxt .admin-layout .archive-modal .messages-meta-banner .expires strong font {
+  color: #fde68a !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .msg-row.from-user .msg-bubble,
+html.dark body #__nuxt .admin-layout .archive-modal .msg-row.from-user .msg-bubble font {
+  background: #1e293b !important;
+  border: 1px solid rgba(148, 163, 184, 0.28) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .msg-row.from-pharma .msg-bubble {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .msg-time,
+html.dark body #__nuxt .admin-layout .archive-modal .msg-file {
+  color: inherit !important;
+  opacity: 0.78 !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-error {
+  background: rgba(220, 38, 38, 0.14) !important;
+  border-color: rgba(248, 113, 113, 0.4) !important;
+  color: #fecaca !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-loading,
+html.dark body #__nuxt .admin-layout .archive-empty,
+html.dark body #__nuxt .admin-layout .archive-loading-mini,
+html.dark body #__nuxt .admin-layout .archive-empty-mini,
+html.dark body #__nuxt .admin-layout .archive-empty-mini .hint,
+html.dark body #__nuxt .admin-layout .archive-empty-mini .hint font {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-empty i,
+html.dark body #__nuxt .admin-layout .archive-empty-mini i {
+  color: #475569 !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-modal .spinner-mini {
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  border-top-color: #38bdf8 !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-sessions,
+html.dark body #__nuxt .admin-layout .archive-messages {
+  scrollbar-color: #334155 #0f172a !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-sessions::-webkit-scrollbar-track,
+html.dark body #__nuxt .admin-layout .archive-messages::-webkit-scrollbar-track {
+  background: #0f172a !important;
+}
+
+html.dark body #__nuxt .admin-layout .archive-sessions::-webkit-scrollbar-thumb,
+html.dark body #__nuxt .admin-layout .archive-messages::-webkit-scrollbar-thumb {
+  background: #334155 !important;
+  border-color: #0f172a !important;
+}
+
+@media (max-width: 760px) {
+  html.dark body #__nuxt .admin-layout .archive-sessions {
+    border-bottom-color: rgba(125, 211, 252, 0.22) !important;
+  }
+}
+
+html.dark body #__nuxt .admin-layout .btn-cancel {
+  background: #1e293b !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .admin-layout :deep(.footer-divider),
+html.dark body #__nuxt .admin-layout .footer-divider {
+  background: #0b1220 !important;
+  background-image: none !important;
+  position: relative !important;
+}
+
+html.dark body #__nuxt .admin-layout .footer-divider svg {
+  fill: #0b1220 !important;
+}
+
+html.dark body #__nuxt .admin-layout .footer-divider::before {
+  content: none !important;
+  display: none !important;
+}
+
+html.dark body #__nuxt .admin-layout .footer-divider svg {
+  position: relative;
+  z-index: auto;
+}
+
+html.dark body #__nuxt .admin-layout .footer-wave {
+  background: #0b1220 !important;
+  background-color: #0b1220 !important;
+}
+
+@media (min-width: 901px) and (max-width: 1280px) {
+  html.dark body #__nuxt .admin-layout :deep(.footer-divider),
+  html.dark body #__nuxt .admin-layout .footer-divider {
+    background: #0b1220 !important;
+    background-image: none !important;
+  }
+
+  html.dark body #__nuxt .admin-layout .footer-divider::before {
+    clip-path: inset(0 calc(100% - 230px) 0 0);
+  }
+
+  html.dark body #__nuxt .admin-layout .footer-wave {
+    background: #0b1220 !important;
+    background-color: #0b1220 !important;
+  }
+}
+
+html.dark body #__nuxt .admin-pagination {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.24) !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark body #__nuxt .admin-pagination .pagination-info,
+html.dark body #__nuxt .admin-pagination .pagination-size,
+html.dark body #__nuxt .admin-pagination label {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-pagination .pagination-info strong {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-pagination button,
+html.dark body #__nuxt .admin-pagination .page-btn,
+html.dark body #__nuxt .admin-pagination .pagination-controls button {
+  background: #0b1220 !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .admin-pagination button:hover,
+html.dark body #__nuxt .admin-pagination .page-btn:hover {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-pagination button.active,
+html.dark body #__nuxt .admin-pagination .page-btn.active {
+  background: linear-gradient(135deg, #2563eb, #4f46e5) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+
+html.dark body #__nuxt .admin-pagination select {
+  background: #020617 !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .service-pagination {
+  background: #111827 !important;
+  border-top: 1px solid rgba(125, 211, 252, 0.28) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .admin-layout .service-pagination .pagination-info,
+html.dark body #__nuxt .admin-layout .service-pagination .pagination-size {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .service-pagination .pagination-info strong {
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .admin-layout .service-pagination .page-btn {
+  background: #0b1220 !important;
+  border: 1px solid rgba(125, 211, 252, 0.3) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .admin-layout .service-pagination .page-btn:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .admin-layout .service-pagination .page-btn.active {
+  background: linear-gradient(135deg, #2563eb, #7c3aed) !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.42) !important;
+}
+
+html.dark body #__nuxt .admin-layout .service-pagination .page-btn:disabled {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .service-pagination .page-ellipsis {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .admin-layout .service-pagination select {
+  background: #020617 !important;
+  border: 1px solid rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .admins-wrap .admin-card .ac-name {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+html.dark body #__nuxt .admin-layout .admins-wrap .admin-card .ac-username {
+  color: #93c5fd !important;
+  font-weight: 800 !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .admins-wrap .admin-card .ac-row,
+html.dark body #__nuxt .admin-layout .admins-wrap .admin-card .ac-sub {
+  color: #bfdbfe !important;
+  font-weight: 650 !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .admins-wrap .admin-card .ac-row i,
+html.dark body #__nuxt .admin-layout .admins-wrap .admin-card .ac-sub i {
+  color: #7dd3fc !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .admins-wrap .admin-card .ac-body {
+  border-top-color: rgba(203, 213, 225, 0.48) !important;
+}
+
+html.dark body #__nuxt .admin-layout .admins-wrap .admin-card .status-pill.st-approved {
+  background: #bbf7d0 !important;
+  border: 1px solid #86efac !important;
+  color: #052e16 !important;
+  font-weight: 800 !important;
+}
+
+html.dark body #__nuxt .chat-container--pharma,
+html.dark body #__nuxt .chat-container--pharma .chat-header,
+html.dark body #__nuxt .chat-container--pharma .chat-input-area {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.24) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .chat-container--pharma .chat-messages {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(16, 185, 129, 0.08), transparent 42%),
+    radial-gradient(circle at 88% 82%, rgba(56, 189, 248, 0.06), transparent 42%),
+    #0f172a !important;
+  scrollbar-color: #10b981 rgba(15, 23, 42, 0.8) !important;
+}
+
+html.dark body #__nuxt .chat-container--pharma .chat-title,
+html.dark body #__nuxt .chat-container--pharma .empty-state-title {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .empty-state-container .empty-state-title {
+  color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .empty-state h3,
+html.dark body #__nuxt .empty-state .empty-state-title {
+  color: #f8fafc !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .chat-container--pharma .chat-subtitle,
+html.dark body #__nuxt .chat-container--pharma .empty-state-description {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .empty-state p,
+html.dark body #__nuxt .empty-state .empty-state-description {
+  color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .chat-container--pharma .empty-state-note,
+html.dark body #__nuxt .empty-state-container .empty-state-note {
+  background: #0b1220 !important;
+  border-color: rgba(56, 189, 248, 0.32) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+html.dark body #__nuxt .chat-container--pharma .empty-state-note p,
+html.dark body #__nuxt .empty-state-container .empty-state-note p {
+  color: #bae6fd !important;
+  font-weight: 700 !important;
+}
+
+html.dark body #__nuxt .empty-state-container .empty-state-description {
+  color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+
+/* pharmacy_web.css บังคับพื้นหลัง chat-section เป็นขาว — ทำให้ข้อความสีอ่อนใน dark mode มองไม่เห็น */
+html.dark body #__nuxt .admin-layout.pharmacy-web-page .chat-section {
+  background: #0f172a !important;
+  color: #f8fafc;
+}
+
+html.dark body #__nuxt .admin-layout.pharmacy-web-page .empty-state-icon {
+  background: #1e293b !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35) !important;
+}
+
+html.dark body #__nuxt .chat-container--pharma .message-bubble.patient {
+  background: #111827 !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .chat-container--pharma .chat-input-area input {
+  background: #020617 !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .btn-skip {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Pharmacy chat footer alignment */
+html.dark body #__nuxt .admin-layout.pharmacy-web-page .footer-divider,
+html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-divider {
+  background: #0b1220 !important;
+  background-image: none !important;
+}
+
+html.dark body #__nuxt .admin-layout.pharmacy-web-page .footer-wave,
+html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-wave {
+  background: #0b1220 !important;
+  background-color: #0b1220 !important;
+}
+
+@media (min-width: 1025px) and (max-width: 1280px) {
+  html.dark body #__nuxt .admin-layout.pharmacy-web-page .footer-divider,
+  html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-divider {
+    background: #0b1220 !important;
+    background-image: none !important;
+  }
+
+  html.dark body #__nuxt .admin-layout.pharmacy-web-page .footer-wave,
+  html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-wave {
+    background: #0b1220 !important;
+    background-color: #0b1220 !important;
+  }
+
+}
+
+@media (max-width: 900px) {
+  html.dark body #__nuxt .admin-layout.pharmacy-web-page .footer-divider,
+  html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-divider,
+  html.dark body #__nuxt .admin-layout .footer-divider {
+    background: #0f172a !important;
+    background-image: none !important;
+  }
+
+  html.dark body #__nuxt .admin-layout.pharmacy-web-page .footer-wave,
+  html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-wave {
+    background: #0b1220 !important;
+    background-color: #0b1220 !important;
+  }
+
+  html.dark body #__nuxt .admin-layout .footer-wave {
+    background: #020617 !important;
+    background-color: #020617 !important;
+  }
+
+  html.dark body #__nuxt .admin-layout .footer-divider::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  html.dark body #__nuxt .admin-layout.pharmacy-web-page .chat-section {
+    background: #0f172a !important;
+  }
+}
+
+/* Final override: admin usage service detail modal */
+html.dark body #__nuxt .admin-layout ~ .modal-overlay .service-detail-card,
+html.dark body #__nuxt .modal-overlay .service-detail-card {
+  background: #0f172a !important;
+  border: 1px solid rgba(96, 165, 250, 0.4) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.65) !important;
+}
+
+html.dark body #__nuxt .admin-layout ~ .modal-overlay .service-modal-head,
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-modal-head {
+  background: #111827 !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.34) !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-modal-head h3 {
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-grid {
+  background: #0f172a !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-item,
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-full {
+  background: #1e293b !important;
+  background-color: #1e293b !important;
+  border: 1px solid rgba(125, 211, 252, 0.38) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-label {
+  color: #dbeafe !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-value,
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-note,
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-value * {
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-close-x {
+  background: #e2e8f0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.75) !important;
+  color: #334155 !important;
+}
+
+/* Final override: admin overview contrast */
+html.dark body #__nuxt .admin-layout .overview-view .stat-card,
+html.dark body #__nuxt .admin-layout .overview-view .chart-card,
+html.dark body #__nuxt .admin-layout .overview-view .top-list-card {
+  background: #111827 !important;
+  background-color: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.26) !important;
+  color: #f8fafc !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .chart-header h3,
+html.dark body #__nuxt .admin-layout .overview-view .top-list-card h3,
+html.dark body #__nuxt .admin-layout .overview-view .stat-value {
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .chart-header p,
+html.dark body #__nuxt .admin-layout .overview-view .chart-header p strong,
+html.dark body #__nuxt .admin-layout .overview-view .stat-label,
+html.dark body #__nuxt .admin-layout .overview-view .chart-labels,
+html.dark body #__nuxt .admin-layout .overview-view .chart-empty {
+  color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .chart-empty i,
+html.dark body #__nuxt .admin-layout .overview-view .chart-empty svg {
+  color: #93c5fd !important;
+  fill: #93c5fd !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .chart-line-bg {
+  border-bottom-color: rgba(148, 163, 184, 0.38) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-row {
+  background: #1e293b !important;
+  background-color: #1e293b !important;
+  border: 1px solid rgba(125, 211, 252, 0.28) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-name strong {
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-count {
+  color: #fef3c7 !important;
+  font-weight: 900 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-profile small,
+html.dark body #__nuxt .admin-layout .overview-view .rank-name small {
+  color: #cbd5e1 !important;
+}

@@ -1,0 +1,200 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Inter", sans-serif;
+    text-decoration: none; /* เอาเส้นใต้ทั้งหมดออก */
+}
+
+/* Section */
+.review-section {
+    padding: 60px 5%;
+    text-align: center;
+}
+
+.section-title {
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 40px;
+    color: #0062c4;
+}
+
+/* Container */
+.review-container {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    flex-wrap: wrap;
+}
+
+/* Card */
+.review-card {
+    background: #003d92;
+    width: 330px;
+    padding: 25px;
+    border-radius: 18px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    text-align: left;
+    transition: 0.3s;
+}
+
+.review-card:hover {
+    transform: translateY(-5px);
+}
+
+/* Header */
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    color: white;
+}
+
+.profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    overflow: hidden; 
+    flex-shrink: 0;
+}
+
+.avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;         /* กันภาพยืด */
+}
+
+
+
+.heart {
+    color: #ffffff;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.heart:hover {
+    color: #e63946;
+}
+
+/* Stars */
+.stars {
+    margin-bottom: 10px;
+    color: #ffc107;
+    font-size: 14px;
+}
+
+/* Text */
+.review-text {
+    font-size: 16px;
+    color: #ffffff;
+    line-height: 1.6;
+}
+
+/* Buttons */
+.review-buttons {
+    padding-top: 20px;
+    margin: 0 auto;
+    width: fit-content;
+    max-width: 100%;
+    flex-direction: column;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+.btn-primary {
+    background: #1e5fb8;
+    color: white;
+    border: none;
+    padding: 10px 25px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: 0.3s;
+    white-space: nowrap;
+}
+
+.btn-primary:hover {
+    background: #144a8f;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1.5px solid #1e5fb8;
+    color: #1e5fb8;
+    padding: 10px 25px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: 0.3s;
+    white-space: nowrap;
+}
+
+.btn-outline:hover {
+    background: #1e5fb8;
+    color: white;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .review-container {
+        flex-direction: column;
+        align-items: center;
+    }
+.review-buttons {
+    width: fit-content;
+    }
+}
+
+/* Dark mode readability */
+html.dark .review-section {
+    background: var(--app-bg) !important;
+    color: var(--app-text);
+}
+
+html.dark .review-section .section-title {
+    color: #f8fafc !important;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
+}
+
+html.dark .review-section .review-card {
+    background: #111827 !important;
+    border: 1px solid rgba(125, 211, 252, 0.22);
+    box-shadow: 0 22px 52px rgba(0, 0, 0, 0.36);
+}
+
+html.dark .review-section .review-header,
+html.dark .review-section .review-header span,
+html.dark .review-section .review-text {
+    color: #f8fafc !important;
+}
+
+html.dark .review-section .review-text {
+    color: #e2e8f0 !important;
+}
+
+html.dark .review-section .btn-primary {
+    background: linear-gradient(135deg, #2563eb, #0284c7);
+    color: #ffffff !important;
+    box-shadow: 0 10px 22px rgba(2, 132, 199, 0.28);
+}
+
+html.dark .review-section .btn-outline {
+    background: rgba(2, 6, 23, 0.62);
+    border-color: #38bdf8;
+    color: #7dd3fc !important;
+}
+
+html.dark .review-section .btn-outline:hover {
+    background: #0284c7;
+    border-color: #38bdf8;
+    color: #ffffff !important;
+}

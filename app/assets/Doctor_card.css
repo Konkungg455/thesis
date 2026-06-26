@@ -1,0 +1,262 @@
+/* style.css */
+
+/* Container Setup */
+.container-wrapper {
+  max-width: 1030px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  font-family: "Inter", sans-serif;
+}
+
+/* Header Styling */
+.header-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 30px;
+  width: 100%;
+  text-align: center;
+}
+
+.main-title {
+  color: #0047A5;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0;
+  width: 100%;
+  text-align: center;
+}
+
+
+/* Grid Layout */
+.pharmacist-grid {
+  display: grid;
+  /* ใช้ 1fr 1fr 1fr สำหรับ Desktop */
+  grid-template-columns: repeat(3, 1fr); 
+  gap: 25px;
+}
+
+/* Card Styling */
+.staff-card {
+  background-color: #0047A5;
+  border-radius: 30px;
+  overflow: hidden;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.staff-card:hover {
+  transform: translateY(-5px);
+}
+
+.image-container {
+  height: 280px;
+  background-color: #e5e7eb;
+}
+
+.image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.info-content {
+  padding: 24px;
+  color: white;
+}
+
+.staff-name {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.time-slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin-bottom: 20px;
+  opacity: 0.9;
+}
+
+.tag-label {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+/* Button Styling */
+.action-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 40px;
+}
+
+.btn-view-all {
+  background-color: #40C1E9;
+  color: white;
+  border: none;
+  padding: 12px 45px;
+  border-radius: 30px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(64, 193, 233, 0.3);
+  transition: background 0.2s;
+}
+
+.btn-view-all:hover {
+  background-color: #35b0d6;
+}
+
+/* ... (คงส่วนด้านบนของคุณไว้) ... */
+
+/* ปรับปรุง Grid ให้ยืดหยุ่นขึ้น */
+.pharmacist-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 25px;
+}
+
+/* ========================================== */
+/* RESPONSIVE BREAKPOINT (786px)              */
+/* ========================================== */
+
+@media (max-width: 786px) {
+  .container-wrapper {
+    padding: 20px 15px;
+  }
+
+  .main-title {
+    font-size: 22px;
+    text-align: center; /* จัดกลางในมือถือเพื่อความสวยงาม */
+  }
+
+  .header-group {
+    justify-content: center;
+  }
+
+  .pharmacist-grid {
+    /* ในมือถือ ให้แสดง 1 คอลัมน์เต็มกว้าง */
+    grid-template-columns: 1fr; 
+    gap: 16px;
+  }
+
+  /* ปรับแต่งตัวการ์ดให้เปลี่ยนเป็นแนวนอน (Horizontal Card) ในหน้าจอมือถือ */
+  .staff-card {
+    flex-direction: row; /* เปลี่ยนจากแนวตั้งเป็นแนวนอน */
+    align-items: center;
+    height: auto;
+    border-radius: 20px; /* ลดความโค้งลงเล็กน้อยในจอเล็ก */
+  }
+
+  .image-container {
+    width: 40%; /* รูปภาพกินพื้นที่ 40% ของการ์ด */
+    height: 180px; /* คุมความสูงให้พอดี */
+    min-width: 120px;
+  }
+
+  .info-content {
+    width: 60%;
+    padding: 16px; /* ลด Padding เพื่อเพิ่มพื้นที่ข้อความ */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .staff-name {
+    font-size: 16px; /* ลดขนาดชื่อลง */
+    margin-bottom: 6px;
+  }
+
+  .time-slot {
+    font-size: 12px;
+    margin-bottom: 12px;
+    gap: 4px;
+  }
+
+  .tag-label {
+    padding: 4px 12px;
+    font-size: 11px;
+    align-self: flex-start; /* ให้ป้ายชิดซ้าย */
+  }
+
+  .btn-view-all {
+    width: 100%;
+    max-width: 280px;
+    font-size: 16px;
+  }
+}
+
+/* สำหรับ Tablet (หน้าจอกลางๆ) - ถ้าไม่อยากให้เป็นแนวนอนเร็วเกินไป */
+@media (min-width: 601px) and (max-width: 786px) {
+  .pharmacist-grid {
+    grid-template-columns: repeat(2, 1fr); /* แสดง 2 คอลัมน์ */
+  }
+  
+  .staff-card {
+    flex-direction: column; /* กลับเป็นแนวตั้งเหมือนเดิมสำหรับ 2 คอลัมน์ */
+  }
+  
+  .image-container {
+    width: 100%;
+    height: 220px;
+  }
+  
+  .info-content {
+    width: 100%;
+  }
+}
+  
+
+/* Dark mode readability */
+html.dark .container-wrapper .main-title {
+  color: #f8fafc !important;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
+}
+
+html.dark .container-wrapper .staff-card {
+  background: #111827 !important;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.36);
+}
+
+html.dark .container-wrapper .staff-card:hover {
+  box-shadow: 0 28px 62px rgba(0, 0, 0, 0.48);
+}
+
+html.dark .container-wrapper .image-container {
+  background-color: #e5e7eb;
+}
+
+html.dark .container-wrapper .info-content,
+html.dark .container-wrapper .staff-name,
+html.dark .container-wrapper .time-slot,
+html.dark .container-wrapper .btn-more {
+  color: #f8fafc !important;
+}
+
+html.dark .container-wrapper .time-slot {
+  color: #cbd5e1 !important;
+  opacity: 1;
+}
+
+html.dark .container-wrapper .tag-label {
+  background: rgba(148, 163, 184, 0.22);
+  color: #f8fafc;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+}
+
+html.dark .container-wrapper .btn-view-all {
+  background: linear-gradient(135deg, #06b6d4, #38bdf8);
+  color: #082f49 !important;
+  box-shadow: 0 12px 28px rgba(6, 182, 212, 0.28);
+}
+

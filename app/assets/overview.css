@@ -1,0 +1,86 @@
+.view-container { flex: 1; padding: 40px 36px; overflow-y: auto; }
+
+.overview-view {
+    padding-top: 8px;
+}
+
+/* --- 3. OVERVIEW STYLES — Desktop: 2 คอลัมน์เท่ากัน (เหมือนของเก่า) --- */
+.stat-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin: 12px 0 40px;
+}
+.stat-card { padding: 40px 44px; border-radius: 24px; display: flex; flex-direction: column; }
+.main-stat { background: white; color: #2B3674; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+.dark-stat { background: #0b1437; color: white; }
+.stat-label { font-size: 14px; opacity: 0.8; margin-bottom: 10px; font-weight: 500; }
+.stat-value { font-size: 48px; font-weight: 800; }
+
+/* --- Dashboard Content (chart + ranking) — Desktop: ซ้ายขวา --- */
+.dashboard-content { display: grid; grid-template-columns: 1.8fr 1.2fr; gap: 32px; }
+.chart-card, .top-list-card { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+
+/* Visual Chart Simulation */
+.visual-chart { height: 250px; position: relative; margin-top: 200px; }
+.chart-line-bg { height: 200px; border-bottom: 1px solid #eee; position: relative; }
+.point { width: 12px; height: 12px; background: #4318FF; border-radius: 50%; position: absolute; box-shadow: 0 0 10px rgba(67, 24, 255, 0.5); }
+.chart-labels { display: flex; justify-content: space-between; padding-top: 15px; color: #A3AED0; font-size: 13px; }
+
+/* Ranking List */
+.pharma-rank-container { margin-top: 20px; }
+.rank-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #F4F7FE; border-radius: 18px; margin-bottom: 12px; }
+.rank-profile { display: flex; align-items: center; gap: 12px; }
+.rank-profile img { width: 45px; height: 45px; border-radius: 14px; object-fit: cover; }
+.rank-name strong { display: block; color: #2B3674; font-size: 14px; }
+.rank-count { font-weight: 800; color: #4318FF; font-size: 14px; }
+
+/* Overview Layout */
+.overview-view {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+/* ===================== Responsive ===================== */
+/* Tablet (≤1024px) — stat-grid ยังเป็น 2 คอลัมน์ แต่ chart/ranking เริ่มแยกแถว */
+@media (max-width: 1024px) {
+    .stat-grid { gap: 24px; }
+    .stat-card { padding: 32px 36px; border-radius: 22px; }
+    .stat-value { font-size: 40px; }
+
+    .dashboard-content {
+        grid-template-columns: 1fr;   /* chart + ranking แยกแถว */
+        gap: 26px;
+    }
+}
+
+/* Mobile (≤768px) — stat-grid 1 คอลัมน์ + chart/ranking 1 คอลัมน์ */
+@media (max-width: 768px) {
+    .stat-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        margin-bottom: 28px;
+    }
+    .stat-card { padding: 26px 28px; border-radius: 18px; }
+    .stat-value { font-size: 32px; }
+    .stat-label { font-size: 13px; margin-bottom: 8px; }
+
+    .dashboard-content {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    .chart-card, .top-list-card {
+        padding: 20px;
+        border-radius: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stat-card { padding: 18px; border-radius: 16px; }
+    .stat-value { font-size: 26px; }
+    .stat-label { font-size: 12px; }
+}
+
+
+

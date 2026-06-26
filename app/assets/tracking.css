@@ -1,0 +1,671 @@
+/* ===================== Layout (Pharmacist Workspace) ===================== */
+.admin-layout {
+    min-height: 100vh;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+}
+
+.main-content {
+    display: flex;
+    flex: 1;
+    align-items: stretch;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    /* faux-column: ทาสีน้ำเงินคอลัมน์ซ้าย 300px เต็มความสูง */
+    background: linear-gradient(to right, #2563eb 0, #2563eb 300px, transparent 300px);
+}
+
+/* ===== Sidebar (desktop) — โทนฟ้าอ่อน ===== */
+.sidebar {
+    width: 300px;
+    background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%);
+    color: white;
+    padding: 0 0 60px;
+    margin: 0;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 4px 0 16px rgba(37, 99, 235, 0.2);
+}
+
+.sidebar-brand {
+    color: #fef3c7;
+    font-weight: 800;
+    font-size: 1.05rem;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border-bottom: 2px solid #fcdb3a;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    position: relative;
+}
+.sidebar-brand > i { flex-shrink: 0; margin-top: 2px; }
+.sidebar-brand > span {
+    flex: 1;
+    min-width: 0;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.sidebar-close {
+    display: none;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.18);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    font-size: 1rem;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    transition: background 0.2s, transform 0.2s;
+}
+.sidebar-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+}
+
+.menu-item {
+    color: #ffffff;
+    padding: 14px 25px;
+    font-weight: 600;
+    text-decoration: none;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    transition: background 0.2s, color 0.2s, border-left 0.2s;
+    border-left: 4px solid transparent;
+    cursor: pointer;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.menu-item > i {
+    flex-shrink: 0;
+    margin-top: 3px;
+}
+.menu-item:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+.menu-item.active,
+.menu-item.router-link-active {
+    color: #fcdb3a;
+    background: rgba(255, 255, 255, 0.22);
+    border-left: 4px solid #fcdb3a;
+}
+
+/* ===== Mobile topbar (hamburger) ===== */
+.mobile-topbar {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    position: sticky;
+    top: 0;
+    z-index: 90;
+}
+.hamburger {
+    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+    color: #fff;
+    border: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    transition: transform 0.2s;
+}
+.hamburger:hover { transform: scale(1.05); }
+.mobile-title {
+    font-weight: 800;
+    font-size: 1rem;
+    color: #00469c;
+    flex: 1;
+}
+
+.sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.62);
+    z-index: 1900;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
+/* ===== Content section ===== */
+.history-section {
+    flex: 1;
+    padding: 32px 40px;
+    background: #ffffff;
+    margin: 0;
+    min-width: 0;
+}
+.header-bar {
+    margin-bottom: 24px;
+    color: #00469c;
+}
+.header-bar h2 {
+    margin: 0;
+    font-size: 1.4rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.header-sub {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 0.9rem;
+}
+
+:deep(header), :deep(.navbar) { margin: 0 !important; }
+:deep(footer) { margin-top: 0 !important; }
+:deep(.footer-divider) {
+    background: linear-gradient(to right, #2563eb 300px, #ffffff 300px) !important;
+    border: none;
+    margin: 0;
+}
+
+/* ===== Buttons ===== */
+/* ============== BUTTON GROUP — desktop table (2×2 grid) ============== */
+.btn-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+    max-width: 360px;
+    min-width: 320px;
+    margin: 0 auto;
+    justify-items: stretch;
+}
+.btn-group > button {
+    width: 100%;
+    min-height: 40px;
+    height: auto;
+    padding: 8px 10px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    color: white;
+    transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    white-space: normal;
+    line-height: 1.3;
+    text-align: center;
+    word-break: break-word;
+    box-sizing: border-box;
+}
+.btn-group > button:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.06);
+}
+/* shared gradient styles — ใช้ทั้ง desktop (.btn-group) และ mobile (.card-actions) */
+.btn-chat     { background: linear-gradient(135deg, #10b981, #059669) !important; color: #fff !important; box-shadow: 0 3px 8px rgba(16,185,129,.30); }
+.btn-archive  { background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important; color: #fff !important; box-shadow: 0 3px 8px rgba(37,99,235,.30); }
+.btn-group .btn-pdf,
+.card-actions .btn-pdf { background: linear-gradient(135deg, #ef4444, #dc2626) !important; color: #fff !important; box-shadow: 0 3px 8px rgba(239,68,68,.30); }
+.btn-complete { background: linear-gradient(135deg, #22c55e, #16a34a) !important; color: #fff !important; box-shadow: 0 3px 8px rgba(34,197,94,.30); }
+.btn-reopen   { background: linear-gradient(135deg, #f59e0b, #d97706) !important; color: #fff !important; box-shadow: 0 3px 8px rgba(245,158,11,.30); }
+
+/* คอลัมน์ "จัดการ" */
+.history-table th:last-child,
+.history-table td.text-center {
+    min-width: 340px;
+    width: 340px;
+    vertical-align: middle;
+}
+
+@media (max-width: 1100px) {
+    .btn-group > button { padding: 7px 8px; font-size: 0.74rem; }
+}
+
+/* === legacy override for old .btn-pdf in card view === */
+.card-actions .btn-pdf,
+.btn-pdf-legacy {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-family: 'Sarabun', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn-pdf:hover { background-color: #c0392b; transform: translateY(-2px); }
+
+.btn-mini {
+    background: #e2e8f0;
+    color: #00469c;
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+}
+.btn-mini:hover { background: #cbd5e1; }
+
+.phone-link {
+    color: #00469c;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+/* ===== Shadow card / Table ===== */
+.shadow-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.07);
+    overflow: hidden;
+    border: 1px solid #eef2f7;
+}
+/* ตารางเลื่อนซ้าย-ขวาได้ลื่น แทนที่จะ overflow ทั้งหน้า + scrollbar ขวาสุด */
+.table-container.shadow-card {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+    scrollbar-width: auto;
+    scrollbar-color: rgba(71, 85, 105, 0.82) rgba(226, 232, 240, 0.95);
+}
+.table-container.shadow-card::-webkit-scrollbar {
+    width: 16px;
+    height: 16px;
+}
+.table-container.shadow-card::-webkit-scrollbar-track {
+    background: rgba(226, 232, 240, 0.95);
+    border-radius: 0 0 16px 16px;
+}
+.table-container.shadow-card::-webkit-scrollbar-thumb {
+    background: rgba(71, 85, 105, 0.82);
+    border-radius: 6px;
+    border: none;
+    min-height: 40px;
+}
+.table-container.shadow-card::-webkit-scrollbar-thumb:hover {
+    background: rgba(51, 65, 85, 0.92);
+}
+.table-container .history-table { min-width: 1200px; }
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.history-table th {
+    background: linear-gradient(135deg, #00469c 0%, #003d92 100%);
+    color: white;
+    padding: 14px 15px;
+    text-align: left;
+    font-size: 0.92rem;
+    font-weight: 700;
+}
+.history-table td {
+    padding: 14px 15px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: top;
+    font-size: 0.92rem;
+}
+.history-table tr:hover { background: #fafbfc; }
+.history-table tr:last-child td { border-bottom: none; }
+
+.med-col, .symptom-text {
+    max-width: 280px;
+    white-space: pre-wrap;
+    color: #475569;
+    line-height: 1.5;
+}
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+.text-muted { color: #94a3b8; font-size: 0.78rem; }
+
+.status-badge {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+.status-badge.waiting {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+}
+.status-badge.done {
+    background: #d1fae5;
+    color: #065f46;
+    border: 1px solid #6ee7b7;
+}
+
+/* ===== Card list (mobile) ===== */
+.card-list {
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    padding: 14px;
+}
+.patient-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.patient-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+.card-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+.card-row.top {
+    border-bottom: 1px dashed #e2e8f0;
+    padding-bottom: 10px;
+    margin-bottom: 4px;
+}
+.card-row .card-label {
+    color: #64748b;
+    font-weight: 600;
+    min-width: 78px;
+    flex-shrink: 0;
+}
+.card-row .card-value {
+    color: #1e293b;
+    text-align: right;
+    word-break: break-word;
+    flex: 1;
+}
+.card-row .card-value.contact {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+}
+.patient-info {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.patient-name-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    line-height: 1.35;
+    word-break: normal;
+    overflow-wrap: break-word;
+}
+.patient-name {
+    font-weight: 800;
+    color: #0f172a;
+    font-size: 1.02rem;
+    line-height: 1.25;
+}
+
+/* ===== Patient cell (avatar + ชื่อ) — ดีไซน์เดียวกับ /history ===== */
+.card-top-left,
+.patient-cell {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.patient-cell { padding: 4px 0; }
+.patient-name-strong {
+    font-weight: 800;
+    color: #0f172a;
+    font-size: 1.02rem;
+    line-height: 1.25;
+}
+.avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #8b5cf6 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.avatar-lg { width: 48px; height: 48px; font-size: 1.25rem; }
+.avatar.avatar-img {
+    object-fit: cover;
+    background: #e2e8f0;
+    padding: 0;
+    border: 2px solid #ffffff;
+    outline: 1.5px solid #e2e8f0;
+}
+.avatar.avatar-img:hover { outline-color: #6366f1; }
+.patient-cell__body {
+    min-width: 0;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    line-height: 1.45;
+}
+.patient-line {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    word-break: normal;
+    overflow-wrap: break-word;
+    line-height: 1.45;
+}
+.patient-line i { flex-shrink: 0; margin-top: 4px; font-size: 0.78rem; }
+.patient-line--phone {
+    color: #0e7490;
+    font-size: 0.88rem;
+    font-weight: 700;
+}
+.patient-line--phone i { color: #06b6d4; }
+.patient-line--phone .patient-phone-link {
+    color: inherit;
+    text-decoration: none;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.patient-line--phone .patient-phone-link:hover { text-decoration: underline; }
+.patient-line--address {
+    color: #475569;
+    font-size: 0.84rem;
+}
+.patient-line--address i { color: #6366f1; }
+.patient-line--address span { display: inline; }
+.patient-phone-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 9px;
+    background: #ecfeff;
+    color: #0e7490;
+    border: 1px solid #a5f3fc;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.patient-phone-inline i { font-size: 0.72rem; opacity: 0.85; }
+.patient-phone-link {
+    color: inherit;
+    text-decoration: none;
+    font-variant-numeric: tabular-nums;
+}
+.patient-phone-link:hover { text-decoration: underline; }
+.patient-hn {
+    color: #94a3b8;
+    font-size: 0.78rem;
+    margin-top: 2px;
+}
+.card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px dashed #e2e8f0;
+}
+/* ให้แต่ละปุ่มมีความกว้างขั้นต่ำ แล้ว wrap ขึ้นบรรทัดใหม่ (2 คอลัมน์) แทนการล้นจอ */
+.card-actions > * {
+    flex: 1 1 calc(50% - 5px);
+    min-width: 120px;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+/* ===== Empty / Loading ===== */
+.loading-state, .empty-state {
+    padding: 80px 20px;
+    text-align: center;
+    color: #94a3b8;
+}
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+}
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #00469c;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* ===== Backdrop transition ===== */
+.fade-bd-enter-active, .fade-bd-leave-active { transition: opacity 0.25s ease; }
+.fade-bd-enter-from, .fade-bd-leave-to { opacity: 0; }
+
+/* ============================ RESPONSIVE ============================ */
+/* จอแคบ/แท็บเล็ตแนวนอน (1025–1280px): ย่อ sidebar + กันตารางถูก overflow:hidden ตัดคอลัมน์จัดการ */
+@media (min-width: 1025px) and (max-width: 1280px) {
+    .sidebar { width: 280px; }
+    :deep(.footer-divider) {
+        background: linear-gradient(to right, #2563eb 280px, #ffffff 280px) !important;
+    }
+    .main-content {
+        background: linear-gradient(to right, #2563eb 0, #2563eb 280px, transparent 280px);
+    }
+    .history-section { padding: 24px 20px; }
+    /* iPad / แท็บเล็ตแนวนอน: ตารางแน่นเกินไป (ชื่อ-ที่อยู่ตกบรรทัด, คอลัมน์จัดการโดนตัด)
+       → ใช้การ์ดแทน เพื่อจัดวางคำให้สวยและไม่โดนตัดขอบ */
+    .history-table { display: none; }
+    .card-list { display: flex; }
+    .shadow-card { background: transparent; box-shadow: none; }
+    .card-row.top { flex-direction: column; align-items: stretch; gap: 10px; }
+    .card-row.top .status-badge { align-self: flex-start; }
+}
+
+@media (max-width: 1024px) {
+    /* Sidebar → Drawer */
+    .mobile-topbar { display: flex; }
+    .sidebar-close { display: flex !important; }
+    .main-content { background: none; }
+    .sidebar {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        height: 100vh;
+        width: 86% !important;
+        max-width: 360px !important;
+        z-index: 2000 !important;
+        transform: translateX(-105%);
+        transition: transform 0.3s ease;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+        overflow-y: auto;
+        align-self: auto !important;
+    }
+    .sidebar.open { transform: translateX(0); }
+
+    /* Hide table, show card list */
+    .history-table { display: none; }
+    .card-list { display: flex; }
+    .shadow-card { background: transparent; box-shadow: none; }
+    .history-section { padding: 14px; }
+    .header-bar h2 { font-size: 1.15rem; }
+    .header-bar { margin-bottom: 14px; }
+    :deep(.footer-divider) {
+        background: #ffffff !important;
+    }
+
+    /* แถวบนของการ์ด: เรียงแนวตั้ง ให้ชื่อ-รูปได้ความกว้างเต็ม badge ตกลงล่าง */
+    .card-row.top {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    .card-row.top .status-badge { align-self: flex-start; }
+    /* ไม่ตัดชื่อกลางคำไทย — ตัดเฉพาะช่องว่างระหว่างชื่อ/นามสกุล */
+    .patient-line--name .patient-name,
+    .patient-line--name .patient-name-strong {
+        overflow-wrap: normal;
+        word-break: keep-all;
+        font-size: 0.98rem;
+    }
+    /* ลดขนาดคำในการ์ดให้กระชับ อ่านง่ายบน iPad */
+    .patient-line--phone { font-size: 0.85rem; }
+    .patient-line--address { font-size: 0.82rem; }
+}
+
+@media (max-width: 480px) {
+    .sidebar { width: 100% !important; max-width: 100% !important; }
+    .header-bar h2 { font-size: 1rem; flex-wrap: wrap; }
+    .header-sub { font-size: 0.8rem; }
+    .card-list { padding: 6px; gap: 12px; }
+    .patient-card { padding: 14px; border-radius: 14px; }
+    .card-row .card-label { min-width: 62px; font-size: 0.82rem; }
+    .card-row .card-value { font-size: 0.85rem; }
+    .patient-name { font-size: 0.95rem; }
+    .btn-chat, .btn-pdf { font-size: 0.82rem; padding: 8px 10px; }
+    .card-actions > * { font-size: 0.82rem; padding: 8px 10px; min-width: 0; }
+}

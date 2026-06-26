@@ -1,0 +1,920 @@
+/* 1. Global Reset เฉพาะหน้า */
+:deep(body),
+:deep(html) {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.admin-layout {
+    min-height: 100vh;
+    background: #f0f2f5;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+}
+
+/* 2. Main Content - Sidebar ยืดถึง footer (เหมือนเภสัช) */
+.main-content {
+    display: flex;
+    flex: 1;
+    margin: 0;
+    padding: 0;
+    align-items: stretch;      /* 🚩 sidebar ยืดเต็มความสูง main-content ถึง footer */
+    min-width: 0;
+    position: relative;
+    min-height: calc(100vh - 200px);
+}
+
+/* 3. Sidebar — ขนาดเหมือนของเภสัช (260px + light blue gradient) ยืดถึง footer */
+.sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%);
+    color: white;
+    padding: 24px 18px;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    box-shadow: 4px 0 16px rgba(37, 99, 235, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    overflow: hidden;
+    align-self: stretch;       /* 🚩 ยืดถึงล่างสุด → ต่อเข้ากับ footer-divider สีน้ำเงินได้พอดี */
+}
+
+/* Sidebar Header — แบบเภสัช (โทนเหลืองอ่อน + เส้นสีเหลืองด้านล่าง) */
+.sidebar-header {
+    color: #fef3c7;
+    font-size: 1.05rem;
+    font-weight: 800;
+    padding: 14px 18px;
+    margin: -24px -18px 12px;     /* ดึงไปติดขอบ sidebar */
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border-bottom: 2px solid #fcdb3a;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;       /* 🚩 ADMIN PANEL อยู่ตรงกลางบน desktop */
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    letter-spacing: 0.5px;
+}
+.sidebar-header > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.sidebar-header > span > i {
+    font-size: 1.15rem;
+    color: #fef3c7;
+    flex-shrink: 0;
+}
+
+/* Menu list container */
+.menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Menu buttons — สไตล์เดียวกับร้านยา */
+.menu-btn {
+    width: 100%;
+    box-sizing: border-box;       /* 🚩 รวม padding ใน width 100% */
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.25s, color 0.25s, box-shadow 0.2s;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    position: relative;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-decoration: none;
+    font-family: inherit;
+    overflow: hidden;             /* 🚩 ตัด text ที่ยาวเกินไม่ให้ทะลุปุ่ม */
+}
+.menu-btn i {
+    font-size: 1.05rem;
+    width: 22px;
+    text-align: center;
+    flex-shrink: 0;               /* icon ห้ามหด */
+}
+.menu-btn span:not(.menu-badge) {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;      /* ข้อความยาว เช่น "ติดตามการบันทึกยา PDF" → ตัด … ถ้าเกิน */
+}
+.menu-btn:hover {
+    background: rgba(255, 255, 255, 0.22);
+    /* 🚩 ลบ translateX ออก — สาเหตุที่ปุ่มดู "พะเยอ"/ยื่นออกตอน hover */
+}
+.menu-btn.active {
+    background: #ffffff;
+    color: #1e3a8a;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.menu-btn.active i {
+    color: #1e3a8a;
+}
+
+/* Badge แจ้งจำนวนรอดำเนินการ */
+.menu-badge {
+    margin-left: auto;
+    background: #ef4444;
+    color: white;
+    font-size: 0.75rem;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+    animation: badgePulse 2.5s ease-in-out infinite;
+}
+@keyframes badgePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+}
+
+/* 4. Footer divider — แถบสีน้ำเงินซ้าย 260px เท่ากับความกว้าง sidebar ให้ต่อกันพอดี */
+:deep(.footer-divider) {
+    background: linear-gradient(to right, #2563eb 260px, #ffffff 260px) !important;
+    line-height: 0;
+    margin-top: -1px;
+}
+
+:deep(.footer-wave) {
+    margin-top: 0 !important;
+}
+
+:deep(header),
+:deep(.navbar) {
+    margin-bottom: 0 !important;
+}
+
+/* --- (Legacy) .menu-item — เก็บไว้กันโค้ดเก่าที่ยังอ้างอิง --- */
+.menu-item {
+    color: #ffffff;
+    padding: 14px 16px;
+    cursor: pointer;
+    border-radius: 12px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+.menu-item:hover { background: rgba(255, 255, 255, 0.22); }
+.menu-item.active {
+    background: #ffffff;
+    color: #1e3a8a;
+    font-weight: 700;
+}
+.menu-item.active i { color: #1e3a8a; }
+
+.search-section {
+    flex: 1;
+    padding: 40px;
+}
+
+.search-bar {
+    background: #00469c;
+    padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.search-bar input {
+    flex: 1;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    outline: none;
+}
+
+.btn-search {
+    background: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+
+/* --- Blue List Items (สไตล์รูป 2) --- */
+.list-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.blue-row-item {
+    background: #00469c;
+    color: white;
+    padding: 15px 25px;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.blue-row-item:hover {
+    background: #003375;
+    transform: translateX(10px);
+}
+
+.item-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.item-no {
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.item-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.action-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: white;
+    padding: 5px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-right: 10px;
+}
+
+.btn-delete {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+
+/* --- Pop-up Modal --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+}
+
+.close-x {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 2rem;
+    border: none;
+    background: none;
+    color: #aaa;
+    cursor: pointer;
+}
+
+.user-detail-card {
+    background: white;
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    max-width: 600px;
+    width: 90%;
+    position: relative;
+}
+
+.profile-preview {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.circle-img {
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid #f0f2f5;
+}
+
+.role-badge {
+    display: inline-block;
+    background: #eee;
+    padding: 4px 15px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    margin-top: 10px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    text-align: left;
+}
+
+.full-width {
+    grid-column: span 2;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.input-readonly {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #f9f9f9;
+    color: #555;
+}
+
+textarea.input-readonly {
+    height: 100px;
+    resize: none;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 80px;
+    color: #888;
+    font-size: 1.1rem;
+}
+
+/* Animations */
+.pop-enter-active,
+.pop-leave-active {
+    transition: all 0.3s ease;
+}
+
+.pop-enter-from,
+.pop-leave-to {
+    opacity: 0;
+    transform: scale(0.9);
+}
+
+/* Custom Scrollbar */
+.sidebar::-webkit-scrollbar {
+    width: 5px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.35);
+    border-radius: 10px;
+}
+/* จัดการตัว Card หลักให้มีความสูงจำกัด */
+.user-detail-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    max-width: 600px;
+    width: 90%;
+    position: relative;
+    max-height: 85vh; /* ความสูงสูงสุด 85% ของหน้าจอ */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* ซ่อนส่วนที่ล้นตัว Card */
+}
+
+/* ส่วนที่อนุญาตให้สไลด์ (Scroll) */
+.modal-scroll-content {
+    flex: 1;
+    overflow-y: auto; /* เปิด Scroll แนวตั้ง */
+    padding: 40px; /* ย้าย Padding จากตัว Card มาไว้ที่นี่ */
+}
+
+/* ตกแต่งใบประกอบวิชาชีพ */
+.license-viewer {
+    margin-top: 10px;
+    border: 2px dashed #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f8fafc;
+    cursor: zoom-in;
+}
+
+.license-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: transform 0.2s;
+}
+
+.license-img:hover {
+    transform: scale(1.02);
+}
+
+/* Custom Scrollbar ให้ดูสวยขึ้น */
+.modal-scroll-content::-webkit-scrollbar {
+    width: 6px;
+}
+.modal-scroll-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+/* กรอบสำหรับแสดงตารางเวลา */
+.work-time-box {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e2e8f0; /* เส้นขอบเทาอ่อน */
+    border-radius: 8px; /* มุมโค้ง */
+    background-color: #f8fafc; /* สีพื้นเทาอ่อนเหมือนช่องอื่น */
+    font-size: 1rem;
+    min-height: 45px; /* ความสูงขั้นต่ำ */
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+/* ปรับระยะห่างของส่วนใบประกอบวิชาชีพด้านล่างให้สวยขึ้น */
+.license-viewer {
+    margin-top: 15px;
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    background-color: #f1f5f9;
+    padding: 10px;
+    text-align: center;
+}
+
+.license-img {
+    max-width: 100%;
+    border-radius: 8px;
+    display: block;
+    margin: 0 auto;
+}
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 20px;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+/* --- ปุ่มใน Modal (Footer Actions) --- */
+.verify-actions {
+    display: flex;
+    gap: 12px;
+    padding: 24px;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    border-radius: 0 0 20px 20px;
+}
+
+.btn-confirm-approve {
+    flex: 2;
+    padding: 14px;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-confirm-approve:hover {
+    background: #059669;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.btn-confirm-reject {
+    flex: 1;
+    padding: 14px;
+    background: #ffffff;
+    color: #ef4444;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+
+.pending-label {
+    font-size: 12px;
+    /* ปรับขนาดเล็กลงนิดนึงเพื่อให้ดูสมดุล */
+    font-weight: 400;
+    background: #fef3c7;
+    color: #92400e;
+    padding: 2px 40px;
+    border-radius: 6px;
+    /* ความมนที่เข้ากับขนาด */
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    /* ป้องกันตัวหนังสือตัดบรรทัด */
+    box-shadow: 0 2px 4px rgba(146, 64, 14, 0.1);
+    /* เพิ่มเงาจางๆ ให้ดูมีมิติ */
+}
+
+/* --- (Legacy) ADMIN PANEL Brand --- ใช้ .sidebar-header แทนแล้ว */
+.sidebar-brand {
+    display: none;
+}
+
+/* ===================== Mobile Topbar (hamburger) — เหมือนของร้านยา ===================== */
+.mobile-topbar {
+    display: none;          /* ซ่อนบน desktop */
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    color: white;
+    padding: 12px 16px;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 12px rgba(30, 58, 138, 0.18);
+}
+.hamburger-btn {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.hamburger-btn:hover { background: rgba(255, 255, 255, 0.25); }
+
+.mobile-title {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 1.05rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+.mobile-title i { flex-shrink: 0; color: #fef3c7; }
+
+.mobile-badge {
+    background: #ef4444;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+    flex-shrink: 0;
+}
+
+/* Sidebar overlay (mobile only) */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55);
+    z-index: 1900;
+    backdrop-filter: blur(2px);
+}
+.overlay-fade-enter-active,
+.overlay-fade-leave-active { transition: opacity 0.25s; }
+.overlay-fade-enter-from,
+.overlay-fade-leave-to { opacity: 0; }
+
+/* sidebar-close — ปุ่ม X ใน sidebar header (โชว์เฉพาะมือถือ) */
+.sidebar-close {
+    display: none;
+    background: rgba(255, 255, 255, 0.18);
+    border: none;
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    font-size: 1rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.2s;
+}
+.sidebar-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+}
+
+/* ===================== RESPONSIVE: Tablet (≤1024px) — แค่ลดขนาด sidebar เหมือนเภสัช ===================== */
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 230px;
+    }
+    /* footer-divider ตรงกับ sidebar 230px */
+    :deep(.footer-divider) {
+        background: linear-gradient(to right, #2563eb 230px, #ffffff 230px) !important;
+    }
+    .menu-btn {
+        padding: 12px 14px;
+        font-size: 0.9rem;
+    }
+    .search-section {
+        padding: 24px;
+    }
+    .user-detail-card {
+        max-width: 92% !important;
+        max-height: 90vh !important;
+    }
+    .modal-scroll-content {
+        padding: 28px;
+    }
+}
+
+/* ===================== RESPONSIVE: Narrow desktop / tablet landscape (1025–1280px) ===================== */
+@media (min-width: 1025px) and (max-width: 1280px) {
+    .sidebar {
+        width: 230px;
+    }
+    /* footer-divider ตรงกับ sidebar 230px */
+    :deep(.footer-divider) {
+        background: linear-gradient(to right, #2563eb 230px, #ffffff 230px) !important;
+    }
+    .menu-btn {
+        padding: 12px 14px;
+        font-size: 0.9rem;
+    }
+    .search-section {
+        padding: 24px;
+    }
+    /* กันตารางแอดมินล้นจนปุ่ม action ขวาสุดถูกตัด */
+    .content-area,
+    .main-content {
+        min-width: 0;
+    }
+}
+
+/* ===================== RESPONSIVE: Mobile (≤900px) — drawer เหมือนของร้าน ===================== */
+@media (max-width: 900px) {
+    /* แสดง mobile-topbar (sticky bar ด้านบน) */
+    .mobile-topbar {
+        display: flex;
+    }
+
+    .main-content {
+        flex-direction: column;
+        position: relative;
+    }
+
+    /* Sidebar = off-canvas drawer (ครอบทั้งหน้าจอ เหมือนของร้าน) */
+    .sidebar {
+        position: fixed !important;
+        top: 0 !important;                 /* คลุมทั้งหน้าจอ — overlay จะเป็นตัวบดบัง */
+        left: 0 !important;
+        height: 100vh !important;
+        width: 86% !important;
+        max-width: 320px !important;
+        padding: 26px 18px !important;
+        z-index: 2000 !important;
+        transform: translateX(-105%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.3s;
+        overflow-y: auto;
+        box-shadow: 6px 0 30px rgba(0, 0, 0, 0.35);
+        align-self: auto !important;
+        flex-direction: column;
+        visibility: hidden;
+        pointer-events: none;
+    }
+    .sidebar.open {
+        transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    /* sidebar-header: บนมือถือเปลี่ยนเป็น space-between เพื่อให้ปุ่ม close โผล่ขวา */
+    .sidebar-header {
+        margin: -26px -18px 16px;          /* ดึงไปติดขอบใหม่ตาม padding มือถือ */
+        justify-content: space-between !important;
+        text-align: left;
+    }
+    .sidebar-close {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* overlay โผล่ตอน sidebar.open */
+    .sidebar-overlay {
+        display: block !important;
+    }
+
+    .sidebar-brand {
+        font-size: 18px;
+        margin-bottom: 25px;
+    }
+
+    /* เนื้อหาหลัก: เต็มความกว้าง (mobile-topbar เป็น sticky จึงไม่ต้อง padding-top เพิ่ม) */
+    .view-container {
+        padding: 16px;
+    }
+    .search-section {
+        padding: 0;
+    }
+
+    /* Footer divider — ปิดเอฟเฟกต์แถบสีฝั่งซ้าย (250px) บนมือถือ */
+    :deep(.footer-divider) {
+        background: white !important;
+    }
+
+    /* Search bar ทั่วไป */
+    .search-bar {
+        padding: 14px;
+        gap: 10px;
+    }
+    .search-bar input {
+        padding: 10px;
+        font-size: 0.9rem;
+    }
+
+    /* ===== Overview Stat Cards — ขนาด/รัศมีจัดการใน overview.css ===== */
+
+    /* Dashboard content (chart + ranking) stacks */
+    .dashboard-content {
+        gap: 16px;
+    }
+    .chart-card, .top-list-card {
+        padding: 18px !important;
+        border-radius: 18px !important;
+    }
+
+    /* Ranking rows tighter */
+    .rank-row {
+        padding: 10px 12px !important;
+        gap: 8px;
+    }
+    .rank-profile img {
+        width: 36px !important;
+        height: 36px !important;
+    }
+    .rank-name strong { font-size: 13px !important; }
+    .rank-name small { font-size: 0.7rem; }
+    .rank-count {
+        font-size: 0.78rem !important;
+        white-space: nowrap;
+    }
+
+    /* ===== Modal (User / Pharma / Partner) ===== */
+    .user-detail-card {
+        max-width: 95% !important;
+        width: 95%;
+        max-height: 92vh !important;
+        border-radius: 16px;
+    }
+    .modal-scroll-content {
+        padding: 20px 18px;
+    }
+    .close-x {
+        top: 10px;
+        right: 14px;
+        font-size: 1.8rem;
+    }
+    .circle-img {
+        width: 100px !important;
+        height: 100px !important;
+        border-width: 3px !important;
+    }
+    .profile-preview h3 {
+        font-size: 1.05rem;
+        margin: 12px 0 4px;
+    }
+
+    /* Form grid → 1 คอลัมน์ */
+    .info-grid {
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+    }
+    .full-width { grid-column: span 1 !important; }
+    .input-readonly,
+    .input-editable {
+        padding: 10px !important;
+        font-size: 0.92rem;
+    }
+
+    /* Verify actions buttons */
+    .verify-actions {
+        flex-direction: column-reverse;
+        padding: 16px;
+        gap: 10px;
+    }
+    .btn-confirm-approve,
+    .btn-confirm-reject {
+        flex: 1 1 100%;
+        padding: 12px;
+    }
+
+    /* Pending tab badge */
+    .pending-label {
+        padding: 2px 16px;
+    }
+
+    /* List item เดิม (กรณี class blue-row-item ยังมีใช้ที่อื่น) */
+    .blue-row-item {
+        padding: 12px 16px;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .blue-row-item:hover {
+        transform: none;
+    }
+
+    /* Schedule row บน mobile */
+    .schedule-row {
+        gap: 6px !important;
+        padding: 8px !important;
+    }
+    .sched-day {
+        flex: 1 1 100% !important;
+    }
+    .sched-time {
+        flex: 1 1 calc(50% - 16px) !important;
+    }
+}
+
+/* ===================== RESPONSIVE: Small Mobile (≤480px) ===================== */
+@media (max-width: 480px) {
+    .mobile-topbar {
+        padding: 10px 12px;
+        gap: 10px;
+    }
+    .hamburger-btn {
+        width: 38px;
+        height: 38px;
+    }
+    .mobile-title {
+        font-size: 0.95rem;
+    }
+    .view-container {
+        padding: 16px 12px;
+    }
+    .user-detail-card {
+        max-width: 100% !important;
+        width: 100%;
+        max-height: 100vh !important;
+        height: 100vh;
+        border-radius: 0;
+    }
+    .modal-overlay {
+        padding: 0;
+    }
+    .modal-scroll-content {
+        padding: 16px 14px;
+    }
+    .circle-img {
+        width: 84px !important;
+        height: 84px !important;
+    }
+    .sidebar {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+
+/* ===================== Print: ซ่อน sidebar + topbar ===================== */
+@media print {
+    .sidebar,
+    .mobile-topbar,
+    .sidebar-overlay {
+        display: none !important;
+    }
+    .view-container {
+        padding: 0 !important;
+    }
+}

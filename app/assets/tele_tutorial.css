@@ -1,0 +1,199 @@
+/* SECTION */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Inter", sans-serif;
+}
+
+.tele-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 150px;
+}
+
+
+/* LEFT */
+.tele-left {
+    max-width: 55%;
+}
+
+.tele-left h1 {
+    font-size: 32px;
+    color: #0d47a1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chat-bubble {
+    color: #3DBDEC;
+    font-size: 30px;
+}
+
+.subtitle {
+    margin-top: 10px;
+    font-size: 24px;
+    color: #3DBDEC;
+}
+
+.subtitle span {
+    color: #3DBDEC;
+    font-weight: 600;
+}
+
+/* STEPS */
+.steps {
+    display: flex;
+    gap: 18px;
+    margin-top: 44px;
+    flex-wrap: wrap;
+}
+
+.step {
+    position: relative;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+    color: #0d47a1;
+    flex: 1 1 0;
+    min-width: 120px;
+    padding: 18px 12px 16px;
+    background: #ffffff;
+    border: 1px solid #e4eefb;
+    border-radius: 18px;
+    box-shadow: 0 8px 22px rgba(13, 71, 161, 0.06);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.step:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 34px rgba(13, 71, 161, 0.15);
+    border-color: #bcdcff;
+}
+
+/* เส้นเชื่อมระหว่างขั้นตอน — ตัดออกตามที่ร้องขอ */
+.step:not(:last-child)::after {
+    display: none;
+}
+
+.step-media {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.step-num {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #00469D 0%, #3DBDEC 100%);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: 0 4px 10px rgba(0, 70, 157, 0.3);
+}
+
+.step img {
+    width: 88px;
+    height: auto;
+}
+
+.step p {
+    margin: 0;
+    line-height: 1.35;
+}
+
+/* RIGHT */
+.tele-right img {
+    height: 350px;
+    max-width: 100%;
+}
+
+.organic_shape_left {
+  position: relative;
+  left: -120px;      /* ⭐ ดันออกไปให้ชิด/ล้นซ้าย */
+  width: 420px;      /* ⭐ ปรับขนาด */
+  height: auto;
+  z-index: 0;
+}
+
+
+/* RESPONSIVE — ครอบ iPad gen 9 (แนวตั้ง 810px) ด้วย เพื่อจัดหัวข้อให้สวยและไม่ล้น */
+@media (max-width: 1024px) {
+    .tele-section {
+        flex-direction: column;
+        text-align: center;
+        padding: 40px 24px;
+    }
+    .tele-left h1 {
+    font-size: 24px;
+    color: #0d47a1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.subtitle {
+    margin-top: 10px;
+    font-size: 18px;
+    color: #1e88e5;
+}
+
+    .tele-left {
+        max-width: 100%;
+    }
+
+    .steps {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 14px;
+    }
+
+    .tele-right {
+        margin-top: 40px;
+    }
+
+    .tele-left h1 {
+        justify-content: center;
+        /* จัดกลางแนวนอน */
+        text-align: center;
+        /* ตัวหนังสือกลาง */
+    }
+
+    .step {
+        flex: 1 1 130px;
+        max-width: 160px;
+        font-size: 15px;
+    }
+
+    /* ซ่อนเส้นเชื่อมตอน wrap หลายแถว */
+    .step:not(:last-child)::after { display: none; }
+
+    .step-media {
+        width: 84px;
+        height: 84px;
+    }
+
+    .step img {
+        width: 52px;
+        height: auto;
+    }
+/* RIGHT */
+.tele-right img {
+    height: 350px;
+    max-width: 100%;
+}
+}

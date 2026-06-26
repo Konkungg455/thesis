@@ -1,0 +1,134 @@
+
+
+/* Section */
+.category-section {
+    /* ปรับให้กว้างเท่ากับ Hero/เนื้อหาหลัก (เดิม 1700px ทำให้ยืดกว้างเกินบนจอใหญ่ ~1583px) */
+    max-width: 1200px;
+    margin: 80px auto;
+    padding: 40px;
+}
+
+/* Top Bar */
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.top-bar h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: #00469D;
+}
+
+.all-btn {
+    background-color: #00469D;
+    color: white;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: 0.3s;
+    text-decoration: none;
+}
+
+.all-btn:hover {
+    background-color: #70a8e9;
+}
+
+/* Category Tags */
+.category-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 35px;
+}
+
+.tag {
+    background-color: #ffffff;
+    border: 3px solid #00469D;
+    padding: 10px 18px;
+    border-radius: 25px;
+    font-size: 16px;
+    cursor: pointer;
+    color: #000000;
+    transition: 0.3s;
+}
+
+.tag:hover {
+    border: none;
+    background-color: #70a8e9;
+    color: white;
+}
+
+/* Search Box */
+.search-box {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.search-box input {
+    flex: 1;
+    padding: 14px 20px;
+    border-radius: 30px;
+    border: 1px solid #d0d7e2;
+    outline: none;
+    font-size: 14px;
+}
+
+.search-box input:focus {
+    border-color: #1d5fd1;
+}
+
+.search-btn {
+    background-color: #1d5fd1;
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: 0.3s;
+}
+
+.search-btn:hover {
+    background-color: #1549a3;
+}
+
+
+/* Responsive */
+@media (max-width: 768px) {
+
+    .category-section {
+        padding: 20px;
+        margin: 40px auto;
+    }
+
+    .top-bar h1 {
+        font-size: 24px;
+    }
+
+    .search-box {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-btn {
+        width: 100%;
+    }
+    .all-btn {
+  background: none;
+  border: none;
+  color: #00469c;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: underline;
+}
+.all-btn:hover {
+  color: #fcdb3a;
+}
+}

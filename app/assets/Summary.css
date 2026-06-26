@@ -1,0 +1,465 @@
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
+
+.page-wrapper {
+  font-family: 'Sarabun', sans-serif;
+  background-color: #e8ecef;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 20px 20px 20px 140px;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  position: relative;
+}
+
+.receipt-card {
+  background: #fff;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 14mm 16mm 18mm;
+  box-sizing: border-box;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  color: #111;
+  font-size: 14px;
+}
+
+/* --- หัวเอกสาร --- */
+.receipt-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.receipt-brand {
+  flex: 1;
+}
+
+.brand-name {
+  display: block;
+  width: 100%;
+  border: none;
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'Sarabun', sans-serif;
+  outline: none;
+  background: transparent;
+  padding: 0;
+  margin-bottom: 2px;
+}
+
+.brand-web {
+  display: block;
+  width: 100%;
+  border: none;
+  font-size: 13px;
+  color: #333;
+  font-family: 'Sarabun', sans-serif;
+  outline: none;
+  background: transparent;
+  padding: 0;
+}
+
+.page-no {
+  font-size: 13px;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.receipt-title-box {
+  border: 2px solid #000;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  padding: 6px 12px;
+  margin: 10px 0 14px;
+  letter-spacing: 0.02em;
+}
+
+/* --- ข้อมูลลูกค้า / บิล --- */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 24px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.info-col--right {
+  text-align: right;
+}
+
+.info-col--right .info-row {
+  justify-content: flex-end;
+}
+
+.info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.info-row--sub {
+  margin-bottom: 0;
+}
+
+.info-label {
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 72px;
+}
+
+.info-col--right .info-label {
+  min-width: 64px;
+}
+
+.info-input {
+  flex: 1;
+  border: none;
+  border-bottom: 1px dotted #444;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 14px;
+  padding: 1px 4px;
+  outline: none;
+  background: transparent;
+  min-width: 0;
+}
+
+.info-col--right .info-input {
+  max-width: 200px;
+  text-align: right;
+}
+
+/* --- ตารางรายการ --- */
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #000;
+  margin-bottom: 0;
+  table-layout: fixed;
+}
+
+.items-table thead th {
+  border: 1px solid #000;
+  padding: 6px 4px;
+  font-weight: 700;
+  font-size: 13px;
+  background: #fff;
+  text-align: center;
+}
+
+.items-table tbody td {
+  border-right: 1px solid #000;
+  border-bottom: none;
+  padding: 0;
+  vertical-align: middle;
+  height: 28px;
+}
+
+.items-table tbody td:last-child {
+  border-right: none;
+}
+
+.col-no { width: 6%; }
+.col-name { width: 50%; }
+.col-qty { width: 10%; }
+.col-price { width: 17%; }
+.col-total { width: 17%; }
+
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+
+.cell-input,
+.cell-select {
+  width: 100%;
+  border: none;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 13px;
+  padding: 4px 6px;
+  outline: none;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.cell-select {
+  cursor: pointer;
+  text-align: center;
+}
+
+/* --- สรุปยอด --- */
+.totals-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #000;
+  border-top: none;
+  margin-bottom: 20px;
+}
+
+/* แบบใหม่: กล่องเดียวเต็มความกว้าง */
+.totals-section--single {
+  grid-template-columns: 1fr;
+}
+
+.totals-right {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.total-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 15px;
+  padding: 4px 8px;
+}
+
+.total-num {
+  font-weight: 600;
+  min-width: 140px;
+  text-align: right;
+}
+
+.total-input {
+  width: 140px;
+  border: none;
+  border-bottom: 1px dotted #444;
+  text-align: right;
+  font-family: 'Sarabun', sans-serif;
+  font-size: 15px;
+  outline: none;
+  background: transparent;
+}
+
+.total-line--grand {
+  border: 2px solid #000;
+  padding: 10px 12px;
+  margin-top: 6px;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.total-line--grand .total-num {
+  font-size: 18px;
+}
+
+/* บรรทัดข้อความ "(จำนวนเงินตัวอักษร)" */
+.total-words {
+  border-top: 1px dashed #999;
+  padding: 10px 8px 2px;
+  margin-top: 6px;
+  font-size: 13px;
+  font-style: italic;
+  color: #333;
+  text-align: right;
+}
+
+/* --- ปุ่มควบคุม --- */
+.controls {
+  position: fixed;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+}
+
+.controls button,
+.btn-back {
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: 'Sarabun', sans-serif;
+  transition: 0.2s;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #fff;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.controls button:disabled {
+  background-color: #aaa !important;
+  cursor: not-allowed;
+}
+
+.btn-back {
+  background-color: #5f6b7a;
+  text-align: center;
+}
+
+.btn-save-print { background-color: #27ae60; }
+.btn-save-only { background-color: #2980b9; }
+.btn-reset { background-color: #e67e22; }
+.btn-add-row { background-color: #8e44ad; }
+
+@media print {
+  /* ตั้งกระดาษ A4 + ระยะขอบบางที่สุดเท่ารองรับ */
+  @page {
+    size: A4;
+    margin: 8mm 10mm;
+  }
+
+  html, body {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ซ่อน element ที่ไม่ใช่ใบเสร็จทั้งหมด */
+  .no-print,
+  .controls,
+  header,
+  footer,
+  nav,
+  .pharmacy-header,
+  .pharma-header,
+  .Footer,
+  .footer {
+    display: none !important;
+  }
+
+  .page-wrapper {
+    background: #fff !important;
+    padding: 0 !important;
+    display: block !important;
+    min-height: 0 !important;
+  }
+
+  .receipt-card {
+    box-shadow: none !important;
+    width: 100% !important;
+    min-height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    page-break-inside: avoid;
+  }
+
+  /* ลบเส้นใต้ input ตอนพิมพ์ ให้ดูเหมือนเอกสาร */
+  .cell-input,
+  .cell-select,
+  .info-input,
+  .payment-input,
+  .total-input,
+  .brand-name,
+  .brand-web {
+    border-bottom-color: transparent !important;
+    background: transparent !important;
+  }
+
+  /* บังคับสี input ให้ออกเป็นสีดำตอนพิมพ์ */
+  input,
+  select {
+    color: #000 !important;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* ตารางไม่ให้ตัดข้ามหน้า */
+  .items-table {
+    page-break-inside: avoid;
+  }
+
+  /* ปิด animation/transition ตอน print */
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .page-wrapper {
+    padding: 12px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .controls {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 16px;
+    width: 100%;
+    background: #e8ecef;
+    padding: 8px 0 10px;
+    pointer-events: auto;
+  }
+
+  .receipt-card {
+    width: 100%;
+    max-width: none;
+    min-height: auto;
+    padding: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .totals-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* iPhone 12 (~390px) */
+@media screen and (max-width: 480px) {
+  .page-wrapper { padding: 10px 8px; }
+
+  .controls {
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .controls button,
+  .btn-back {
+    flex: 1 1 calc(50% - 6px);
+    min-width: calc(50% - 6px);
+    min-height: 44px;
+    padding: 10px 8px;
+    font-size: 12px;
+  }
+
+  .receipt-card {
+    padding: 14px 12px 20px;
+    font-size: 13px;
+  }
+
+  .receipt-title-box { font-size: 16px; padding: 5px 8px; }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .info-col--right { text-align: left; }
+  .info-col--right .info-row { justify-content: flex-start; }
+  .info-col--right .info-input { text-align: left; max-width: none; }
+
+  .items-table thead th,
+  .items-table tbody td {
+    font-size: 10.5px;
+    word-break: break-word;
+    white-space: normal;
+  }
+
+  .items-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 0;
+  }
+
+  .total-num,
+  .total-input { min-width: 0; width: auto; max-width: 50%; }
+  .total-line--grand .total-num { font-size: 15px; }
+}

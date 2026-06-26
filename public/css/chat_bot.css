@@ -1,0 +1,802 @@
+/* ================= 1. Layout & Sidebar ================= */
+.user-layout {
+    min-height: 100vh;
+    background: #f0f2f5;
+    display: flex;
+    flex-direction: column;
+}
+
+.main-content {
+    display: flex;
+    flex: 1;
+    align-items: stretch;
+    margin: 0;
+    padding: 0;
+}
+
+/* ===== Sidebar (User Chat-bot) — โทนฟ้าอ่อน เหมือน chat.vue ===== */
+.sidebar {
+    width: 250px;
+    background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%);
+    color: white;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 4px 0 16px rgba(37, 99, 235, 0.2);
+    position: relative;
+}
+
+.sidebar-brand {
+    color: #fef3c7;
+    font-weight: 800;
+    font-size: 1rem;
+    padding: 14px 18px;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border-bottom: 2px solid #fcdb3a;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+    margin-bottom: 8px;
+    position: relative;
+}
+.sidebar-brand > i { flex-shrink: 0; }
+.sidebar-brand > span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sidebar-close {
+    display: none;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.18);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 34px;
+    height: 34px;
+    font-size: 1rem;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    transition: background 0.2s, transform 0.2s;
+}
+.sidebar-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.05);
+}
+
+.menu-item {
+    color: #ffffff;
+    padding: 13px 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    border-left: 4px solid transparent;
+    transition: background 0.2s, color 0.2s, border-left 0.2s;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.menu-item:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+.menu-item.active,
+.menu-item.router-link-active {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fcdb3a;
+    border-left: 4px solid #fcdb3a;
+    font-weight: 800;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.status-dot.online { background: #22c55e; box-shadow: 0 0 8px rgba(34, 197, 94, 0.6); }
+.status-dot.offline { background: #94a3b8; }
+
+.sidebar-filler {
+    flex: 1;
+}
+
+/* ===== Mobile Topbar (hamburger) ===== */
+.mobile-topbar {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    position: sticky;
+    top: 0;
+    z-index: 90;
+}
+.hamburger {
+    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+    color: #fff;
+    border: none;
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    transition: transform 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.hamburger:hover { transform: scale(1.05); }
+.mobile-title {
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: #2563eb;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.62);
+    z-index: 1900;
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+.fade-bd-enter-active, .fade-bd-leave-active { transition: opacity 0.25s ease; }
+.fade-bd-enter-from, .fade-bd-leave-to { opacity: 0; }
+
+/* footer / header — แถบสีฟ้า 250px เฉพาะ desktop (มี sidebar คงที่) */
+@media (min-width: 901px) {
+    :deep(.footer-divider) {
+        background: linear-gradient(to right, #2563eb 250px, #f0f2f5 250px) !important;
+        line-height: 0;
+        margin-top: -1px;
+    }
+}
+:deep(.footer-wave) { margin-top: 0 !important; }
+:deep(header), :deep(.navbar) { margin-bottom: 0 !important; }
+
+/* ===== Responsive Drawer (≤900px — ซ่อน sidebar จนกว่ากด hamburger) ===== */
+@media (max-width: 900px) {
+    .mobile-topbar { display: flex; }
+
+    .user-layout .main-content {
+        position: relative;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    .sidebar {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        width: 86% !important;
+        max-width: 360px !important;
+        z-index: 2000 !important;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease, visibility 0.3s;
+        flex-direction: column;
+        padding: 0;
+        overflow-y: auto;
+        box-shadow: none;
+        flex-shrink: 0;
+        min-width: 0;
+    }
+    .sidebar:not(.is-open) {
+        visibility: hidden;
+        pointer-events: none;
+    }
+    .sidebar.is-open {
+        transform: translateX(0);
+        visibility: visible;
+        pointer-events: auto;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+    }
+    .sidebar-close { display: inline-flex !important; }
+
+    /* ล็อกความสูงให้ scroll อยู่ใน .chat-messages */
+    .user-layout {
+        height: 100vh;
+        min-height: 100vh;
+        overflow: hidden;
+    }
+    .user-layout .main-content {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .chat-section {
+        width: 100% !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+        min-height: 0;
+        height: 100%;
+        flex: 1;
+    }
+    .chat-container {
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        max-height: 100% !important;
+        height: 100%;
+        min-height: 0;
+        flex: 1;
+    }
+    .chat-messages {
+        min-height: 0;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    :deep(.footer-wave) { display: none !important; }
+    :deep(.footer-divider) {
+        background: #f0f2f5 !important;
+    }
+}
+
+/* ===== Tablet / Mobile ขนาดกลาง (≤768px) ===== */
+@media (max-width: 768px) {
+    .chat-section { padding: 0 !important; }
+    .chat-header {
+        padding: 12px 14px !important;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .chat-header h3 { font-size: 0.95rem; margin: 0; }
+    .session-id { font-size: 0.72rem !important; }
+    .real-pharma-btn {
+        padding: 6px 10px !important;
+        font-size: 0.78rem !important;
+        gap: 6px !important;
+    }
+    .chat-messages {
+        padding: 14px 12px !important;
+        gap: 12px !important;
+    }
+    .message-bubble {
+        max-width: 85% !important;
+        padding: 11px 14px !important;
+        font-size: 0.92rem !important;
+    }
+    .ai-text .q-line {
+        padding: 12px 14px !important;
+        font-size: 0.92rem !important;
+        border-radius: 14px 14px 14px 4px !important;
+    }
+    .ai-text .sub-q-list { padding: 12px 14px !important; }
+    .ai-text .sub-q-text { font-size: 0.88rem !important; }
+    .ai-text .sub-q-hint { font-size: 0.8rem !important; display: block; margin-left: 0; margin-top: 2px; }
+    .options-grid { gap: 6px !important; }
+    .choice-btn {
+        font-size: 0.82rem !important;
+        padding: 7px 12px !important;
+        border-radius: 16px !important;
+    }
+    .chat-input-area {
+        padding: 10px 12px !important;
+        gap: 8px !important;
+    }
+    .chat-input-area input {
+        padding: 10px 14px !important;
+        font-size: 16px;
+        border-radius: 22px !important;
+    }
+    .btn-send {
+        padding: 0 22px !important;
+        font-size: 0.95rem !important;
+        height: 46px !important;
+        border-radius: 23px !important;
+    }
+}
+
+/* ===== iPhone 12 / มือถือเล็ก (≤480px) ===== */
+@media (max-width: 480px) {
+    .sidebar { width: 100% !important; max-width: 100% !important; }
+    .chat-header {
+        padding: 10px 12px !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+    }
+    .pharma-profile h3 { font-size: 0.9rem; }
+    .pharma-profile small { font-size: 0.68rem; }
+    .real-pharma-btn {
+        width: 100%;
+        justify-content: center;
+        font-size: 0.78rem !important;
+        padding: 7px 10px !important;
+    }
+    .header-actions { width: 100%; }
+    .chat-messages { padding: 12px 10px !important; gap: 10px !important; }
+    .message-bubble {
+        max-width: 90% !important;
+        padding: 10px 13px !important;
+        font-size: 0.88rem !important;
+        border-radius: 16px !important;
+    }
+    .ai-text .q-line {
+        padding: 11px 13px !important;
+        font-size: 0.88rem !important;
+        line-height: 1.5 !important;
+    }
+    .ai-text .q-input-hint {
+        font-size: 0.78rem !important;
+        padding: 7px 10px !important;
+    }
+    .summary-box {
+        max-width: 95% !important;
+        padding: 14px !important;
+    }
+    .choice-btn {
+        font-size: 0.78rem !important;
+        padding: 6px 10px !important;
+    }
+    .btn-send {
+        padding: 0 20px !important;
+        font-size: 0.92rem !important;
+        height: 44px !important;
+        border-radius: 22px !important;
+    }
+    .options-grid { gap: 5px !important; }
+}
+
+@media (max-width: 390px) {
+    .mobile-title { font-size: 0.86rem; }
+    .hamburger { width: 38px !important; height: 38px !important; }
+    .chat-header { padding: 9px 10px !important; gap: 6px; }
+    .pharma-profile { gap: 8px; }
+    .pharma-profile h3 { font-size: 0.86rem; }
+    .message-bubble {
+        max-width: 92% !important;
+        padding: 9px 12px !important;
+        font-size: 0.85rem !important;
+    }
+    .ai-text .q-line { padding: 10px 12px !important; font-size: 0.85rem !important; }
+    .chat-input-area input { padding: 9px 12px !important; }
+}
+
+/* ================= 2. Chat UI Container ================= */
+.chat-section {
+    flex: 1;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-container {
+    background: white;
+    flex: 1;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    min-height: 0;
+    max-height: calc(100vh - 200px);
+}
+
+.chat-header {
+    padding: 15px 25px;
+    border-bottom: 1px solid #eee;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.pharma-profile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+.pharma-profile h3 {
+    margin: 0;
+    font-size: 1rem;
+    color: #1e293b;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pharma-profile small.session-id {
+    color: #64748b;
+    font-size: 0.78rem;
+    display: block;
+    margin-top: 2px;
+}
+.header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+/* ================= 3. Chat Messages (พื้นที่แสดงแชท) ================= */
+.chat-messages {
+    flex: 1;
+    min-height: 0;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    scrollbar-width: thin;
+    scrollbar-color: #3b82f6 rgba(59, 130, 246, 0.08);
+}
+.chat-messages::-webkit-scrollbar { width: 10px; }
+.chat-messages::-webkit-scrollbar-track {
+    background: rgba(59, 130, 246, 0.08);
+    border-radius: 8px;
+    margin: 6px 0;
+}
+.chat-messages::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+    border-radius: 8px;
+    border: 2px solid #f8fafc;
+    transition: background 0.2s;
+}
+.chat-messages::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+}
+
+/* ตัวครอบบับเบิลและปุ่ม (Message Group) */
+.message-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+/* ================= 4. บับเบิลแชท (Bubble Styles) ================= */
+.message-bubble {
+    max-width: 75%;
+    padding: 12px 16px;
+    border-radius: 18px;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+    width: fit-content;
+    /* ให้บับเบิลขนาดพอดีคำ */
+}
+
+/* ฝั่งผู้ใช้ (User) - ชิดขวา */
+.me {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: white;
+    border-bottom-right-radius: 6px;
+    text-align: left;
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.25);
+}
+
+/* ฝั่ง AI (Pharma) - ชิดซ้าย */
+.pharma {
+    align-self: flex-start;
+    background: #ffffff;
+    color: #1e293b;
+    border-bottom-left-radius: 6px;
+    border: 1px solid #e2e8f0;
+    text-align: left;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+/* ================= 5. ส่วนเสริม (Summary & Buttons) ================= */
+.summary-box {
+    background: #fff9db !important;
+    border: 2px dashed #fcc419 !important;
+    color: #444 !important;
+    max-width: 85% !important;
+    padding: 20px !important;
+}
+
+.options-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0;
+    align-self: flex-start;
+    /* ปุ่ม Choice ให้เรียงจากซ้ายตาม AI */
+}
+
+.choice-btn {
+    background: white;
+    border: 1.5px solid #3b82f6;
+    color: #1d4ed8;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.1);
+}
+
+.choice-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+}
+.choice-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* ================= 6. Input Area ================= */
+.chat-input-area {
+    padding: 16px 20px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    gap: 10px;
+    background: #fff;
+    align-items: center;
+}
+
+.chat-input-area input {
+    flex: 1;
+    padding: 12px 18px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 25px;
+    outline: none;
+    font-size: 0.95rem;
+    background: #f8fafc;
+    transition: border 0.2s, background 0.2s, box-shadow 0.2s;
+}
+.chat-input-area input:focus {
+    border-color: #3b82f6;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.btn-send {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border: none;
+    padding: 0 28px;
+    height: 48px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 1rem;
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.3);
+    transition: transform 0.15s, box-shadow 0.2s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+.btn-send:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 14px rgba(37, 99, 235, 0.4);
+}
+.btn-send:disabled {
+    background: #cbd5e1;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+/* ================= 7. Utilities & Footer Fix ================= */
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.online {
+    background: #28a745;
+}
+
+.offline {
+    background: #6c757d;
+}
+
+.loading-dots span {
+    animation: blink 1.4s infinite both;
+    font-size: 1.4rem;
+}
+
+@keyframes blink {
+    0% {
+        opacity: .2;
+    }
+
+    20% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: .2;
+    }
+}
+
+/* footer-divider ย้ายไป @media (min-width: 901px) ด้านบนแล้ว — อย่าใส่ซ้ำตรงนี้ */
+
+/* ============================================================
+   🚨 RED-FLAG WARNING BUBBLE (อาการฉุกเฉิน) — สวยงาม & เด่นชัด
+   ใช้ทั้งใน chat_bot.vue และ chat-history.vue
+   ============================================================ */
+.message-bubble.red-flag-box {
+    background: linear-gradient(135deg, #fff7ed 0%, #fef2f2 100%) !important;
+    color: #7f1d1d !important;
+    border: 1.5px solid #fecaca !important;
+    border-left: 6px solid #ef4444 !important;
+    border-radius: 18px !important;
+    max-width: 88% !important;
+    padding: 18px 20px !important;
+    box-shadow:
+        0 10px 24px rgba(239, 68, 68, 0.12),
+        0 0 0 4px rgba(239, 68, 68, 0.04) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.message-bubble.red-flag-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #ef4444, #f97316, #ef4444);
+    background-size: 200% 100%;
+    animation: rf-shimmer 2.4s linear infinite;
+}
+
+@keyframes rf-shimmer {
+    0%   { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+}
+
+.message-bubble.red-flag-box > strong {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.02rem;
+    font-weight: 800;
+    color: #b91c1c;
+    margin-bottom: 8px;
+    letter-spacing: 0.01em;
+}
+
+.message-bubble.red-flag-box .text,
+.message-bubble.red-flag-box .ai-text {
+    color: #7f1d1d !important;
+    font-weight: 500;
+    line-height: 1.65;
+}
+
+/* ===== ส่วนปุ่ม CTA ภายในบับเบิล red-flag ===== */
+.message-bubble.red-flag-box .bubble-action-area,
+.message-bubble.red-flag-box .red-flag-action {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1.5px dashed #fecaca;
+    text-align: left;
+}
+
+.message-bubble.red-flag-box .bubble-action-area hr {
+    display: none; /* ใช้ border-top แทน */
+}
+
+.message-bubble.red-flag-box .bubble-action-area p,
+.message-bubble.red-flag-box .red-flag-action p {
+    margin: 0 0 10px;
+    color: #991b1b;
+    font-weight: 700;
+    font-size: 0.92rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.message-bubble.red-flag-box .bubble-action-area p::before,
+.message-bubble.red-flag-box .red-flag-action p::before {
+    content: '🚨';
+    font-size: 1rem;
+}
+
+/* ปุ่ม CTA "ไปหน้าแชทเภสัชกร" (ใช้ใน chat-history.vue และ chat_bot.vue) */
+.action-link-btn,
+.chat-redirect-link {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    padding: 12px 22px !important;
+    border-radius: 12px !important;
+    font-weight: 800 !important;
+    font-size: 0.95rem !important;
+    text-decoration: none !important;
+    cursor: pointer;
+    box-shadow:
+        0 6px 18px rgba(220, 38, 38, 0.32),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    animation: rf-pulse 2.2s ease-in-out infinite;
+}
+
+.action-link-btn:hover,
+.chat-redirect-link:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+        0 12px 26px rgba(220, 38, 38, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    filter: brightness(1.05);
+}
+
+.action-link-btn:active,
+.chat-redirect-link:active {
+    transform: translateY(0) scale(1);
+}
+
+@keyframes rf-pulse {
+    0%, 100% {
+        box-shadow:
+            0 6px 18px rgba(220, 38, 38, 0.32),
+            0 0 0 0 rgba(239, 68, 68, 0.55),
+            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+    50% {
+        box-shadow:
+            0 8px 22px rgba(220, 38, 38, 0.42),
+            0 0 0 10px rgba(239, 68, 68, 0),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+}
+
+/* ===== Choice button ใต้บับเบิล red-flag (🚑 ติดต่อเภสัชกร) ===== */
+.message-bubble.red-flag-box ~ .options-grid {
+    margin-top: 10px;
+}
+
+.message-bubble.red-flag-box ~ .options-grid .choice-btn {
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%) !important;
+    color: #ffffff !important;
+    border: none !important;
+    padding: 12px 22px !important;
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    border-radius: 999px !important;
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.30) !important;
+    letter-spacing: 0.02em;
+    animation: rf-pulse 2.2s ease-in-out infinite;
+}
+
+.message-bubble.red-flag-box ~ .options-grid .choice-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%) !important;
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 12px 24px rgba(127, 29, 29, 0.45) !important;
+}
+
+@media (max-width: 600px) {
+    .message-bubble.red-flag-box {
+        max-width: 95% !important;
+        padding: 14px 16px !important;
+    }
+    .action-link-btn,
+    .chat-redirect-link,
+    .message-bubble.red-flag-box ~ .options-grid .choice-btn {
+        width: 100%;
+        font-size: 0.92rem !important;
+    }
+}

@@ -1,0 +1,69 @@
+/* FOOTER STYLES START HERE */
+
+/* ✂️ เอา .footer-divider และ .footer-divider svg ออกไปได้เลย */
+
+.footer-wave {
+    background-color: var(--footer-bg);
+    color: var(--footer-text);
+    padding: 3rem 0; /* 🚩 ปรับพิกัดความบาลานซ์ของ Padding ใหม่ให้สมดุล */
+    font-size: 0.9rem;
+    line-height: 1.6;
+    /* ✂️ ลบ margin-top: -1px; ตัวเกยคลื่นเก่าออก */
+}
+
+.footer-wave__main-grid {
+    display: grid;
+    grid-template-columns: 1fr; /* Mobile-first */
+    gap: 2.5rem;
+}
+
+.footer-wave__heading {
+    color: var(--footer-heading);
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 1rem 0;
+}
+
+.footer-wave__links ul { margin: 0; padding: 0; list-style: none; }
+.footer-wave__links li:not(:last-child) { margin-bottom: 0.75rem; }
+.footer-wave__links a { color: var(--footer-text); text-decoration: none; transition: color 0.2s; }
+.footer-wave__links a:hover { color: var(--footer-link-hover); }
+
+.footer-wave__bottom {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--footer-border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    text-align: center;
+}
+.footer-wave__copyright { font-size: 0.875em; }
+
+.footer-dark__social ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    gap: 1.5rem;
+}
+.footer-dark__social a { color: var(--footer-text); transition: color 0.2s; }
+.footer-dark__social a:hover { color: var(--footer-link-hover); }
+.footer-dark__social svg { width: 20px; height: 20px; fill: currentColor; }
+
+@media (min-width: 600px) {
+    .footer-wave__main-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 992px) {
+    .footer-wave__main-grid {
+        grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    }
+    .footer-wave__bottom {
+        flex-direction: row;
+        justify-content: space-between;
+    }
+}

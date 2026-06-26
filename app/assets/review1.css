@@ -1,0 +1,263 @@
+
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Kanit', sans-serif;
+}
+
+/* --- 2. Main Section --- */
+.review-section {
+    padding: 60px 5%;
+    text-align: center;
+    background-color: #ffffff;
+    overflow: hidden; /* กันเงาหรือ element ทะลุออกนอก section */
+}
+
+.section-title {
+    font-size: 40px;
+    font-weight: 800;
+    color: #004ba0;
+    margin-bottom: 25px;
+}
+
+/* --- 3. Filter Controls --- */
+.filter-container {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 110px; /* ระยะห่างที่พอดีสำหรับ Floating Avatar */
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    background: #5b8fcc;
+    color: white;
+    border: none;
+    padding: 8px 22px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 400;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.filter-btn.active {
+    background: #004ba0;
+    box-shadow: 0 4px 12px rgba(0, 75, 160, 0.3);
+    font-weight: 600;
+}
+
+.filter-btn:hover:not(.active) {
+    background: #4a7db8;
+    transform: translateY(-2px);
+}
+
+/* --- 4. Review Cards Grid --- */
+.review-container {
+    display: flex;
+    justify-content: center;
+    gap: 35px;
+    flex-wrap: wrap;
+    margin-bottom: 60px;
+    min-height: 400px; /* ป้องกันการยุบตัวของหน้าจอขณะเปลี่ยน filter */
+}
+
+.review-card {
+    background: #ffffff;
+    width: 320px;
+    padding: 30px 25px 40px 25px;
+    border-radius: 40px;
+    box-shadow: 15px 20px 40px rgba(0, 0, 0, 0.08);
+    position: relative;
+    text-align: left;
+    transition: all 0.3s ease;
+}
+
+.review-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 15px 25px 50px rgba(0, 0, 0, 0.12);
+}
+
+/* --- 5. Floating Avatar System --- */
+.profile-header {
+    position: absolute;
+    top: -55px; /* ดันรูปขึ้นไปลอยเหนือการ์ด */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+}
+
+.avatar {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 6px solid #ffffff; /* ขอบขาวหนาตามดีไซน์ UI */
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* --- 6. Card Content Styling --- */
+.stars {
+    margin-top: 55px; /* เว้นที่ให้รูปโปรไฟล์ด้านบน */
+    color: #fdd835;
+    font-size: 20px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: flex-start; /* ดาวชิดซ้าย */
+    gap: 3px;
+}
+
+.user-name {
+    color: #004ba0;
+    font-size: 26px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    text-align: center; /* ชื่ออยู่ตรงกลาง */
+}
+
+.review-text {
+    color: #444444;
+    font-size: 16px;
+    line-height: 1.6;
+    font-weight: 300;
+}
+
+/* --- 7. Bottom Action Buttons --- */
+.review-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    margin-top: 20px;
+}
+
+.btn-dark-blue {
+    background: #003d92;
+    color: white;
+    border: none;
+    width: 280px;
+    padding: 14px;
+    border-radius: 15px; /* ทรงสี่เหลี่ยมมน */
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+.btn-light-blue {
+    background: #4cc0e8; /* สีฟ้าสว่างตามรูป */
+    color: white;
+    border: none;
+    width: 280px;
+    padding: 14px;
+    border-radius: 35px; /* ทรงมน Pill */
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+.btn-dark-blue:hover, 
+.btn-light-blue:hover {
+    filter: contrast(1.1) brightness(1.1);
+    transform: scale(1.03);
+}
+
+/* --- 8. Vue Transitions --- */
+.list-enter-active, 
+.list-leave-active {
+    transition: all 0.5s cubic-bezier(0.55, 0, 0.1, 1);
+}
+
+.list-enter-from, 
+.list-leave-to {
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
+}
+
+/* --- 9. Responsive --- */
+@media (max-width: 768px) {
+    .review-container {
+        gap: 90px; /* เพิ่มระยะเพื่อให้ Avatar ไม่ชนการ์ดข้างบน */
+        padding-top: 40px;
+    }
+    
+    .section-title {
+        font-size: 32px;
+    }
+
+    .review-card {
+        width: 100%;
+        max-width: 340px;
+    }
+}
+
+/* Dark mode readability */
+html.dark .review-section {
+    background: var(--app-bg) !important;
+    color: var(--app-text);
+}
+
+html.dark .review-section .section-title {
+    color: #f8fafc !important;
+    text-shadow: 0 2px 14px rgba(0, 0, 0, 0.28);
+}
+
+html.dark .review-section .filter-btn {
+    background: rgba(96, 165, 250, 0.22);
+    color: #e0f2fe;
+    border: 1px solid rgba(125, 211, 252, 0.28);
+}
+
+html.dark .review-section .filter-btn.active {
+    background: linear-gradient(135deg, #2563eb, #0284c7);
+    color: #ffffff;
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+}
+
+html.dark .review-card {
+    background: #111827 !important;
+    border: 1px solid rgba(125, 211, 252, 0.22);
+    box-shadow: 0 22px 52px rgba(0, 0, 0, 0.38);
+}
+
+html.dark .review-card:hover {
+    box-shadow: 0 28px 62px rgba(0, 0, 0, 0.48);
+}
+
+html.dark .avatar {
+    border-color: #1e293b;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.38);
+}
+
+html.dark .user-name {
+    color: #93c5fd !important;
+    text-shadow: none;
+}
+
+html.dark .review-text {
+    color: #e2e8f0 !important;
+    font-weight: 400;
+}
+
+html.dark .no-data p {
+    color: #cbd5e1 !important;
+}
+
+html.dark .btn-dark-blue {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    color: #ffffff;
+}
+
+html.dark .btn-light-blue {
+    background: linear-gradient(135deg, #0891b2, #06b6d4);
+    color: #ffffff;
+}

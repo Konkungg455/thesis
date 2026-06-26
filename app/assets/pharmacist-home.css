@@ -1,0 +1,124 @@
+.pharma-home {
+  background: #ffffff;
+  min-height: calc(100vh - 80px);
+}
+
+.pharma-home__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 24px 32px;
+}
+
+.pharma-home__logo {
+  width: clamp(200px, 35vw, 600px);
+  height: auto;
+  /* รูป PNG มีช่องว่างด้านล่างในตัว → ดึงข้อความขึ้นแบบสเกลตามขนาดจอ
+     (จอใหญ่ดึงมาก จอเล็กดึงน้อย กันข้อความซ้อนโลโก้บนมือถือ) */
+  margin-bottom: clamp(-110px, -7vw, -16px);
+  object-fit: contain;
+}
+
+.pharma-home__title {
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  font-weight: 700;
+  color: #0d4c9e;
+  margin-bottom: 8px;
+}
+
+.pharma-home__subtitle {
+  font-size: clamp(1rem, 2.5vw, 1.35rem);
+  font-weight: 500;
+  color: #0d4c9e;
+  margin-bottom: 40px;
+}
+
+.pharma-home__cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(20px, 3vw, 40px);
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px 64px;
+}
+
+.pharma-home__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 2px solid #0d4c9e;
+  border-radius: 16px;
+  padding: 24px 20px 20px;
+  min-height: 320px;
+  background: #fff;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.pharma-home__card:hover {
+  box-shadow: 0 8px 24px rgba(13, 76, 156, 0.12);
+  transform: translateY(-2px);
+}
+
+.pharma-home__card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0d4c9e;
+  text-align: center;
+  line-height: 1.4;
+  margin-bottom: 20px;
+  min-height: 2.8em;
+}
+
+.pharma-home__card-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.pharma-home__pdf-icon {
+  font-size: 88px;
+  line-height: 1;
+  color: #e53935;
+}
+
+.pharma-home__count {
+  font-size: clamp(2.5rem, 6vw, 3.5rem);
+  font-weight: 700;
+  color: #4a90e2;
+}
+
+.pharma-home__btn {
+  margin-top: auto;
+  width: 100%;
+  max-width: 200px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #5eb8e8 0%, #4a90e2 100%);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: center;
+  transition: filter 0.2s ease, transform 0.15s ease;
+}
+
+.pharma-home__btn:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 900px) {
+  .pharma-home__cards {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+  }
+
+  .pharma-home__card {
+    min-height: 280px;
+  }
+}

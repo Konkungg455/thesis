@@ -1,0 +1,120 @@
+.booking-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container-booking {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 20px;
+}
+
+.booking-card {
+    background: white;
+    width: 100%;
+    max-width: 500px;
+    border-radius: 20px;
+    padding: 45px 35px;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.back-arrow {
+    position: absolute;
+    top: 25px;
+    left: 25px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    color: #00469c;
+}
+
+.title {
+    color: #00469c;
+    font-size: 1.7rem;
+    font-weight: 700;
+    margin-bottom: 40px;
+}
+
+.option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 35px;
+}
+
+.option-item {
+    display: flex;
+    align-items: center;
+    padding: 18px 25px;
+    border: 1.5px solid #00469c;
+    border-radius: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #00469c;
+}
+
+/* สไตล์เมื่อเลือก (Active) */
+.option-item.active {
+    background: #00469c;
+    color: white;
+}
+
+.option-content {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.option-content .icon,
+.option-content .icon-clock {
+    font-size: 1.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+/* ไอคอนนาฬิกาสีน้ำเงินในโหมดปกติ */
+.option-item:not(.active) .icon-clock {
+    color: #00469c;
+}
+
+.option-content .label {
+    font-weight: 600;
+    font-size: 1.2rem;
+}
+
+.btn-submit {
+    background: #00469c;
+    color: white;
+    border: none;
+    padding: 10px 40px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+/* ======================================================
+   RESPONSIVE: 768px
+   ====================================================== */
+@media (max-width: 768px) {
+    .booking-card {
+        max-width: 420px;
+        padding: 40px 25px;
+    }
+    
+    .title {
+        font-size: 1.5rem;
+    }
+
+    .option-content .label {
+        font-size: 1.1rem;
+    }
+}
