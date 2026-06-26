@@ -1,22 +1,10 @@
 /**
- * Proxy ไป n8n webhook — เรียกจาก browser เป็น same-origin (/api/ai-chat)
+ * Proxy AI — local: n8n+Ollama | Vercel: cloud LLM (Groq/Gemini) ไม่ต้อง ngrok
  */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig();
-    const webhookId =
-        (config.public.n8nChatWebhookId as string) ||
-        '1f5ea30f-2ff0-4d32-b211-eccb342ee0df';
-
-    const n8nBase = (
-        process.env.NUXT_N8N_INTERNAL_URL
-        || (config.n8nInternalUrl as string)
-        || (config.public.n8nBase as string)
-        || 'http://127.0.0.1:5678'
-    ).replace(/\/$/, '');
-
-    const url = `${n8nBase}/webhook/${webhookId}/chat`;
     const body = await readBody(event);
 
     const chatInput = String(body?.chatInput ?? '').trim();
@@ -30,12 +18,38 @@ export default defineEventHandler(async (event) => {
         });
     }
 
+    // Vercel + NUXT_AI_API_KEY → cloud (ไม่ต้องเปิด ngrok / n8n)
+    if (shouldUseCloudAi(config)) {
+        try {
+            return await callCloudAi(config, chatInput);
+        } catch (err: unknown) {
+            const e = err as { statusCode?: number; message?: string; statusMessage?: string };
+            console.error('[api/ai-chat] cloud failed:', e?.message || err);
+            throw createError({
+                statusCode: e?.statusCode || 502,
+                statusMessage: e?.statusMessage || `Cloud AI ล้มเหลว — ${e?.message || 'ลองใหม่'}`,
+                data: { detail: e?.message || String(err), mode: 'cloud' },
+            });
+        }
+    }
+
+    const webhookId =
+        (config.public.n8nChatWebhookId as string) ||
+        '1f5ea30f-2ff0-4d32-b211-eccb342ee0df';
+
+    const n8nBase = (
+        process.env.NUXT_N8N_INTERNAL_URL
+        || (config.n8nInternalUrl as string)
+        || (config.public.n8nBase as string)
+        || 'http://127.0.0.1:5678'
+    ).replace(/\/$/, '');
+
+    const url = `${n8nBase}/webhook/${webhookId}/chat`;
     const payload = { chatInput, sessionId, userName };
     let lastErr: unknown;
 
     const n8nHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
     if (/ngrok/i.test(n8nBase)) {
-        // ngrok free — ต้องมี header นี้เมื่อเรียกจาก server (Vercel)
         n8nHeaders['ngrok-skip-browser-warning'] = 'true';
     }
 
@@ -79,13 +93,11 @@ export default defineEventHandler(async (event) => {
     const is404 =
         e?.statusCode === 404 || String(e?.message || '').includes('404');
     const onVercel = Boolean(process.env.VERCEL);
-    const hint = is404
-        ? 'workflow ยังไม่ Activate — รัน npm run dev ใหม่ (สคริปต์จะ import + activate ให้อัตโนมัติ)'
-        : onVercel && n8nBase.includes('127.0.0.1')
-            ? 'ตั้ง NUXT_N8N_INTERNAL_URL ใน Vercel ชี้ไป n8n สาธารณะ (เช่น ngrok http 5678)'
-            : /ngrok/i.test(n8nBase)
-                ? 'ตรวจ ngrok ต้อง forward ไป port 5678 (ไม่ใช่ 3001) + n8n workflow Activate'
-                : 'ตรวจว่า n8n เปิดอยู่และ Ollama ทำงาน';
+    const hint = onVercel
+        ? 'ตั้ง NUXT_AI_API_KEY บน Vercel (Groq ฟรี) — ไม่ต้อง ngrok'
+        : is404
+            ? 'workflow ยังไม่ Activate — รัน npm run dev ใหม่'
+            : 'ตรวจว่า n8n เปิดอยู่และ Ollama ทำงาน';
 
     throw createError({
         statusCode: 502,
@@ -93,6 +105,7 @@ export default defineEventHandler(async (event) => {
         data: {
             detail: e?.message || String(lastErr),
             n8nUrl: url,
+            mode: 'n8n',
         },
     });
 });

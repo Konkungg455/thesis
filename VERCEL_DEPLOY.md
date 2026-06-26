@@ -5,7 +5,7 @@
 | ปัญหา | สาเหตุ |
 |-------|--------|
 | Login / ข้อมูลว่าง | **DATABASE_URL ยังไม่ได้ใส่ใน Vercel** |
-| AI ไม่ตอบ | Vercel เรียก `127.0.0.1:5678` ไม่ได้ — n8n อยู่ในเครื่องคุณ |
+| AI ไม่ตอบ | ยังไม่ได้ใส่ `NUXT_AI_API_KEY` บน Vercel |
 
 ---
 
@@ -58,23 +58,23 @@ SMTP_FROM=your@gmail.com
 SMTP_FROM_NAME=Telebot Pharmacy
 ```
 
-### AI บน Vercel (ต้องมี n8n สาธารณะ)
+### AI บน Vercel (Cloud — **ไม่ต้อง ngrok**)
 
-Vercel **เข้าถึง n8n ในเครื่องโดยตรงไม่ได้** — ต้องเปิด tunnel:
+1. สมัครฟรี: https://console.groq.com → สร้าง API Key
+2. ใส่ใน Vercel:
 
-**เครื่องคุณ (รันคู่กับ npm run dev):**
-```powershell
-ngrok http 5678
+```
+NUXT_AI_API_KEY=gsk_xxxxxxxx
+NUXT_AI_PROVIDER=groq
+NUXT_AI_MODEL=llama-3.3-70b-versatile
 ```
 
-**Vercel env:**
-```
-NUXT_N8N_INTERNAL_URL=https://xxxx.ngrok-free.app
-NUXT_PUBLIC_N8N_CHAT_WEBHOOK_ID=1f5ea30f-2ff0-4d32-b211-eccb342ee0df
-```
+> บน Vercel ใช้ Cloud LLM โดยตรง — **ไม่ต้องเปิด n8n / ngrok / PC ค้างไว้**
+> Local (`npm run dev`) ยังใช้ n8n + Ollama ในเครื่องเหมือนเดิม
 
-> PC ปิด = AI บน Vercel ใช้ไม่ได้ (n8n อยู่ local)
-> ทางเลือกถาวร: deploy n8n บน VPS/Railway แล้วใส่ URL นั้น
+**ทางเลือก:** `NUXT_AI_PROVIDER=gemini` + Google AI API key
+
+**Local only (ไม่บังคับบน Vercel):** n8n ที่ `http://127.0.0.1:5678`
 
 ### รูปภาพไม่ขึ้น
 
@@ -104,4 +104,4 @@ https://thesis-rust-beta.vercel.app/api/deploy/health
 
 - **Local (`npm run dev`)** — DB + AI ทำงานครบ (Ollama + n8n ในเครื่อง)
 - **Vercel** — DB ต้องมี `DATABASE_URL` + Supabase env
-- **Vercel AI** — ต้อง `NUXT_N8N_INTERNAL_URL` ชี้ไป ngrok/VPS ที่รัน n8n
+- **Vercel AI** — ต้อง `NUXT_AI_API_KEY` (Groq ฟรี) — **ไม่ต้อง ngrok**

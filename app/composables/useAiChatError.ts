@@ -5,10 +5,13 @@ export function getAiChatErrorMessage(err: unknown): string {
     const detail = String((err as { data?: { detail?: string } })?.data?.detail || '');
 
     if (statusCode === 502 && onVercel) {
-        if (detail.includes('127.0.0.1') || detail.includes('NUXT_N8N')) {
-            return 'AI บนเว็บ Vercel ต้องตั้ง NUXT_N8N_INTERNAL_URL ชี้ไป ngrok (ngrok http 5678) และเปิด n8n ในเครื่องไว้ครับ';
+        if (detail.includes('NUXT_AI_API_KEY') || detail.includes('Cloud AI')) {
+            return 'ตั้ง NUXT_AI_API_KEY บน Vercel (สมัครฟรีที่ console.groq.com) — ไม่ต้องเปิด ngrok';
         }
-        return 'ไม่สามารถเชื่อมต่อ AI ได้ — ตรวจว่า n8n + ngrok เปิดอยู่และ workflow ถูก Activate ครับ';
+        if (detail.includes('127.0.0.1') || detail.includes('NUXT_N8N')) {
+            return 'บน Vercel ใช้ NUXT_AI_API_KEY แทน ngrok — ดู VERCEL_DEPLOY.md';
+        }
+        return 'ไม่สามารถเชื่อมต่อ AI ได้ — ตรวจ NUXT_AI_API_KEY บน Vercel';
     }
 
     if (statusCode === 502) {

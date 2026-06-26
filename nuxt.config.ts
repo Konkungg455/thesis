@@ -102,8 +102,14 @@ export default defineNuxtConfig({
   runtimeConfig: {
     /** service role — ใช้ฝั่ง server เท่านั้น (optional) */
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-    /** n8n URL สำหรับ Vercel/production (ngrok หรือ VPS) — ไม่ใช่ localhost */
+    /** n8n URL สำหรับ local dev — บน Vercel ใช้ cloud AI แทน (ไม่ต้อง ngrok) */
     n8nInternalUrl: process.env.NUXT_N8N_INTERNAL_URL || process.env.NUXT_PUBLIC_N8N_BASE || '',
+    /** Cloud LLM สำหรับ Vercel — Groq ฟรี: console.groq.com */
+    aiApiKey: process.env.NUXT_AI_API_KEY || '',
+    aiProvider: process.env.NUXT_AI_PROVIDER || 'groq',
+    aiModel: process.env.NUXT_AI_MODEL || '',
+    aiBaseUrl: process.env.NUXT_AI_BASE_URL || '',
+    aiMode: process.env.NUXT_AI_MODE || '',
     public: {
       /** ถ้าไม่ตั้ง จะใช้ http://{hostname ปัจจุบัน}/4 อัตโนมัติ */
       apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
