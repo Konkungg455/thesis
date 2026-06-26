@@ -32,9 +32,10 @@ if (!supabaseUrl || !serviceKey) {
 }
 
 const candidates = [
+    join(process.env.MEDIA_ROOT || 'C:/xampp/htdocs/4', 'images_pharma', 'default.png'),
+    join(process.env.MEDIA_ROOT || 'C:/xampp/htdocs/4', 'images_account', 'default.png'),
     join(root, 'public', 'favicon.ico'),
     join(root, 'public', 'logo.png'),
-    join(root, 'public', 'images', 'default.png'),
 ];
 
 const source = candidates.find((p) => existsSync(p));

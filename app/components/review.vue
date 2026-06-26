@@ -16,7 +16,7 @@
               <img 
                 :src="review.image" 
                 alt="profile" 
-                @error="(e) => e.target.src='https://via.placeholder.com/50'" 
+                @error="(e) => e.target.src = imagesAccount('default.png')" 
               />
             </div>
             <span>{{ review.name }}</span>
@@ -49,7 +49,9 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useApiBase } from '~/composables/useApiBase'
 
+const { apiUrl, imagesAccount } = useApiBase()
 const reviews = ref([])
 const MAX_REVIEWS = 3
 
@@ -61,7 +63,7 @@ const displayedReviews = computed(() => {
 
 const fetchReviews = async () => {
   try {
-    const data = await $fetch(`${useNuxtApp().$getApiBase()}/review-get.php`, {
+    const data = await $fetch(apiUrl('review-get.php'), {
       credentials: 'include'
     });
     
@@ -69,10 +71,7 @@ const fetchReviews = async () => {
       reviews.value = data.map(item => ({
         name: item.firstname + ' ' + item.lastname,
         rating: parseInt(item.rating),
-        // ใช้ชื่อคอลัมน์ images_account จาก PHP ให้ตรงกัน
-        image: item.images_account 
-               ? `${useNuxtApp().$getApiBase()}/images_account/${item.images_account}` 
-               : 'https://via.placeholder.com/50',
+        image: imagesAccount(item.images_account || 'default.png'),
         text: item.comment
       }));
     }

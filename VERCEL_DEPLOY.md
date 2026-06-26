@@ -77,9 +77,10 @@ NUXT_PUBLIC_N8N_CHAT_WEBHOOK_ID=1f5ea30f-2ff0-4d32-b211-eccb342ee0df
 ### รูปภาพไม่ขึ้น
 
 1. ตั้ง `SUPABASE_SERVICE_ROLE_KEY` + bucket `media` (public) บน Vercel
-2. รันครั้งเดียวบนเครื่อง: `node scripts/seed-supabase-media.mjs` (อัปโหลด default avatar)
-3. รูปเก่าจาก XAMPP ต้อง migrate ไป Supabase Storage เอง
-4. โค้ดใหม่ใช้ Supabase public URL บน `.vercel.app` โดยตรง (`resolveMediaUrl`)
+2. **รันครั้งเดียวบนเครื่อง:** `npm run media:migrate` (ย้ายรูปจาก XAMPP → Supabase)
+3. หรือ `npm run media:seed` (อัปโหลด default avatar อย่างเดียว)
+4. รูปใหม่ที่อัปโหลดบน Vercel จะเข้า Supabase อัตโนมัติ (ถ้ามี service_role key)
+5. โค้ดใช้ Supabase public URL บน `.vercel.app` (`resolveMediaUrl` / `imagesAccount`)
 
 ### โดนดีด logout "เซิร์ฟเวอร์รีสตาร์ท"
 

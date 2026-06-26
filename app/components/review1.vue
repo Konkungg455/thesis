@@ -33,7 +33,7 @@
         >
           <div class="profile-header">
             <div class="avatar">
-              <img :src="review.image" :alt="review.name" @error="(e) => e.target.src='https://via.placeholder.com/120'" />
+              <img :src="review.image" :alt="review.name" @error="(e) => e.target.src = imagesAccount('default.png')" />
             </div>
           </div>
 
@@ -65,14 +65,16 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useApiBase } from '~/composables/useApiBase';
 
+const { apiUrl, imagesAccount } = useApiBase();
 const allReviews = ref([]);
 const selectedRating = ref(0); 
 
 // ฟังก์ชันดึงข้อมูลจาก PHP
 const fetchReviews = async () => {
   try {
-    const data = await $fetch(`${useNuxtApp().$getApiBase()}/review-get.php`, {
+    const data = await $fetch(apiUrl('review-get.php'), {
       credentials: 'include'
     });
     
@@ -80,10 +82,7 @@ const fetchReviews = async () => {
       allReviews.value = data.map(item => ({
         name: item.firstname + ' ' + item.lastname,
         rating: parseInt(item.rating),
-        // แก้ไข Path ให้ตรงกับ images_account
-        image: item.images_account 
-               ? `${useNuxtApp().$getApiBase()}/images_account/${item.images_account}` 
-               : 'https://via.placeholder.com/120',
+        image: imagesAccount(item.images_account || 'default.png'),
         text: item.comment
       }));
     }
