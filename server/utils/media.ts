@@ -29,6 +29,18 @@ export function serveLocalMedia(event: H3Event, pathname: string) {
         throw createError({ statusCode: 400, statusMessage: 'Invalid path' });
     }
 
+    const filename = parts[parts.length - 1] || '';
+    const folder = parts.slice(0, -1).join('/');
+
+    // Vercel — ใช้ Supabase Storage public URL (ไม่มี C:/xampp)
+    if (!canUseLocalMediaStorage()) {
+        const publicUrl = getMediaPublicUrl(folder, filename);
+        if (publicUrl) {
+            return sendRedirect(event, publicUrl, 302);
+        }
+        throw createError({ statusCode: 404, statusMessage: 'File not found' });
+    }
+
     const root = normalize(mediaRoot());
     let filePath = normalize(join(root, ...parts));
 

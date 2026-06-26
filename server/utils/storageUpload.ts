@@ -7,6 +7,18 @@ function localRoot(): string {
     return process.env.MEDIA_ROOT || 'C:/xampp/htdocs/4';
 }
 
+/** Vercel / Linux serverless — ห้ามเขียน C:/xampp */
+export function canUseLocalMediaStorage(): boolean {
+    if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+        return false;
+    }
+    const root = localRoot();
+    if (process.platform !== 'win32' && /^[A-Za-z]:[/\\]/.test(root)) {
+        return false;
+    }
+    return true;
+}
+
 export function mediaStoragePath(folder: string, filename: string): string {
     return `${folder.replace(/^\/+|\/+$/g, '')}/${filename}`;
 }
@@ -18,28 +30,46 @@ export function getMediaPublicUrl(folder: string, filename: string): string | nu
     return `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/${BUCKET}/${path}`;
 }
 
+async function uploadToSupabase(
+    folder: string,
+    filename: string,
+    data: Buffer,
+    contentType: string,
+): Promise<{ filename: string; publicUrl: string | null } | null> {
+    if (!isSupabaseConfigured()) return null;
+
+    const path = mediaStoragePath(folder, filename);
+    const supabase = useSupabaseServer();
+    const { error } = await supabase.storage.from(BUCKET).upload(path, data, {
+        upsert: true,
+        contentType,
+    });
+
+    if (error) {
+        console.warn('[storage] supabase upload failed:', error.message);
+        return null;
+    }
+
+    return { filename, publicUrl: getMediaPublicUrl(folder, filename) };
+}
+
 export async function uploadMediaFile(
     folder: string,
     filename: string,
     data: Buffer,
     contentType = 'application/octet-stream',
 ): Promise<{ filename: string; publicUrl: string | null }> {
-    const path = mediaStoragePath(folder, filename);
+    const supabaseResult = await uploadToSupabase(folder, filename, data, contentType);
+    if (supabaseResult) {
+        return supabaseResult;
+    }
 
-    if (isSupabaseConfigured()) {
-        try {
-            const supabase = useSupabaseServer();
-            const { error } = await supabase.storage.from(BUCKET).upload(path, data, {
-                upsert: true,
-                contentType,
-            });
-            if (!error) {
-                return { filename, publicUrl: getMediaPublicUrl(folder, filename) };
-            }
-            console.warn('[storage] supabase upload failed:', error.message);
-        } catch (err) {
-            console.warn('[storage] supabase upload error:', err);
-        }
+    if (!canUseLocalMediaStorage()) {
+        throw createError({
+            statusCode: 503,
+            statusMessage:
+                'อัปโหลดไฟล์ไม่สำเร็จ — ตั้ง SUPABASE_SERVICE_ROLE_KEY + bucket media บน Vercel (ดู VERCEL_DEPLOY.md)',
+        });
     }
 
     const dir = join(localRoot(), folder);
@@ -60,6 +90,8 @@ export async function deleteMediaFile(folder: string, filename: string): Promise
             // ignore
         }
     }
+
+    if (!canUseLocalMediaStorage()) return;
 
     const localPath = join(localRoot(), folder, filename);
     if (existsSync(localPath)) {

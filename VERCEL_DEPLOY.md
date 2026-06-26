@@ -36,7 +36,13 @@ NUXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NUXT_PUBLIC_SUPABASE_KEY=sb_publishable_xxx
 SUPABASE_ENABLED=true
 NUXT_PUBLIC_USE_SUPABASE_BACKEND=true
+SUPABASE_SERVICE_ROLE_KEY=eyJ...   # Project Settings → API → service_role (server only)
+SUPABASE_STORAGE_BUCKET=media
 ```
+
+**Storage bucket (ครั้งแรก):** Supabase → **Storage** → New bucket `media` → เปิด **Public**
+
+> อัปโหลดรูป (avatar, chat) บน Vercel ต้องมี `SUPABASE_SERVICE_ROLE_KEY` — ไม่ใช้ `MEDIA_ROOT`
 
 ### SMTP (OTP / ลืมรหัสผ่าน)
 
