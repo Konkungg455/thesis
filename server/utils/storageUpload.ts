@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildSupabasePublicUrl, resolveSupabaseObject } from '../../shared/utils/mediaStorage';
+import { buildSupabasePublicUrl, resolveSupabaseObject } from '~/utils/mediaStorage';
 
 function localRoot(): string {
     return process.env.MEDIA_ROOT || 'C:/xampp/htdocs/4';

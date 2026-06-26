@@ -1,4 +1,4 @@
-import { buildSupabasePublicUrl } from '../../shared/utils/mediaStorage';
+import { buildSupabasePublicUrl } from '~/utils/mediaStorage';
 
 const isTunnelHost = (hostname: string) =>
     /ngrok/i.test(hostname)
