@@ -38,7 +38,7 @@ export function serveLocalMedia(event: H3Event, pathname: string) {
         if (publicUrl) {
             return sendRedirect(event, publicUrl, 302);
         }
-        throw createError({ statusCode: 404, statusMessage: 'File not found' });
+        return sendRedirect(event, '/favicon.png', 302);
     }
 
     const root = normalize(mediaRoot());

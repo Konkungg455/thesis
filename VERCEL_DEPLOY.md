@@ -74,6 +74,17 @@ NUXT_PUBLIC_N8N_CHAT_WEBHOOK_ID=1f5ea30f-2ff0-4d32-b211-eccb342ee0df
 > PC ปิด = AI บน Vercel ใช้ไม่ได้ (n8n อยู่ local)
 > ทางเลือกถาวร: deploy n8n บน VPS/Railway แล้วใส่ URL นั้น
 
+### รูปภาพไม่ขึ้น
+
+1. ตั้ง `SUPABASE_SERVICE_ROLE_KEY` + bucket `media` (public) บน Vercel
+2. รันครั้งเดียวบนเครื่อง: `node scripts/seed-supabase-media.mjs` (อัปโหลด default avatar)
+3. รูปเก่าจาก XAMPP ต้อง migrate ไป Supabase Storage เอง
+4. โค้ดใหม่ใช้ Supabase public URL บน `.vercel.app` โดยตรง (`resolveMediaUrl`)
+
+### โดนดีด logout "เซิร์ฟเวอร์รีสตาร์ท"
+
+แก้แล้ว — ปิด heartbeat บน production (Vercel serverless เปลี่ยน bootId ทุก instance)
+
 ---
 
 ## ตรวจหลัง deploy

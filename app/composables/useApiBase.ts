@@ -1,23 +1,33 @@
 import { computed } from 'vue';
 
-/** ฐาน URL ของ PHP API + n8n — อิง hostname ปัจจุบัน (เช่น 192.168.1.117) */
 export function useApiBase() {
-    const { $getApiBase, $apiBase, $apiUrl, $getN8nBase, $n8nChatUrl } = useNuxtApp() as any;
+    const nuxtApp = useNuxtApp() as ReturnType<typeof useNuxtApp> & {
+        $getApiBase: () => string;
+        $apiUrl: (path: string) => string;
+        $n8nChatUrl: () => string;
+        $resolveMediaUrl: (folder: string, file?: string | null) => string;
+        $imagesAccount: (file?: string | null) => string;
+        $imagesPharma: (file?: string | null) => string;
+        $uploadsChat: (file: string) => string;
+        $storeProfileImage: (file?: string | null) => string;
+    };
 
-    const apiBase = computed(() => $getApiBase());
-    const n8nBase = computed(() => ($getN8nBase ? $getN8nBase() : ''));
+    const apiBase = computed(() => nuxtApp.$getApiBase());
 
     return {
         apiBase,
-        n8nBase,
+        n8nBase: computed(() => (nuxtApp.$getN8nBase ? nuxtApp.$getN8nBase() : '')),
         get apiUrl() {
-            return $apiUrl as (path: string) => string;
+            return nuxtApp.$apiUrl;
         },
         get n8nChatUrl() {
-            return ($n8nChatUrl as () => string) || (() => '');
+            return nuxtApp.$n8nChatUrl || (() => '');
         },
-        uploadsChat: (file: string) => `${apiBase.value}/uploads/chat/${file}`,
-        imagesAccount: (file: string) => `${apiBase.value}/images_account/${file}`,
-        imagesPharma: (file: string) => `${apiBase.value}/images_pharma/${file}`
+        resolveMediaUrl: (folder: string, file?: string | null) =>
+            nuxtApp.$resolveMediaUrl(folder, file),
+        imagesAccount: (file?: string | null) => nuxtApp.$imagesAccount(file),
+        imagesPharma: (file?: string | null) => nuxtApp.$imagesPharma(file),
+        uploadsChat: (file: string) => nuxtApp.$uploadsChat(file),
+        storeProfileImage: (file?: string | null) => nuxtApp.$storeProfileImage(file),
     };
 }

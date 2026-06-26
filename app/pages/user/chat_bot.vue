@@ -270,7 +270,7 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         }
     } catch (err) {
         console.error('[AI Chat]', err);
-        await pushAssistant('ไม่สามารถติดต่อเภสัชกร AI ได้ในขณะนี้ค่ะ ลองใหม่อีกครั้งนะคะ');
+        await pushAssistant(getAiChatErrorMessage(err));
     } finally {
         isLoading.value = false;
         // 🚫 ไม่บังคับเลื่อนลงหลัง AI ตอบเสร็จ — ปล่อยให้ผู้ใช้เลื่อนเอง

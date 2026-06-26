@@ -6,7 +6,9 @@
 
 // boot ID — สร้างครั้งเดียวตอน Nuxt server เริ่มทำงาน
 // จะเปลี่ยนใหม่ทุกครั้งที่ npm run dev ถูก restart / shut down แล้วเปิดใหม่
-const BOOT_ID = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+const BOOT_ID = process.env.VERCEL
+    ? `vercel-${process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_ENV || 'prod'}`
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 const BOOT_TIME = Date.now();
 
 export default defineEventHandler(() => {

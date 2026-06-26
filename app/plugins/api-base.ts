@@ -120,6 +120,27 @@ export default defineNuxtPlugin(() => {
 
     const chatWebhookId = (config.public.n8nChatWebhookId as string) || '1f5ea30f-2ff0-4d32-b211-eccb342ee0df';
     const n8nWebhookPath = `/webhook/${chatWebhookId}/chat`;
+    const storageBucket = String(config.public.supabaseStorageBucket || 'media').trim();
+
+    const buildSupabaseMediaUrl = (folder: string, filename: string) => {
+        const supabaseUrl = String(config.public.supabaseUrl || '').trim();
+        if (!supabaseUrl || !filename) return null;
+        const path = `${folder.replace(/^\/+|\/+$/g, '')}/${filename}`;
+        return `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/${storageBucket}/${path}`;
+    };
+
+    /** รูป profile / เภสัช — บน Vercel ใช้ Supabase Storage public URL */
+    const resolveMediaUrl = (folder: string, file?: string | null) => {
+        const name = String(file || 'default.png').trim() || 'default.png';
+        const useCloudMedia = useSupabaseBackend()
+            || (import.meta.client && isHostedProduction(window.location.hostname));
+
+        if (useCloudMedia) {
+            const pub = buildSupabaseMediaUrl(folder, name);
+            if (pub) return pub;
+        }
+        return `${getApiBase()}/${folder}/${name}`;
+    };
 
     /** URL สำหรับส่งข้อความไป n8n Chat Trigger */
     const n8nChatUrl = () => {
@@ -171,6 +192,11 @@ export default defineNuxtPlugin(() => {
             },
             getN8nBase,
             n8nChatUrl,
+            resolveMediaUrl,
+            imagesAccount: (file?: string | null) => resolveMediaUrl('images_account', file),
+            imagesPharma: (file?: string | null) => resolveMediaUrl('images_pharma', file),
+            uploadsChat: (file: string) => resolveMediaUrl('uploads/chat', file),
+            storeProfileImage: (file?: string | null) => resolveMediaUrl('uploads/store_profiles', file),
         },
     };
 });

@@ -11,8 +11,8 @@ export function useAuthUser() {
 
     const apiBase = computed(() => getBase());
     const apiUrl = (path) => nuxtApp.$apiUrl(path);
-    const imagesAccount = (file) => `${apiBase.value}/images_account/${file}`;
-    const imagesPharma = (file) => `${apiBase.value}/images_pharma/${file}`;
+    const imagesAccount = (file) => nuxtApp.$imagesAccount?.(file) ?? `${apiBase.value}/images_account/${file}`;
+    const imagesPharma = (file) => nuxtApp.$imagesPharma?.(file) ?? `${apiBase.value}/images_pharma/${file}`;
 
     const displayName = computed(() => {
         if (!user.value) return '';
@@ -34,7 +34,7 @@ export function useAuthUser() {
             return imagesPharma(file);
         }
         if (role === 'store') {
-            return `${apiBase.value}/uploads/store_profiles/${file}`;
+            return nuxtApp.$storeProfileImage?.(file) ?? `${apiBase.value}/uploads/store_profiles/${file}`;
         }
         return imagesAccount(file);
     });

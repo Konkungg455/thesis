@@ -24,7 +24,8 @@ const LOGIN_PATH_BY_ROLE: Record<string, string> = {
 };
 
 export default defineNuxtPlugin(() => {
-    if (!import.meta.client) return;
+    // ใช้เฉพาะ dev — บน Vercel/serverless bootId เปลี่ยนทุก instance → logout ผิด
+    if (!import.meta.client || !import.meta.dev) return;
 
     const router = useRouter();
     let failCount = 0;

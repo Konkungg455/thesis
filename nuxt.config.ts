@@ -111,6 +111,7 @@ export default defineNuxtConfig({
       n8nBase: process.env.NUXT_PUBLIC_N8N_BASE || '',
       /** webhook ID ของ chatbot ใน n8n */
       n8nChatWebhookId: process.env.NUXT_PUBLIC_N8N_CHAT_WEBHOOK_ID || '1f5ea30f-2ff0-4d32-b211-eccb342ee0df',
+      supabaseStorageBucket: process.env.SUPABASE_STORAGE_BUCKET || 'media',
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || process.env.SUPABASE_KEY || '',
       /** true = ใช้ /api/bff + Supabase แทน XAMPP (default เมื่อมี SUPABASE_URL) */

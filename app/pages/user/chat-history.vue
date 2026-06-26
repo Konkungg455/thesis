@@ -531,10 +531,7 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         }
     } catch (err) {
         console.error('[AI Chat]', err);
-        const hint = err?.statusCode === 502
-            ? ' (ตรวจว่า n8n เปิดอยู่และ workflow ถูก Activate)'
-            : '';
-        await addMessage('assistant', `ไม่สามารถเชื่อมต่อ AI ได้ในขณะนี้ค่ะ${hint} ลองใหม่อีกครั้งนะคะ`);
+        await addMessage('assistant', getAiChatErrorMessage(err));
     } finally {
         isLoading.value = false;
         await scrollToBottom();
