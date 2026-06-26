@@ -10,12 +10,27 @@ const isPrivateLanHost = (hostname: string) =>
     || /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)
     || /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname);
 
+/** Vercel / production — ไม่มี XAMPP /4 */
+const isHostedProduction = (hostname: string) =>
+    hostname.endsWith('.vercel.app')
+    || (!isPrivateLanHost(hostname) && !isTunnelHost(hostname) && hostname.includes('.'));
+
 export default defineNuxtPlugin(() => {
     const config = useRuntimeConfig();
 
-    const useSupabaseBackend = () =>
-        Boolean(String(config.public.supabaseUrl || '').trim())
-        && config.public.useSupabaseBackend !== false;
+    const useSupabaseBackend = () => {
+        if (config.public.useSupabaseBackend === false) {
+            return false;
+        }
+        if (Boolean(String(config.public.supabaseUrl || '').trim())) {
+            return true;
+        }
+        // Vercel / production — ใช้ /api/bff แทน XAMPP /4
+        if (import.meta.client && isHostedProduction(window.location.hostname)) {
+            return true;
+        }
+        return false;
+    };
 
     const getBffBase = () => {
         if (import.meta.client) {
@@ -62,6 +77,9 @@ export default defineNuxtPlugin(() => {
             const host = window.location.hostname;
             if (isPrivateLanHost(host)) {
                 return `http://${host}/4`;
+            }
+            if (isHostedProduction(host)) {
+                return `${window.location.origin}/api/bff`;
             }
             return `${window.location.protocol}//${window.location.host}/4`;
         }

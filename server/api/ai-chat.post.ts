@@ -10,8 +10,10 @@ export default defineEventHandler(async (event) => {
         '1f5ea30f-2ff0-4d32-b211-eccb342ee0df';
 
     const n8nBase = (
-        process.env.NUXT_N8N_INTERNAL_URL ||
-        'http://127.0.0.1:5678'
+        process.env.NUXT_N8N_INTERNAL_URL
+        || (config.n8nInternalUrl as string)
+        || (config.public.n8nBase as string)
+        || 'http://127.0.0.1:5678'
     ).replace(/\/$/, '');
 
     const url = `${n8nBase}/webhook/${webhookId}/chat`;
@@ -70,9 +72,12 @@ export default defineEventHandler(async (event) => {
 
     const is404 =
         e?.statusCode === 404 || String(e?.message || '').includes('404');
+    const onVercel = Boolean(process.env.VERCEL);
     const hint = is404
         ? 'workflow ยังไม่ Activate — รัน npm run dev ใหม่ (สคริปต์จะ import + activate ให้อัตโนมัติ)'
-        : 'ตรวจว่า n8n เปิดอยู่และ Ollama ทำงาน';
+        : onVercel && n8nBase.includes('127.0.0.1')
+            ? 'ตั้ง NUXT_N8N_INTERNAL_URL ใน Vercel ชี้ไป n8n สาธารณะ (เช่น ngrok http 5678)'
+            : 'ตรวจว่า n8n เปิดอยู่และ Ollama ทำงาน';
 
     throw createError({
         statusCode: 502,

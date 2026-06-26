@@ -102,6 +102,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     /** service role — ใช้ฝั่ง server เท่านั้น (optional) */
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+    /** n8n URL สำหรับ Vercel/production (ngrok หรือ VPS) — ไม่ใช่ localhost */
+    n8nInternalUrl: process.env.NUXT_N8N_INTERNAL_URL || process.env.NUXT_PUBLIC_N8N_BASE || '',
     public: {
       /** ถ้าไม่ตั้ง จะใช้ http://{hostname ปัจจุบัน}/4 อัตโนมัติ */
       apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
