@@ -15,11 +15,17 @@
 
 ### Database (จำเป็น — login, เภสัช, ใบสั่งยา)
 
+**อย่าใช้** `db.xxx.supabase.co` บน Vercel — เป็น IPv6 อย่างเดียว → `ENOTFOUND`
+
+ใช้ **Connection Pooler** จาก Supabase Dashboard → Database → **Connection pooling** → Transaction mode:
+
 ```
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.xxxxx.supabase.co:5432/postgres
+DATABASE_URL=postgresql://postgres.czzkubnrzhcxlcnughxf:Konkungg%400819387416@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
 ```
 
-(รหัสผ่านมี `@` → เขียน `%40`)
+- User = `postgres.PROJECT_REF` (ไม่ใช่แค่ `postgres`)
+- Host = `aws-1-ap-southeast-1.pooler.supabase.com` (ดู region ใน Dashboard)
+- Port = **6543** (Transaction pooler)
 
 ### Supabase
 
