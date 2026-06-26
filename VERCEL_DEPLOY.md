@@ -1,5 +1,22 @@
 # Deploy บน Vercel (https://thesis-rust-beta.vercel.app)
 
+## 404 DEPLOYMENT_NOT_FOUND
+
+ถ้าเปิดเว็บแล้วขึ้น **404 DEPLOYMENT_NOT_FOUND** = โปรเจกต์ Vercel ถูกลบ / ยังไม่ได้ deploy
+
+**แก้ (ครั้งเดียว):**
+1. เปิด https://vercel.com/dashboard
+2. **Add New → Project** → เลือก GitHub repo **Konkungg455/thesis**
+3. Framework: **Nuxt.js** (auto)
+4. **Environment Variables → Import .env** (ใช้ `import.env` จาก Downloads)
+5. กด **Deploy**
+6. หลัง deploy สำเร็จ ใช้ URL ที่ Vercel ให้ (อาจเป็น `thesis-xxx.vercel.app`)
+7. ตรวจ: `https://YOUR-URL.vercel.app/api/ai-chat/health` → `"configured": true`
+
+> ถ้าอยากใช้ domain `thesis-rust-beta.vercel.app` → Settings → Domains → ผูก domain กับ project นี้
+
+---
+
 ## สาเหตุที่ DB / AI ไม่ทำงาน
 
 | ปัญหา | สาเหตุ |
