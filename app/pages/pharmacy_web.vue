@@ -19,21 +19,15 @@ const {
     isMicOn,
     isCamOn,
     peerInfo,
-    hasRemoteVideo,
-    hasRemoteAudio,
     localVideo,
     remoteVideo,
-    remoteVideoLive,
-    remoteAudioSink,
     makeCall: makeCallRTC,
     acceptCall,
     endCall,
     toggleMic,
     toggleCamera,
-    retryRemoteVideo,
     startPolling: startCallPolling,
-    stopPolling: stopCallPolling,
-    initPeer,
+    stopPolling: stopCallPolling
 } = useWebRTCCall({
     myRole: 'pharma',
     myId: myPharmaId,
@@ -46,8 +40,7 @@ const {
 // wrapper ให้เภสัช "โทรหาคนไข้"
 const makeCall = (type = 'voice') => {
     if (!activePatientId.value) return;
-    const safeType = typeof type === 'string' ? type : 'voice';
-    return makeCallRTC(activePatientId.value, safeType);
+    return makeCallRTC(activePatientId.value, type);
 };
 
 const callerDisplayName = computed(() => peerInfo.value.name || (activePatientId.value ? `ผู้ป่วยคนที่ ${activePatientId.value}` : 'คนไข้'));
@@ -134,60 +127,36 @@ const patientAvatar = (id) => {
     return '';
 };
 
-// กันยิง get-patient-info ซ้ำพร้อมกัน
-const patientInfoInflight = new Map();
-
 // ฟังก์ชันดึงชื่อ + รูป + อาการคนไข้จาก backend
 //   - ถ้าระบุ consultId → ดึงอาการของ "รอบนั้น" (ไม่ใช่อาการล่าสุดรวม)
 //   - markLoaded=false → ยังไม่แสดงข้อความ "ยังไม่มีข้อมูลอาการ" (ใช้ตอน preload sidebar)
-const fetchPatientInfo = async (id, { consultId = 0, markLoaded = true, force = false } = {}) => {
+const fetchPatientInfo = async (id, { consultId = 0, markLoaded = true } = {}) => {
     const cleanId = normalizePatientId(id);
     if (!cleanId) return;
     const cid = Number(consultId) || Number(activeRequestId.value) || Number(route.query.consult_id) || 0;
     const isActive = Number(activePatientId.value) === cleanId;
-    const inflightKey = `${cleanId}:${isActive && cid > 0 ? cid : 0}`;
-
-    if (!force && patientDetailsMap.value[cleanId] && !(isActive && cid > 0 && !patientSymptomLoaded.value[cleanId])) {
+    let url = `get-patient-info.php?id=${cleanId}&role=user`;
+    // ส่ง consult_id เฉพาะคนไข้ที่กำลังเปิดแชทอยู่ → ได้อาการของรอบรับเคสนั้น
+    if (isActive && cid > 0) url += `&consult_id=${cid}`;
+    try {
+        const res = await $fetch(apiUrl(url), { credentials: 'include' });
+        if (res && res.status === 'success') {
+            setPatientDisplayName(cleanId, res.data.patient_name);
+            if (res.data.image_url) setPatientImage(cleanId, res.data.image_url);
+            if (isActive || markLoaded) {
+                setPatientSymptom(cleanId, res.data.symptom_name || '');
+            }
+        } else if (!patientDetailsMap.value[cleanId]) {
+            setPatientDisplayName(cleanId, `ผู้ป่วยคนที่ ${cleanId}`);
+        }
+    } catch {
+        if (!patientDetailsMap.value[cleanId]) {
+            setPatientDisplayName(cleanId, `ผู้ป่วยคนที่ ${cleanId}`);
+        }
+    } finally {
         if (markLoaded) {
             patientSymptomLoaded.value = { ...patientSymptomLoaded.value, [cleanId]: true };
         }
-        return;
-    }
-
-    if (patientInfoInflight.has(inflightKey)) {
-        return patientInfoInflight.get(inflightKey);
-    }
-
-    const task = (async () => {
-        let url = `get-patient-info.php?id=${cleanId}&role=user`;
-        if (isActive && cid > 0) url += `&consult_id=${cid}`;
-        try {
-            const res = await $fetch(apiUrl(url), { credentials: 'include' });
-            if (res && res.status === 'success') {
-                setPatientDisplayName(cleanId, res.data.patient_name);
-                if (res.data.image_url) setPatientImage(cleanId, res.data.image_url);
-                if (isActive || markLoaded) {
-                    setPatientSymptom(cleanId, res.data.symptom_name || '');
-                }
-            } else if (!patientDetailsMap.value[cleanId]) {
-                setPatientDisplayName(cleanId, `ผู้ป่วยคนที่ ${cleanId}`);
-            }
-        } catch {
-            if (!patientDetailsMap.value[cleanId]) {
-                setPatientDisplayName(cleanId, `ผู้ป่วยคนที่ ${cleanId}`);
-            }
-        } finally {
-            if (markLoaded) {
-                patientSymptomLoaded.value = { ...patientSymptomLoaded.value, [cleanId]: true };
-            }
-        }
-    })();
-
-    patientInfoInflight.set(inflightKey, task);
-    try {
-        await task;
-    } finally {
-        patientInfoInflight.delete(inflightKey);
     }
 };
 
@@ -197,12 +166,11 @@ const ensurePatientInSidebar = (id) => {
     if (!normalized) return;
     
     if (!sidebarPatientIds.value.includes(normalized)) {
+        // เปลี่ยนมาสร้างก้อน Array สดใหม่ทับลงไป เพื่อส่งสัญญาณ Reactivity ลั่นแจ้งเตือนสเตตทันที
         sidebarPatientIds.value = [...sidebarPatientIds.value, normalized].sort((a, b) => a - b);
-        saveSidebarPatients();
+        saveSidebarPatients(); // เขียนเก็บลงกล่องถาวร
     }
-    if (!patientDetailsMap.value[normalized]) {
-        fetchPatientInfo(normalized, { markLoaded: false });
-    }
+    fetchPatientInfo(normalized, { markLoaded: true }); // โหลดชื่อ + อาการ (แสดงในรายการแม้ยังไม่คลิก)
 };
 
 // ระบบ Auto-Focus ดึงแชทและชื่อคนไข้จริงขึ้นบาร์ทันทีหลังคลิกกระดิ่งรับเคส
@@ -250,10 +218,11 @@ const loadSidebarPatients = async () => {
                 .map((p) => normalizePatientId(p.id_account))
                 .filter((v) => v !== null);
             res.data.forEach((p) => {
-                const pid = normalizePatientId(p.id_account);
-                if (!pid) return;
-                if (p.patient_name) setPatientDisplayName(pid, p.patient_name);
-                if (p.image_url) setPatientImage(pid, p.image_url);
+                if (p.patient_name) {
+                    setPatientDisplayName(p.id_account, p.patient_name);
+                }
+                // โหลดอาการของแต่ละคนมาแสดงในรายการเลย (ไม่ต้องรอคลิก)
+                fetchPatientInfo(p.id_account, { markLoaded: true });
             });
             saveSidebarPatients();
             return;
@@ -270,6 +239,7 @@ const loadSidebarPatients = async () => {
         sidebarPatientIds.value = list
             .map((v) => normalizePatientId(v))
             .filter((v) => v !== null);
+        sidebarPatientIds.value.forEach((id) => fetchPatientInfo(id, { markLoaded: true }));
     } catch {
         // ignore
     }
@@ -329,14 +299,6 @@ const timerResyncing = ref(false);
 const activeRequestId = ref(0);
 const timerRequestId = ref(0);
 const activeServiceCode = ref(''); // SRV-xxx ของรอบที่กำลังดู (จาก /tracking หรือ URL)
-
-const resolveTimerRequestId = () => {
-    const fromRoute = Number(route.query.consult_id) || 0;
-    if (fromRoute > 0) return fromRoute;
-    if (timerRequestId.value > 0) return timerRequestId.value;
-    if (activeRequestId.value > 0) return activeRequestId.value;
-    return 0;
-};
 
 const resolveViewConsultId = () => {
     const fromRoute = Number(route.query.consult_id) || 0;
@@ -476,12 +438,13 @@ const syncChatTimer = async ({ reset = false } = {}) => {
     if (!import.meta.client) return;
     if (!activePatientId.value) return;
     if (isTrackingMode.value) return;
+    if (!reset && !timerRequestId.value) return;
     // ส่ง heartbeat เฉพาะตอน "เปิดหน้าจออยู่จริง" — ถ้าแท็บถูกซ่อน = ถือว่าไม่อยู่ เวลาหยุด
     if (!reset && typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
     try {
         const body = new FormData();
         body.append('target_id', activePatientId.value);
-        body.append('request_id', String(resolveTimerRequestId() || 0));
+        body.append('request_id', timerRequestId.value || 0);
         if (reset) body.append('reset', '1');
         const data = await $fetch(apiUrl('chat-timer.php'), {
             method: 'POST',
@@ -626,9 +589,6 @@ const tickConsultCountdown = () => {
     }
 
     if (!lastSyncAt.value) {
-        if (activePatientId.value && !timerResyncing.value && !consultCountdownStarting) {
-            syncChatTimer();
-        }
         consultTimeLeftText.value = '--:--';
         return;
     }
@@ -691,9 +651,6 @@ const fetchActiveConsultInfo = async () => {
             const liveId = Number(data.id) || 0;
             if (liveId > 0) {
                 timerRequestId.value = liveId;
-                if (!isTrackingMode.value && !isTrackingEnded.value) {
-                    startConsultCountdown({ force: true });
-                }
             }
         }
         // โหมดติดตามอาการ:
@@ -717,7 +674,6 @@ const fetchActiveConsultInfo = async () => {
             await fetchPatientInfo(activePatientId.value, {
                 consultId: Number(data.id) || 0,
                 markLoaded: true,
-                force: true,
             });
         }
     } catch (e) {
@@ -775,8 +731,7 @@ const endConsultation = async () => {
         }
     } catch (e) {
         console.error('complete_consult', e);
-        const msg = e?.data?.message || e?.message;
-        alert(msg || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
         isEndingConsult.value = false;
         return;
     }
@@ -853,6 +808,12 @@ const startConsultCountdown = async ({ force = false } = {}) => {
         clearConsultCountdown();
         tickConsultCountdown();
         consultCountdownTimer = setInterval(tickConsultCountdown, 1000);
+        return;
+    }
+
+    if (!timerRequestId.value) {
+        consultTimeLeftText.value = '--:--';
+        clearConsultCountdown();
         return;
     }
 
@@ -969,10 +930,19 @@ const handleFileUpload = async (event) => {
     const body = new FormData();
     body.append('receiver_id', activePatientId.value);
     body.append('chat_file', file);
-    await $fetch(apiUrl('chat-send.php'), { method: 'POST', body, credentials: 'include' });
-    event.target.value = '';
-    await fetchMessages();
-    await scrollToBottom(true);
+    try {
+        const res = await $fetch(apiUrl('chat-send.php'), { method: 'POST', body, credentials: 'include' });
+        if (res?.status === 'error') {
+            alert(res.message || 'ส่งไฟล์ไม่สำเร็จ');
+            return;
+        }
+        event.target.value = '';
+        await fetchMessages();
+        await scrollToBottom(true);
+    } catch (err) {
+        console.error('Upload Error', err);
+        alert(err?.data?.message || err?.message || 'ส่งไฟล์ไม่สำเร็จ');
+    }
 };
 
 // แก้ไข/ลบข้อความได้เฉพาะภายใน 5 นาทีหลังส่ง
@@ -1121,7 +1091,7 @@ const initPharmacyFromRoute = async (newId) => {
     activePatientId.value = normalized;
     showEndConsultFab.value = false;
     activeRequestId.value = routeCid;
-    timerRequestId.value = routeCid > 0 ? routeCid : 0;
+    timerRequestId.value = 0;
     activeServiceCode.value = routeSrv;
     lastSyncAt.value = 0;
     serverRemaining.value = 0;
@@ -1168,38 +1138,15 @@ watch(
         if (!import.meta.client) return;
         const routeCid = Number(route.query.consult_id) || 0;
         const routeSrv = String(route.query.srv || '').trim();
-        if (routeCid > 0) {
-            activeRequestId.value = routeCid;
-            timerRequestId.value = routeCid;
-        }
+        if (routeCid > 0) activeRequestId.value = routeCid;
         if (routeSrv) activeServiceCode.value = routeSrv;
         fetchMessages();
     }
 );
 
-watch(timerRequestId, (id, prev) => {
-    if (!import.meta.client) return;
-    if (id > 0 && id !== prev && activePatientId.value && !isTrackingMode.value && !isTrackingEnded.value) {
-        startConsultCountdown({ force: true });
-    }
-});
-
 watch(sidebarPatientIds, () => {
     saveSidebarPatients();
 }, { deep: true });
-
-const isPageVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
-
-const runMainPoll = () => {
-    if (!isPageVisible()) return;
-    checkExternalBellTrigger();
-    if (activePatientId.value) fetchMessages();
-};
-
-const runConsultPoll = () => {
-    if (!isPageVisible() || !activePatientId.value) return;
-    fetchActiveConsultInfo();
-};
 
 onMounted(async () => {
     if (route.query.consult_done === '1' || route.query.consult_done === 'true') {
@@ -1215,16 +1162,17 @@ onMounted(async () => {
 
     await checkExternalBellTrigger();
 
-    mainTimer = setInterval(runMainPoll, 4000);
+    mainTimer = setInterval(() => { 
+        fetchMessages(); 
+        checkExternalBellTrigger();
+    }, 3000);
 
     // เริ่ม polling การโทร (ใน composable) — ใช้ความถี่ของตัวเอง
-    startCallPolling(2000);
-    try { await initPeer(); } catch (e) { /* ignore */ }
+    startCallPolling(2500);
 
-    if (activePatientId.value) {
-        fetchActiveConsultInfo();
-    }
-    consultInfoPollTimer = setInterval(runConsultPoll, 6000);
+    // ตรวจสอบโหมดติดตามอาการทุก 4 วินาที (จับเหตุการณ์ user หรือ pharma กดปรึกษาอีกครั้ง)
+    fetchActiveConsultInfo();
+    consultInfoPollTimer = setInterval(fetchActiveConsultInfo, 4000);
 
     // 💓 heartbeat นาฬิกากลางทุก 5 วิ (ส่งเฉพาะตอนเปิดหน้าจออยู่) + เช็คทันทีเมื่อกลับมาที่แท็บ
     chatTimerHeartbeat = setInterval(() => syncChatTimer(), 5000);
@@ -1335,46 +1283,6 @@ const closePreview = () => { isShowPreview.value = false; };
                 </div>
             </div>
         </transition>
-
-        <Teleport to="body">
-            <transition name="video-pop">
-                <div v-if="isInCall && callType === 'video'" class="video-call-full-overlay" @click="retryRemoteVideo">
-                    <video ref="remoteVideoLive" autoplay playsinline muted class="remote-video-bg"></video>
-                    <video ref="remoteVideo" autoplay playsinline style="position:absolute;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:1;"></video>
-                    <audio ref="remoteAudioSink" autoplay playsinline></audio>
-                    <div v-if="!hasRemoteVideo" class="remote-video-waiting">
-                        <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=334155&color=fff&size=200'"
-                             class="remote-video-waiting-avatar" alt="waiting" />
-                        <p class="remote-video-waiting-text">
-                            {{ hasRemoteAudio ? 'ได้ยินเสียงแล้ว — กำลังโหลดภาพ...' : 'กำลังเชื่อมต่อภาพจากอีกฝ่าย...' }}<br>
-                            <small>แตะหน้าจอเพื่อลองใหม่</small>
-                        </p>
-                    </div>
-                    <div class="video-caller-banner">
-                        <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=00469c&color=fff&size=80'"
-                             class="banner-avatar" alt="caller" />
-                        <div>
-                            <div class="banner-name">{{ callerDisplayName }}</div>
-                            <div class="banner-timer">🎥 {{ callTimerText }}</div>
-                        </div>
-                    </div>
-                    <div class="local-video-pip">
-                        <video ref="localVideo" autoplay playsinline muted class="local-video-stream"></video>
-                    </div>
-                    <div class="video-call-controls">
-                        <button @click.stop="toggleCamera" :class="{ 'btn-device-off': !isCamOn }" class="video-control-btn">
-                            <i :class="isCamOn ? 'fa-solid fa-video' : 'fa-solid fa-video-slash'"></i>
-                        </button>
-                        <button @click.stop="endCall" class="btn-hangup-main">
-                            <i class="fa-solid fa-phone-slash"></i>
-                        </button>
-                        <button @click.stop="toggleMic" :class="{ 'btn-device-off': !isMicOn }" class="video-control-btn">
-                            <i :class="isMicOn ? 'fa-solid fa-microphone' : 'fa-solid fa-microphone-slash'"></i>
-                        </button>
-                    </div>
-                </div>
-            </transition>
-        </Teleport>
 
         <!-- Mobile topbar: ปุ่ม hamburger -->
         <div class="mobile-topbar">
@@ -1547,6 +1455,34 @@ const closePreview = () => { isShowPreview.value = false; };
                                 </button>
                             </div>
                         </div>
+
+                        <transition name="video-pop">
+                            <div v-if="isInCall && callType === 'video'" class="video-call-full-overlay">
+                                <video ref="remoteVideo" autoplay playsinline class="remote-video-bg"></video>
+                                <div class="video-caller-banner">
+                                    <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=00469c&color=fff&size=80'"
+                                         class="banner-avatar" alt="caller" />
+                                    <div>
+                                        <div class="banner-name">{{ callerDisplayName }}</div>
+                                        <div class="banner-timer">🎥 {{ callTimerText }}</div>
+                                    </div>
+                                </div>
+                                <div class="local-video-pip">
+                                    <video ref="localVideo" autoplay playsinline muted class="local-video-stream"></video>
+                                </div>
+                                <div class="video-call-controls">
+                                    <button @click="toggleCamera" :class="{ 'btn-device-off': !isCamOn }" class="video-control-btn">
+                                        <i :class="isCamOn ? 'fa-solid fa-video' : 'fa-solid fa-video-slash'"></i>
+                                    </button>
+                                    <button @click="endCall" class="btn-hangup-main">
+                                        <i class="fa-solid fa-phone-slash"></i>
+                                    </button>
+                                    <button @click="toggleMic" :class="{ 'btn-device-off': !isMicOn }" class="video-control-btn">
+                                        <i :class="isMicOn ? 'fa-solid fa-microphone' : 'fa-solid fa-microphone-slash'"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </transition>
 
                         <div class="chat-messages" ref="chatScroll" @scroll.passive="onChatScroll">
                             <div v-if="!chatMessages.length" class="chat-welcome">

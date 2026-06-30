@@ -1008,7 +1008,7 @@
 .remote-video-waiting {
     position: absolute;
     inset: 0;
-    z-index: 1;
+    z-index: 3;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1036,6 +1036,9 @@
     object-fit: cover;
     z-index: 2;
     background: #000;
+}
+.remote-video-bg:not(.has-stream) {
+    visibility: hidden;
 }
 .remote-audio-sink {
     position: absolute;

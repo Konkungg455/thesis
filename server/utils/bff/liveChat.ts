@@ -184,18 +184,27 @@ export async function handleChatSend(event: H3Event) {
     if (chatFile?.data?.length) {
         const ext = (chatFile.filename?.split('.').pop() || 'bin').toLowerCase();
         const filename = `chat_${randomBytes(8).toString('hex')}.${ext}`;
-        await uploadMediaFile('uploads/chat', filename, chatFile.data, mimeFromExt(ext));
-        filePath = filename;
+        try {
+            await uploadMediaFile('uploads/chat', filename, chatFile.data, mimeFromExt(ext));
+            filePath = filename;
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error('[chat-send] upload failed:', msg);
+            return { status: 'error', message: msg || 'อัปโหลดไฟล์ไม่สำเร็จ' };
+        }
     }
 
     if (!messageText && !filePath) {
         return { status: 'error', message: 'empty message' };
     }
 
+    // message_text เป็น NOT NULL — ส่งไฟล์อย่างเดียวใช้ '' แทน null
+    const textToSave = messageText || '';
+
     const ok = await dbQuery(async (sql) => {
         await sql`
             INSERT INTO chat_messages (sender_id, receiver_id, sender_role, message_text, file_path)
-            VALUES (${senderId}, ${receiverId}, ${role}, ${messageText || null}, ${filePath})
+            VALUES (${senderId}, ${receiverId}, ${role}, ${textToSave}, ${filePath})
         `;
         return true;
     });
@@ -206,8 +215,6 @@ export async function handleChatSend(event: H3Event) {
 }
 
 export async function handleChatTimer(event: H3Event) {
-    await ensureBffSchema();
-
     const query = getQuery(event);
     const fields = event.method?.toUpperCase() === 'POST'
         ? (await readMultipartRequest(event)).fields

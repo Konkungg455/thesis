@@ -110,6 +110,9 @@ export default defineNuxtConfig({
     aiModel: process.env.NUXT_AI_MODEL || '',
     aiBaseUrl: process.env.NUXT_AI_BASE_URL || '',
     aiMode: process.env.NUXT_AI_MODE || 'n8n',
+    /** Metered.ca TURN — server only (วิดีโอคอลมือถือ↔iPad) */
+    meteredApiKey: process.env.NUXT_METERED_API_KEY || '',
+    meteredAppName: process.env.NUXT_METERED_APP_NAME || 'telebotpharmacy',
     public: {
       /** legacy PHP เท่านั้น — ค่าเริ่มต้นใช้ /api/bff */
       apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
@@ -124,6 +127,10 @@ export default defineNuxtConfig({
       useSupabaseBackend: process.env.NUXT_PUBLIC_USE_SUPABASE_BACKEND !== 'false',
       /** ว่างได้ — ลิงก์ reset password ใช้ domain จาก request */
       siteOrigin: process.env.NUXT_PUBLIC_SITE_ORIGIN || '',
+      /** TURN แบบ static (ทางเลือกถ้าไม่ใช้ NUXT_METERED_API_KEY) — จาก Metered dashboard */
+      turnUrls: process.env.NUXT_PUBLIC_TURN_URLS || '',
+      turnUsername: process.env.NUXT_PUBLIC_TURN_USERNAME || '',
+      turnCredential: process.env.NUXT_PUBLIC_TURN_CREDENTIAL || '',
     }
   }
 })

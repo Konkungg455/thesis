@@ -22,6 +22,10 @@ export function setBffCache(key: string, data: unknown, ttlMs = DEFAULT_TTL_MS) 
     cache.set(key, { data, exp: Date.now() + ttlMs, created: Date.now() });
 }
 
+export function clearBffCache(key: string) {
+    cache.delete(key);
+}
+
 let lastArchiveMaintenanceAt = 0;
 const ARCHIVE_MAINT_INTERVAL_MS = 5 * 60 * 1000;
 

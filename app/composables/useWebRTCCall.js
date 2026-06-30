@@ -7,14 +7,15 @@
  *   - แลก peer_id ของแต่ละฝั่ง
  *   - ส่งข้อมูลคู่สนทนา (ชื่อ + รูป)
  *
- * Peer ID convention: `telebot-<role>-<id>` (เช่น telebot-pharma-2, telebot-user-5)
+ * Peer ID convention: `telebot-<role>-<id>-<session>` — session ไม่ซ้ำต่อแท็บ/เครื่อง
+ * Backend เก็บ peer_id จริงผ่าน register_peer / accept (อย่า hardcode id ฝั่งตรงข้าม)
  */
 
 import { ref, computed, onBeforeUnmount, nextTick, watch, unref } from 'vue';
 
 const PEER_PREFIX = 'telebot';
 
-const buildPeerId = (role, id) => `${PEER_PREFIX}-${unref(role)}-${unref(id)}`;
+const newPeerSessionToken = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
 /**
  * ICE servers — STUN สำหรับหา public IP + TURN สำหรับ relay เมื่ออยู่หลัง NAT/มือถือ
@@ -23,24 +24,25 @@ const buildPeerId = (role, id) => `${PEER_PREFIX}-${unref(role)}-${unref(id)}`;
  * ⚠️ TURN ด้านล่างเป็นเซิร์ฟเวอร์สาธารณะ (ฟรี) เหมาะกับทดสอบ/ใช้งานเบา
  *    โปรดักชันจริงควรตั้ง TURN ของตัวเอง (coturn) เพื่อความเสถียร
  */
-const ICE_SERVERS = [
+const STUN_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:stun.cloudflare.com:3478' },
+];
+
+/** TURN ฟรีสาธารณะ — มักใช้ไม่ได้จากมือถือไทย ใช้เมื่อไม่ได้ตั้ง Metered/.env */
+const FALLBACK_TURN_SERVERS = [
     { urls: 'stun:stun.relay.metered.ca:80' },
     {
         urls: [
-            'turn:openrelay.metered.ca:80?transport=udp',
-            'turn:openrelay.metered.ca:443?transport=tcp',
-            'turns:openrelay.metered.ca:443',
+            'turn:global.relay.metered.ca:80?transport=udp',
+            'turn:global.relay.metered.ca:443?transport=tcp',
+            'turns:global.relay.metered.ca:443?transport=tcp',
         ],
         username: 'openrelayproject',
         credential: 'openrelayproject',
-    },
-    {
-        urls: 'turn:turn.anyfirewall.com:443?transport=tcp',
-        username: 'webrtc',
-        credential: 'webrtc',
     },
 ];
 
@@ -51,17 +53,69 @@ const needsTurnRelay = () => {
         || (!/^localhost$|^127\.0\.0\.1$|^192\.168\./.test(host) && host.includes('.'));
 };
 
-const buildPeerOptions = (forceRelay = false) => ({
+const isMobileClient = () => {
+    if (typeof navigator === 'undefined') return false;
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+};
+
+/** มือถือ/แท็บเล็ต + ngrok ต้องใช้ TURN เกือบเสมอ (URL เดียวกัน ≠ วิดีโอวิ่งผ่าน ngrok) */
+const relayEscalationMs = () => {
+    if (!needsTurnRelay()) return 0;
+    if (isMobileClient()) return 2500;
+    return 4000;
+};
+
+const buildPeerOptions = (iceServers) => ({
     debug: 2,
     config: {
-        iceServers: ICE_SERVERS,
+        iceServers,
         iceCandidatePoolSize: 10,
-        // เริ่มด้วย all — บังคับ relay อย่างเดียวมักทำให้จอดำบน ngrok (TURN ฟรีไม่เสถียร)
-        ...(forceRelay ? { iceTransportPolicy: 'relay' } : {}),
     },
 });
 
 export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharma, apiBase }) {
+    const runtimeConfig = useRuntimeConfig();
+    let iceServersCache = null;
+    const hasCustomTurn = ref(false);
+
+    const loadIceServers = async () => {
+        if (iceServersCache) return iceServersCache;
+
+        try {
+            const res = await $fetch('/api/webrtc/turn');
+            if (Array.isArray(res?.iceServers) && res.iceServers.length) {
+                iceServersCache = res.iceServers;
+                hasCustomTurn.value = true;
+                console.log('[WebRTC] ICE servers:', res.source);
+                return iceServersCache;
+            }
+        } catch (e) {
+            console.warn('[WebRTC] /api/webrtc/turn:', e?.message || e);
+        }
+
+        const pub = runtimeConfig.public;
+        const urls = String(pub.turnUrls || '').split(',').map((s) => s.trim()).filter(Boolean);
+        if (urls.length && pub.turnUsername && pub.turnCredential) {
+            iceServersCache = [
+                ...STUN_SERVERS,
+                {
+                    urls: urls.length === 1 ? urls[0] : urls,
+                    username: pub.turnUsername,
+                    credential: pub.turnCredential,
+                },
+            ];
+            hasCustomTurn.value = true;
+            console.log('[WebRTC] ICE from NUXT_PUBLIC_TURN_*');
+            return iceServersCache;
+        }
+
+        iceServersCache = [...STUN_SERVERS, ...FALLBACK_TURN_SERVERS];
+        hasCustomTurn.value = false;
+        console.warn('[WebRTC] using fallback public TURN — มือถือ↔iPad คนละเน็ตมักไม่ติด');
+        return iceServersCache;
+    };
+
+    const getPeerOptions = async () => buildPeerOptions(await loadIceServers());
     // ===== Reactive state =====
     const isCalling       = ref(false);
     const isReceivingCall = ref(false);
@@ -71,6 +125,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
 
     const isMicOn = ref(true);
     const isCamOn = ref(true);
+    const isSpeakerOn = ref(true);
 
     // ข้อมูลคู่สนทนา (อีกฝ่าย)
     const peerInfo = ref({ id: null, name: '', image: '', role: '' });
@@ -86,6 +141,41 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
     const remoteStreamRef = ref(null);
     const hasRemoteVideo  = ref(false);
     const hasRemoteAudio  = ref(false);
+    const callConnectStatus = ref('idle'); // idle | connecting | relay | failed | ok
+    const iceConnectionState = ref('');
+
+    const hasRemoteVideoTrack = computed(() => {
+        const stream = remoteStreamRef.value;
+        return !!stream?.getVideoTracks?.().some((t) => t.readyState === 'live' || t.readyState === 'new');
+    });
+
+    const showRemoteVideoBg = computed(() => hasRemoteVideo.value || hasRemoteVideoTrack.value);
+
+    const callConnectHint = computed(() => {
+        if (hasRemoteVideo.value) return '';
+        if (callConnectStatus.value === 'relay') {
+            return 'กำลังเชื่อมภาพ/เสียงอีกครั้ง — แตะปุ่มลำโพงหรือแตะจอกลาง';
+        }
+        if (callConnectStatus.value === 'failed' || iceConnectionState.value === 'failed') {
+            return 'เครือข่ายเชื่อม media ไม่ได้ (ICE failed) — มือถือ↔iPad คนละเน็ตต้องมี TURN server ที่ใช้งานได้จริง';
+        }
+        if (iceConnectionState.value === 'disconnected') {
+            return 'การเชื่อม media หลุดชั่วคราว — แตะจอกลางหรือกดลำโพงเพื่อลองใหม่';
+        }
+        if (hasRemoteAudio.value) {
+            return 'ได้ยินเสียงแล้ว — กำลังโหลดภาพ...';
+        }
+        if (needsTurnRelay() && !hasCustomTurn.value) {
+            return 'ยังไม่ได้ตั้ง TURN — ใส่ NUXT_METERED_API_KEY ใน .env หรือทดสอบทั้งสองเครื่อง Wi‑Fi เดียวกัน';
+        }
+        if (needsTurnRelay()) {
+            if (isMobileClient()) {
+                return 'วิดีโอไม่ผ่าน ngrok — ระบบกำลังเชื่อมตรงมือถือ↔แท็บเล็ตผ่าน TURN (~3 วิ) • ทั้งสองฝ่ายกด Allow กล้อง+ไมค์';
+            }
+            return 'วิดีโอเชื่อมตรงระหว่างเครื่อง (ไม่ผ่าน ngrok) — รอ TURN relay • กด Allow กล้อง+ไมค์ทั้งสองฝ่าย';
+        }
+        return 'กำลังเชื่อมต่อภาพและเสียงจากอีกฝ่าย...';
+    });
 
     let remoteDisplayStream = null;
     let remoteAudioStream   = null;
@@ -117,7 +207,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             const videoTrack = stream?.getVideoTracks?.()[0];
             const audioTrack = stream?.getAudioTracks?.()[0];
             hasRemoteVideo.value = !!videoTrack
-                && (videoTrack.readyState === 'live' || (!!el && el.videoWidth > 0));
+                && (videoTrack.readyState === 'live' || videoTrack.readyState === 'new' || (!!el && el.videoWidth > 0));
             hasRemoteAudio.value = !!audioTrack && audioTrack.readyState === 'live';
             if ((hasRemoteVideo.value || hasRemoteAudio.value) || attempts >= 30) stopRemotePlayLoop();
         }, 500);
@@ -208,7 +298,8 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         const vt = stream.getVideoTracks?.()[0];
         const at = stream.getAudioTracks?.()[0];
         const el = remoteVideoLive.value || remoteVideo.value;
-        if (vt?.readyState === 'live' || (el && el.videoWidth > 0)) hasRemoteVideo.value = true;
+        if (vt && vt.readyState !== 'ended') hasRemoteVideo.value = true;
+        else if (el && el.videoWidth > 0) hasRemoteVideo.value = true;
         if (at?.readyState === 'live') hasRemoteAudio.value = true;
     };
 
@@ -218,8 +309,43 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         bindStreamToElement(el, stream, { muted: true });
     });
 
+    /** มือถือ Safari บล็อก autoplay — ต้อง unlock หลัง user กดปุ่ม/แตะจอ */
+    const unlockRemoteAudio = () => {
+        const vol = isSpeakerOn.value ? 1 : 0;
+        const muted = !isSpeakerOn.value;
+        [remoteAudioSink.value, remoteVideo.value].forEach((el) => {
+            if (!el) return;
+            el.muted = muted;
+            el.volume = vol;
+            tryPlayElement(el, { muted });
+        });
+    };
+
+    const toggleSpeaker = () => {
+        isSpeakerOn.value = !isSpeakerOn.value;
+        unlockRemoteAudio();
+        playRemote();
+    };
+
+    let audioUnlockTimer = null;
+    const stopAudioUnlockLoop = () => {
+        if (audioUnlockTimer) {
+            clearInterval(audioUnlockTimer);
+            audioUnlockTimer = null;
+        }
+    };
+    const startAudioUnlockLoop = () => {
+        stopAudioUnlockLoop();
+        audioUnlockTimer = setInterval(() => {
+            if (!isInCall.value) {
+                stopAudioUnlockLoop();
+                return;
+            }
+            if (!hasRemoteAudio.value || isSpeakerOn.value) unlockRemoteAudio();
+        }, 2500);
+    };
+
     /**
-     * ฝั่งตรงข้าม:
      * - โทรเสียง: ใช้ remoteVideo (1px, unmuted) เล่นทั้งเสียง+วิดีโอ
      * - วิดีโอคอล: remoteVideo (fullscreen, muted) แสดงภาพ + remoteAudioSink (1px, unmuted) เล่นเสียง
      *   มือถือ Safari/Chrome บล็อก autoplay ถ้า video ไม่ mute — จึงแยก element
@@ -233,13 +359,12 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             const videoEl = remoteVideoLive.value || remoteVideo.value;
             bindStreamToElement(videoEl, display || stream, { muted: true });
             const audioStream = audio || stream;
-            bindStreamToElement(remoteAudioSink.value, audioStream, { muted: false });
-            // fallback เสียงผ่าน video 1px (Safari / autoplay)
-            bindStreamToElement(remoteVideo.value, audioStream, { muted: false });
+            bindStreamToElement(remoteAudioSink.value, audioStream, { muted: !isSpeakerOn.value });
+            bindStreamToElement(remoteVideo.value, audioStream, { muted: !isSpeakerOn.value });
             updateRemoteMediaFlags(stream);
         } else {
-            bindStreamToElement(remoteVideo.value, stream, { muted: false });
-            bindStreamToElement(remoteAudioSink.value, stream, { muted: false });
+            bindStreamToElement(remoteVideo.value, stream, { muted: !isSpeakerOn.value });
+            bindStreamToElement(remoteAudioSink.value, stream, { muted: !isSpeakerOn.value });
             hasRemoteAudio.value = !!stream.getAudioTracks?.().length;
         }
     };
@@ -273,8 +398,87 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
     let callInterval    = null;
     let peerReadyPromise = null;
     let inCallConnectTimer = null;
-    let useRelayIce = false;
     let relayEscalated = false;
+    let relayAutoTimer = null;
+    let relayStuckTimer = null;
+    let acceptInProgress = false;
+    let peerSessionToken = newPeerSessionToken();
+    let unavailableIdRetries = 0;
+
+    const buildMyPeerId = () => {
+        const currentMyId = unref(myId);
+        if (!currentMyId) return null;
+        return `${PEER_PREFIX}-${unref(myRole)}-${currentMyId}-${peerSessionToken}`;
+    };
+
+    const regeneratePeerSession = () => {
+        peerSessionToken = newPeerSessionToken();
+    };
+
+    const waitForMyId = async (timeoutMs = 8000) => {
+        if (unref(myId)) return unref(myId);
+        const started = Date.now();
+        while (Date.now() - started < timeoutMs) {
+            await new Promise((r) => setTimeout(r, 250));
+            if (unref(myId)) return unref(myId);
+        }
+        return null;
+    };
+
+    const stopRelayAutoEscalation = () => {
+        if (relayAutoTimer) {
+            clearTimeout(relayAutoTimer);
+            relayAutoTimer = null;
+        }
+        if (relayStuckTimer) {
+            clearTimeout(relayStuckTimer);
+            relayStuckTimer = null;
+        }
+    };
+
+    /** ลองเชื่อม media ใหม่โดยไม่ทำลาย Peer (กัน stuck ที่ TURN relay) */
+    const forceMediaReconnect = async () => {
+        if (!isInCall.value || !localStream) return;
+        if (peer?.id) {
+            try { await syncPeerIdToBackend(peer.id); } catch (e) { /* ignore */ }
+        }
+        if (pendingIncoming && localStream) {
+            answerPendingIncoming();
+            return;
+        }
+        try {
+            const data = await apiCallCheck();
+            if (data?.call_status === 'accepted') {
+                await tryConnectRemote(data, { force: true });
+            }
+        } catch (e) { /* ignore */ }
+    };
+
+    const escalateToRelayIce = async () => {
+        if (!isInCall.value || !needsRemoteMedia()) return;
+        callConnectStatus.value = 'relay';
+        console.warn('[WebRTC] retry media connection');
+        await forceMediaReconnect();
+        if (relayEscalated) return;
+        relayEscalated = true;
+        relayStuckTimer = setTimeout(async () => {
+            if (!isInCall.value || !needsRemoteMedia()) return;
+            callConnectStatus.value = 'connecting';
+            relayEscalated = false;
+            await forceMediaReconnect();
+        }, 8000);
+    };
+
+    /** บน ngrok/มือถือ — ลองเชื่อม media ใหม่หลัง 2.5–4 วิ */
+    const startRelayAutoEscalation = () => {
+        stopRelayAutoEscalation();
+        const delayMs = relayEscalationMs();
+        if (!delayMs) return;
+        relayAutoTimer = setTimeout(async () => {
+            if (!isInCall.value || !needsRemoteMedia()) return;
+            await escalateToRelayIce();
+        }, delayMs);
+    };
 
     const buildPeerImage = (image, role) => {
         if (!image) return '';
@@ -292,49 +496,45 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         return mod.default || mod.Peer || mod;
     };
 
-    const escalateToRelayIce = async () => {
-        if (relayEscalated || useRelayIce) return;
-        relayEscalated = true;
-        useRelayIce = true;
-        console.warn('[WebRTC] escalating to TURN relay ICE');
-        try { peer?.destroy?.(); } catch (e) {}
-        peer = null;
-        peerReadyPromise = null;
-        activeCall = null;
-        pendingIncoming = null;
-        await initPeer();
-        if (peer?.id) await syncPeerIdToBackend(peer.id);
-        try {
-            const data = await apiCallCheck();
-            if (data?.call_status === 'accepted') tryConnectRemote(data);
-        } catch (e) { /* ignore */ }
-    };
-
     /**
-     * Init PeerJS เมื่อจำเป็น — ใช้ peer id ที่ unique ตาม role+id
+     * Init PeerJS — แต่ละแท็บ/เครื่องได้ peer id ไม่ซ้ำ (กัน unavailable-id บน iPad/มือถือ)
      */
     const initPeer = async () => {
         if (peer && !peer.destroyed) return peer;
         if (peerReadyPromise) return peerReadyPromise;
 
         const currentMyId = unref(myId);
-        if (!currentMyId) {
-            // ยังไม่รู้ id ของตัวเอง — ไม่ init peer
-            return null;
-        }
+        if (!currentMyId) return null;
 
         peerReadyPromise = new Promise(async (resolve, reject) => {
-            try {
+            let settled = false;
+            const safeResolve = (value) => {
+                if (settled) return;
+                settled = true;
+                resolve(value);
+            };
+            const safeReject = (err) => {
+                if (settled) return;
+                settled = true;
+                peerReadyPromise = null;
+                reject(err);
+            };
+
+            const openPeer = async () => {
                 const Peer = await loadPeer();
-                if (!Peer) return reject(new Error('PeerJS not available'));
+                if (!Peer) throw new Error('PeerJS not available');
 
-                const myPeerId = buildPeerId(myRole, currentMyId);
+                const myPeerId = buildMyPeerId();
+                if (!myPeerId) throw new Error('Peer id not ready');
 
-                // ใช้ PeerJS public cloud (ฟรี + พร้อมใช้ทันที) เป็น signaling
-                peer = new Peer(myPeerId, buildPeerOptions(useRelayIce));
+                console.log('[PeerJS] connecting as', myPeerId);
+                const peerOpts = await getPeerOptions();
+                const instance = new Peer(myPeerId, peerOpts);
+                peer = instance;
 
-                peer.on('open', async (id) => {
+                instance.on('open', async (id) => {
                     console.log('[PeerJS] connected as', id);
+                    unavailableIdRetries = 0;
                     try {
                         const data = await apiCallCheck();
                         const active = data?.call_status
@@ -345,49 +545,52 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
                     } catch (e) {
                         await syncPeerIdToBackend(id);
                     }
-                    resolve(peer);
+                    safeResolve(peer);
                 });
 
-                // signaling หลุด — พยายามต่อใหม่อัตโนมัติ (ไม่งั้นสายถัดไปจะโทรไม่ติด)
-                peer.on('disconnected', () => {
+                instance.on('disconnected', () => {
                     console.warn('[PeerJS] disconnected — reconnecting');
-                    try { peer.reconnect(); } catch (e) {}
+                    try { instance.reconnect(); } catch (e) {}
                 });
 
-                peer.on('error', (err) => {
+                instance.on('call', handleIncomingPeerCall);
+
+                instance.on('error', async (err) => {
                     console.error('[PeerJS] error:', err?.type, err?.message);
-                    if (err?.type === 'unavailable-id') {
-                        // แท็บอื่นจับ id ไว้ — รอแล้วลอง id เดิมก่อน (กันโทรผิด peer)
-                        console.warn('[PeerJS] id busy — retry same id in 1.5s');
-                        try { peer.destroy(); } catch (e) {}
-                        peer = null;
-                        setTimeout(async () => {
-                            try {
-                                peer = new Peer(myPeerId, buildPeerOptions(useRelayIce));
-                                peer.on('open', async (id) => {
-                                    await syncPeerIdToBackend(id);
-                                    resolve(peer);
-                                });
-                                peer.on('call', handleIncomingPeerCall);
-                                peer.on('error', (e2) => {
-                                    if (e2?.type === 'unavailable-id') {
-                                        reject(new Error('Peer id unavailable — ปิดแท็บอื่นที่เปิดหน้านี้แล้วลองใหม่'));
-                                    }
-                                });
-                            } catch (e2) {
-                                reject(e2);
-                            }
-                        }, 1500);
+                    if (err?.type !== 'unavailable-id') return;
+
+                    unavailableIdRetries += 1;
+                    if (unavailableIdRetries > 4) {
+                        safeReject(new Error('ไม่สามารถเชื่อมวิดีโอคอลได้ — รีเฟรชหน้าแล้วลองใหม่'));
+                        return;
+                    }
+
+                    console.warn('[PeerJS] id busy — new session token, retry', unavailableIdRetries);
+                    try { instance.destroy(); } catch (e) {}
+                    if (peer === instance) peer = null;
+                    regeneratePeerSession();
+                    await new Promise((r) => setTimeout(r, 350));
+                    try {
+                        await openPeer();
+                    } catch (e2) {
+                        safeReject(e2);
                     }
                 });
+            };
 
-                peer.on('call', handleIncomingPeerCall);
+            try {
+                await openPeer();
             } catch (err) {
-                reject(err);
+                safeReject(err);
             }
         });
 
-        return peerReadyPromise;
+        try {
+            return await peerReadyPromise;
+        } catch (err) {
+            peerReadyPromise = null;
+            throw err;
+        }
     };
 
     /**
@@ -401,7 +604,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
                 throw new Error('getUserMedia unavailable (insecure context)');
             }
             if (localStream) stopMedia();
-            localStream = await navigator.mediaDevices.getUserMedia({
+            const richConstraints = {
                 audio: {
                     echoCancellation: true,
                     noiseSuppression: true
@@ -413,7 +616,21 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
                         height: { ideal: 480, max: 720 }
                     }
                     : false
-            });
+            };
+            const simpleConstraints = {
+                audio: true,
+                video: withVideo ? { facingMode: 'user' } : false
+            };
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia(richConstraints);
+            } catch (err) {
+                if (withVideo && (err?.name === 'OverconstrainedError' || err?.name === 'NotReadableError')) {
+                    console.warn('[Media] retry with simpler constraints:', err?.name);
+                    localStream = await navigator.mediaDevices.getUserMedia(simpleConstraints);
+                } else {
+                    throw err;
+                }
+            }
             localStreamRef.value = localStream;
             await nextTick();
             if (localVideo.value) localVideo.value.srcObject = localStream;
@@ -480,9 +697,51 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
     const resolveRemotePeerId = (data) => {
         if (!data) return null;
         if (data.is_caller) {
-            return data.receiver_peer_id || buildPeerId(data.peer_role, data.peer_id);
+            return String(data.receiver_peer_id || '').trim() || null;
         }
-        return data.caller_peer_id || buildPeerId(data.peer_role, data.peer_id);
+        return String(data.caller_peer_id || '').trim() || null;
+    };
+
+    /** ฝั่งโทร — รอ receiver_peer_id ลง DB หลังกดรับ (สำคัญมือถือ↔iPad) */
+    const resolveRemotePeerIdWithWait = async (data, maxWaitMs = 10000) => {
+        if (!data) return null;
+        if (!data.is_caller) return resolveRemotePeerId(data);
+
+        const started = Date.now();
+        while (Date.now() - started < maxWaitMs) {
+            if (!isInCall.value) return null;
+            const remoteId = data.receiver_peer_id || resolveRemotePeerId(data);
+            if (data.receiver_peer_id) return data.receiver_peer_id;
+            try {
+                const latest = await apiCallCheck();
+                if (latest?.call_status !== 'accepted') return null;
+                if (latest.receiver_peer_id) return latest.receiver_peer_id;
+                data = latest;
+            } catch (e) { /* ignore */ }
+            await new Promise((r) => setTimeout(r, 400));
+        }
+        return resolveRemotePeerId(data);
+    };
+
+    let connectRetryTimers = [];
+    const clearConnectRetryTimers = () => {
+        connectRetryTimers.forEach((t) => clearTimeout(t));
+        connectRetryTimers = [];
+    };
+
+    const scheduleConnectRetries = (data) => {
+        clearConnectRetryTimers();
+        [400, 1200, 2500, 4500, 7000].forEach((delay) => {
+            connectRetryTimers.push(setTimeout(async () => {
+                if (!isInCall.value || !needsRemoteMedia()) return;
+                try {
+                    const latest = await apiCallCheck();
+                    if (latest?.call_status === 'accepted') await tryConnectRemote(latest, { force: true });
+                } catch (e) {
+                    await tryConnectRemote(data, { force: true });
+                }
+            }, delay));
+        });
     };
 
     const needsRemoteMedia = () => {
@@ -514,6 +773,11 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             console.log('[PeerJS] dialing', remotePeerId, 'attempt', dialAttempts);
             activeCall = peer.call(remotePeerId, localStream, { metadata: { type: callType.value } });
             attachRemoteStream(activeCall);
+            activeCall.on('error', (err) => {
+                console.warn('[PeerJS] outbound call error:', err?.type || err?.message || err);
+                if (!isInCall.value || !needsRemoteMedia()) return;
+                setTimeout(() => dialPeer(remotePeerId, { force: true }), 1200);
+            });
 
             if (dialRetryTimer) clearTimeout(dialRetryTimer);
             dialRetryTimer = setTimeout(() => {
@@ -540,7 +804,12 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             remoteStreamRef.value = remoteStream;
             dialAttempts = 0;
             if (dialRetryTimer) { clearTimeout(dialRetryTimer); dialRetryTimer = null; }
+            clearConnectRetryTimers();
             updateRemoteMediaFlags(remoteStream);
+            if (hasRemoteVideo.value || hasRemoteAudio.value) {
+                callConnectStatus.value = 'ok';
+                stopRelayAutoEscalation();
+            }
             nextTick().then(() => {
                 playRemote();
                 startRemotePlayLoop();
@@ -562,6 +831,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
                 const state = pc.connectionState;
                 console.log('[WebRTC] connectionState:', state);
                 if (state === 'failed' && lastRemotePeerId) {
+                    callConnectStatus.value = 'failed';
                     escalateToRelayIce().then(() => {
                         if (pendingIncoming && localStream) answerPendingIncoming();
                         else dialPeer(lastRemotePeerId, { force: true });
@@ -570,8 +840,10 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             };
             pc.oniceconnectionstatechange = () => {
                 const ice = pc.iceConnectionState;
+                iceConnectionState.value = ice;
                 console.log('[WebRTC] iceConnectionState:', ice);
                 if ((ice === 'failed' || ice === 'disconnected') && lastRemotePeerId && needsRemoteMedia()) {
+                    if (ice === 'failed') callConnectStatus.value = 'failed';
                     setTimeout(async () => {
                         if (!needsRemoteMedia()) return;
                         if (!relayEscalated) await escalateToRelayIce();
@@ -596,27 +868,33 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         call.on('error', (err) => console.warn('[PeerJS] call error:', err));
     };
 
-    const tryConnectRemote = (data) => {
+    const tryConnectRemote = async (data, { force = false } = {}) => {
         if (pendingIncoming && localStream) {
             answerPendingIncoming();
             startRemotePlayLoop();
             return;
         }
-        if (!needsRemoteMedia()) return;
+        if (!needsRemoteMedia() && !force) return;
+        if (!localStream) return;
+
+        const remotePeerId = data?.is_caller
+            ? await resolveRemotePeerIdWithWait(data)
+            : resolveRemotePeerId(data);
+
+        if (!remotePeerId) {
+            console.warn('[WebRTC] remote peer id not ready');
+            return;
+        }
 
         if (data?.is_caller) {
-            const remotePeerId = resolveRemotePeerId(data);
-            if (remotePeerId) dialPeer(remotePeerId);
+            dialPeer(remotePeerId, { force: force || true });
+        } else if (pendingIncoming) {
+            answerPendingIncoming();
         } else {
-            // ฝั่งรับ: รอสายเข้าก่อน 3 วิ แล้วค่อยโทรกลับครั้งเดียว
-            setTimeout(() => {
-                if (!isInCall.value || remoteStreamRef.value || pendingIncoming) return;
-                if (!needsRemoteMedia()) return;
-                const remotePeerId = resolveRemotePeerId(data);
-                if (remotePeerId) dialPeer(remotePeerId, { force: true });
-            }, 3000);
+            dialPeer(remotePeerId, { force: true });
         }
         startRemotePlayLoop();
+        scheduleConnectRetries(data);
     };
 
     const startInCallConnectLoop = () => {
@@ -644,14 +922,20 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
 
     watch(isInCall, async (active) => {
         if (active) {
+            callConnectStatus.value = 'connecting';
+            isSpeakerOn.value = true;
             await initPeer();
             startInCallConnectLoop();
+            startRelayAutoEscalation();
+            startAudioUnlockLoop();
             try {
                 const data = await apiCallCheck();
                 if (data?.call_status === 'accepted') tryConnectRemote(data);
             } catch (e) { /* ignore */ }
         } else {
             stopInCallConnectLoop();
+            stopRelayAutoEscalation();
+            callConnectStatus.value = 'idle';
         }
     });
 
@@ -731,8 +1015,13 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             };
             callType.value = normalizeCallType(data.call_type);
 
+            // อยู่ในสายแล้ว — ห้ามเปิด overlay สายเข้าซ้ำ (กัน polling ทับตอนกดรับสาย)
+            if (isInCall.value || acceptInProgress) {
+                isReceivingCall.value = false;
+            }
+
             // เรา = ผู้รับ + ยังไม่ได้รับสาย
-            if (data.call_status === 'calling' && !data.is_caller && !isReceivingCall.value && !isInCall.value) {
+            if (data.call_status === 'calling' && !data.is_caller && !isReceivingCall.value && !isInCall.value && !acceptInProgress) {
                 isReceivingCall.value = true;
                 await initPeer();
             }
@@ -806,6 +1095,8 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             }
             await syncPeerIdToBackend(peer.id);
             isCalling.value = true;
+            unlockRemoteAudio();
+            startAudioUnlockLoop();
         } catch (err) {
             console.error('[Call] makeCall error:', err);
             alert(err?.message || 'ไม่สามารถเริ่มสายได้ — กรุณาลองใหม่');
@@ -814,19 +1105,50 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
     };
 
     const acceptCall = async () => {
+        if (acceptInProgress || isInCall.value) return;
+        acceptInProgress = true;
         try {
-            await initPeer();
+            // เปิดหน้าจอสนทนาทันที — อย่ารอ getUserMedia/Peer (มือถืออาจช้า 3–5 วิ)
             isReceivingCall.value = false;
-            // ดึง call_type ล่าสุดจาก backend ก่อนเปิดกล้อง (กันฝั่งรับเปิดแค่ไมค์ตอนสายวิดีโอ)
+            isInCall.value = true;
+            callConnectStatus.value = 'connecting';
+            startCallTimer();
+
             try {
                 const latest = await apiCallCheck();
                 if (latest?.call_type) callType.value = normalizeCallType(latest.call_type);
-            } catch (e) {}
-            await startMedia(normalizeCallType(callType.value) === 'video');
-            await apiCallAccept(peer.id);
+            } catch (e) { /* ignore */ }
+
+            const myIdReady = await waitForMyId();
+            if (!myIdReady) {
+                throw new Error('ยังไม่ได้ Login — รีเฟรชหน้าแล้วลองรับสายใหม่');
+            }
+
+            await initPeer();
+            if (!peer?.id) {
+                throw new Error('ระบบวิดีโอคอลยังไม่พร้อม — รอ 2 วิแล้วกดรับสายอีกครั้ง');
+            }
             await syncPeerIdToBackend(peer.id);
-            isInCall.value = true;
-            startCallTimer();
+
+            const wantVideo = normalizeCallType(callType.value) === 'video';
+            let mediaOk = false;
+            for (let attempt = 0; attempt < 2 && !mediaOk; attempt += 1) {
+                try {
+                    await startMedia(wantVideo);
+                    mediaOk = true;
+                } catch (mediaErr) {
+                    if (!wantVideo || attempt >= 1) throw mediaErr;
+                    console.warn('[Call] video retry attempt', attempt + 1, mediaErr?.name);
+                    await new Promise((r) => setTimeout(r, 400));
+                }
+            }
+
+            const res = await apiCallAccept(peer.id);
+            if (res?.status !== 'success') {
+                throw new Error(res?.message || 'รับสายไม่สำเร็จ');
+            }
+            await syncPeerIdToBackend(peer.id);
+
             if (pendingIncoming) {
                 answerPendingIncoming();
             } else {
@@ -835,7 +1157,6 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
                     tryConnectRemote(latest);
                 } catch (e) { /* ignore */ }
             }
-            // ฝั่งรับ: ถ้า caller ยังไม่โทรมา ให้โทรกลับหลังสั้นๆ (สำคัญบน ngrok)
             setTimeout(async () => {
                 if (!isInCall.value || remoteStreamRef.value) return;
                 if (pendingIncoming) {
@@ -849,10 +1170,16 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             }, 800);
             await nextTick();
             playRemote();
+            unlockRemoteAudio();
             startRemotePlayLoop();
+            startAudioUnlockLoop();
         } catch (err) {
             console.error('[Call] acceptCall error:', err);
+            alert(err?.message || 'รับสายไม่สำเร็จ — ตรวจสอบสิทธิ์กล้อง/ไมค์ในเบราว์เซอร์');
             stopCallUI();
+        } finally {
+            acceptInProgress = false;
+            if (isInCall.value) isReceivingCall.value = false;
         }
     };
 
@@ -867,11 +1194,17 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         isInCall.value = false;
         isMicOn.value = true;
         isCamOn.value = true;
+        isSpeakerOn.value = true;
         callTimerText.value = '00:00';
         peerInfo.value = { id: null, name: '', image: '', role: '' };
 
         stopRemotePlayLoop();
         stopInCallConnectLoop();
+        stopRelayAutoEscalation();
+        clearConnectRetryTimers();
+        stopAudioUnlockLoop();
+        callConnectStatus.value = 'idle';
+        iceConnectionState.value = '';
         if (callInterval) clearInterval(callInterval);
         callInterval = null;
         if (dialRetryTimer) { clearTimeout(dialRetryTimer); dialRetryTimer = null; }
@@ -879,7 +1212,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         lastDialAt = 0;
         dialAttempts = 0;
         relayEscalated = false;
-        useRelayIce = false;
+        iceServersCache = null;
 
         try { activeCall?.close?.(); } catch (e) {}
         try { pendingIncoming?.close?.(); } catch (e) {}
@@ -915,18 +1248,17 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         try { peer?.destroy(); } catch (e) {}
         peer = null;
         peerReadyPromise = null;
+        regeneratePeerSession();
     };
 
     const retryRemoteVideo = async () => {
+        isSpeakerOn.value = true;
+        unlockRemoteAudio();
         playRemote();
         if (!needsRemoteMedia()) return;
-        try {
-            const data = await apiCallCheck();
-            const remotePeerId = resolveRemotePeerId(data);
-            if (remotePeerId) dialPeer(remotePeerId, { force: true });
-        } catch (e) {
-            if (lastRemotePeerId) dialPeer(lastRemotePeerId, { force: true });
-        }
+        callConnectStatus.value = 'connecting';
+        await forceMediaReconnect();
+        startRelayAutoEscalation();
     };
 
     onBeforeUnmount(destroy);
@@ -940,9 +1272,12 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         callTimerText,
         isMicOn,
         isCamOn,
+        isSpeakerOn,
         peerInfo,
         hasRemoteVideo,
         hasRemoteAudio,
+        showRemoteVideoBg,
+        callConnectHint,
         // refs
         localVideo,
         remoteVideo,
@@ -954,6 +1289,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         endCall,
         toggleMic,
         toggleCamera,
+        toggleSpeaker,
         startPolling,
         stopPolling,
         initPeer,

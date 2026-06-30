@@ -28,21 +28,15 @@ const {
     isMicOn,
     isCamOn,
     peerInfo,
-    hasRemoteVideo,
-    hasRemoteAudio,
     localVideo,
     remoteVideo,
-    remoteVideoLive,
-    remoteAudioSink,
     makeCall: makeCallRTC,
     acceptCall,
     endCall,
     toggleMic,
     toggleCamera,
-    retryRemoteVideo,
     startPolling: startCallPolling,
-    stopPolling: stopCallPolling,
-    initPeer,
+    stopPolling: stopCallPolling
 } = useWebRTCCall({
     myRole: 'user',
     myId: myUserId,
@@ -55,8 +49,7 @@ const {
 // wrapper สำหรับ user "โทรหาเภสัชกร"
 const makeCall = (type = 'voice') => {
     if (!activePatientId.value) return;
-    const safeType = typeof type === 'string' ? type : 'voice';
-    return makeCallRTC(activePatientId.value, safeType);
+    return makeCallRTC(activePatientId.value, type);
 };
 
 const callerDisplayName = computed(() => peerInfo.value.name || 'เภสัชกร');
@@ -938,16 +931,23 @@ const deleteMessage = async (msg) => {
 
 const handleFileUpload = async (event) => {
     const file = event.target.files[0];
-    if (!file) return;
+    if (!file || !activePatientId.value) return;
     const body = new FormData();
     body.append('receiver_id', activePatientId.value);
     body.append('chat_file', file);
     try {
-        await $fetch(apiUrl('chat-send.php'), { method: 'POST', body, credentials: 'include' });
+        const res = await $fetch(apiUrl('chat-send.php'), { method: 'POST', body, credentials: 'include' });
+        if (res?.status === 'error') {
+            alert(res.message || 'ส่งไฟล์ไม่สำเร็จ');
+            return;
+        }
         event.target.value = '';
         await fetchMessages();
         await scrollToBottom(true);
-    } catch (err) { console.error("Upload Error", err); }
+    } catch (err) {
+        console.error('Upload Error', err);
+        alert(err?.data?.message || err?.message || 'ส่งไฟล์ไม่สำเร็จ');
+    }
 };
 
 /* 🪶 smart scroll — เลื่อนลงล่าง "เฉพาะ" ตอนเปิดแชทครั้งแรก + ตอนเราส่งเอง
@@ -1050,7 +1050,6 @@ onMounted(async () => {
 
     // เริ่ม polling การโทร — composable ใช้ความถี่ของตัวเอง (2.5s)
     startCallPolling(2500);
-    try { await initPeer(); } catch (e) { /* ignore */ }
 });
 
 onBeforeUnmount(() => {
@@ -1167,46 +1166,6 @@ const closePreview = () => {
                 </div>
             </div>
         </transition>
-
-        <Teleport to="body">
-            <transition name="video-pop">
-                <div v-if="isInCall && callType === 'video'" class="video-call-full-overlay" @click="retryRemoteVideo">
-                    <video ref="remoteVideoLive" autoplay playsinline muted class="remote-video-bg"></video>
-                    <video ref="remoteVideo" autoplay playsinline style="position:absolute;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:1;"></video>
-                    <audio ref="remoteAudioSink" autoplay playsinline></audio>
-                    <div v-if="!hasRemoteVideo" class="remote-video-waiting">
-                        <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=334155&color=fff&size=200'"
-                             class="remote-video-waiting-avatar" alt="waiting" />
-                        <p class="remote-video-waiting-text">
-                            {{ hasRemoteAudio ? 'ได้ยินเสียงแล้ว — กำลังโหลดภาพ...' : 'กำลังเชื่อมต่อภาพจากอีกฝ่าย...' }}<br>
-                            <small>แตะหน้าจอเพื่อลองใหม่</small>
-                        </p>
-                    </div>
-                    <div class="video-caller-banner">
-                        <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=00a86b&color=fff&size=80'"
-                             class="banner-avatar" alt="caller" />
-                        <div>
-                            <div class="banner-name">{{ callerDisplayName }}</div>
-                            <div class="banner-timer">🎥 {{ callTimerText }}</div>
-                        </div>
-                    </div>
-                    <div class="local-video-pip">
-                        <video ref="localVideo" autoplay playsinline muted class="local-video-stream"></video>
-                    </div>
-                    <div class="video-call-controls">
-                        <button @click.stop="toggleCamera" :class="{ 'btn-device-off': !isCamOn }" class="video-control-btn">
-                            <i :class="isCamOn ? 'fa-solid fa-video' : 'fa-solid fa-video-slash'"></i>
-                        </button>
-                        <button @click.stop="endCall" class="btn-hangup-main">
-                            <i class="fa-solid fa-phone-slash"></i>
-                        </button>
-                        <button @click.stop="toggleMic" :class="{ 'btn-device-off': !isMicOn }" class="video-control-btn">
-                            <i :class="isMicOn ? 'fa-solid fa-microphone' : 'fa-solid fa-microphone-slash'"></i>
-                        </button>
-                    </div>
-                </div>
-            </transition>
-        </Teleport>
 
         <!-- Mobile topbar — hamburger + ชื่อเภสัช -->
         <div class="mobile-topbar">
@@ -1370,7 +1329,7 @@ const closePreview = () => {
                                     </span>
                                     {{ consultTimeLeftText }}
                                 </div>
-                            <button v-if="!isInCall" class="line-call-btn" @click="makeCall('voice')" title="โทรเสียง">
+                            <button v-if="!isInCall" class="line-call-btn" @click="makeCall" title="โทรเสียง">
                                 <i class="fa-solid fa-phone"></i>
                                 <span class="btn-label">โทร</span>
                             </button>
@@ -1388,6 +1347,34 @@ const closePreview = () => {
                             </button>
                         </div>
                     </div>
+
+                    <transition name="video-pop">
+                        <div v-if="isInCall && callType === 'video'" class="video-call-full-overlay">
+                            <video ref="remoteVideo" autoplay playsinline class="remote-video-bg"></video>
+                            <div class="video-caller-banner">
+                                <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=00a86b&color=fff&size=80'"
+                                     class="banner-avatar" alt="caller" />
+                                <div>
+                                    <div class="banner-name">{{ callerDisplayName }}</div>
+                                    <div class="banner-timer">🎥 {{ callTimerText }}</div>
+                                </div>
+                            </div>
+                            <div class="local-video-pip">
+                                <video ref="localVideo" autoplay playsinline muted class="local-video-stream"></video>
+                            </div>
+                            <div class="video-call-controls">
+                                <button @click="toggleCamera" :class="{ 'btn-device-off': !isCamOn }" class="video-control-btn">
+                                    <i :class="isCamOn ? 'fa-solid fa-video' : 'fa-solid fa-video-slash'"></i>
+                                </button>
+                                <button @click="endCall" class="btn-hangup-main">
+                                    <i class="fa-solid fa-phone-slash"></i>
+                                </button>
+                                <button @click="toggleMic" :class="{ 'btn-device-off': !isMicOn }" class="video-control-btn">
+                                    <i :class="isMicOn ? 'fa-solid fa-microphone' : 'fa-solid fa-microphone-slash'"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </transition>
 
                     <div class="chat-messages" ref="chatScroll" @scroll.passive="onChatScroll">
                         <div v-if="!chatMessages.length" class="chat-welcome">

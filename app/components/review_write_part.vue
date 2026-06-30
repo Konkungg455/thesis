@@ -40,6 +40,8 @@ import { useRouter, useRoute } from "vue-router"
 
 const router = useRouter()
 const route = useRoute()
+const { user } = useAuthUser()
+const { $apiUrl } = useNuxtApp()
 const rating = ref(5)
 const comment = ref("")
 const loading = ref(false)
@@ -50,19 +52,27 @@ const submitReview = async () => {
     return;
   }
 
+  const userId = Number(user.value?.id_account || user.value?.id || 0)
+  if (!userId) {
+    alert("กรุณาเข้าสู่ระบบก่อนส่งรีวิว");
+    return;
+  }
+
   loading.value = true;
   const body = new FormData();
-  body.append('rating', rating.value);
+  body.append('rating', String(rating.value));
   body.append('comment', comment.value);
+  body.append('id_account', String(userId));
+  body.append('role', 'user');
   // ผูกรีวิวกับรอบปรึกษา → ให้แจ้งเตือน "กรุณาประเมินเภสัช" หายหลังรีวิวรอบนั้น
   const consultId = Number(route.query.consult_id) || 0;
   if (consultId > 0) body.append('consult_id', String(consultId));
 
   try {
-    const res = await $fetch(`${useNuxtApp().$getApiBase()}/review-send.php`, {
+    const res = await $fetch($apiUrl('review-send.php'), {
       method: 'POST',
       body,
-      credentials: 'include' // สำคัญ: เพื่อให้ส่ง Session id_account ไปด้วย
+      credentials: 'include',
     });
 
     if (res.status === 'success') {

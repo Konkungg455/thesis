@@ -179,6 +179,10 @@ export async function dispatchBff(event: H3Event, pathname: string) {
         return handleGetReviews();
     }
 
+    if (pathLower === 'review-send.php' && method === 'POST') {
+        return handleSendReview(event);
+    }
+
     if (pathLower === 'vue-get-user-profile.php') {
         return handleGetUserProfileBff(event);
     }
@@ -760,6 +764,49 @@ async function handleGetReviews() {
         setBffCache('reviews:all', payload, 60_000);
     }
     return payload;
+}
+
+async function handleSendReview(event: H3Event) {
+    const { fields } = await readMultipartRequest(event);
+    const auth = getAuthContext(event, fields);
+    const userId = Number(auth.id_account || fields.user_id || 0);
+    const rating = Math.max(1, Math.min(5, Number(fields.rating || 0)));
+    const comment = String(fields.comment || '').trim();
+    const consultId = Number(fields.consult_id || 0);
+
+    if (!userId) {
+        return { status: 'error', message: 'กรุณาเข้าสู่ระบบก่อนส่งรีวิว' };
+    }
+    if (!rating || !comment) {
+        return { status: 'error', message: 'กรุณาให้คะแนนและกรอกความคิดเห็น' };
+    }
+
+    const result = await dbQuery(async (sql) => {
+        const inserted = consultId > 0
+            ? await sql`
+                INSERT INTO reviews (user_id, rating, comment, id_consult_request, created_at)
+                VALUES (${userId}, ${rating}, ${comment}, ${consultId}, NOW())
+                RETURNING id
+            `
+            : await sql`
+                INSERT INTO reviews (user_id, rating, comment, created_at)
+                VALUES (${userId}, ${rating}, ${comment}, NOW())
+                RETURNING id
+            `;
+
+        return inserted[0] || null;
+    });
+
+    if (result === null) {
+        return { status: 'error', message: dbUnavailableMessage() };
+    }
+
+    clearBffCache('reviews:all');
+    return {
+        status: 'success',
+        id: Number(result.id || 0),
+        backend: 'supabase',
+    };
 }
 
 async function handleConsult(event: H3Event, action: string) {
