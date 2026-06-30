@@ -53,37 +53,39 @@ function parseAuthType(raw: unknown): AuthType | null {
 
 const PRODUCTION_ORIGIN = 'https://thesis-telebot-pharmacy.vercel.app';
 
-function resolveSiteOrigin(event?: H3Event): string {
-    const fromEnv = (
-        process.env.NUXT_PUBLIC_SITE_ORIGIN
-        || process.env.NUXT_PUBLIC_APP_ORIGIN
-        || process.env.SITE_ORIGIN
-        || ''
-    ).trim().replace(/\/$/, '');
+function isLocalOrigin(origin: string): boolean {
+    return /localhost|127\.0\.0\.1/i.test(origin);
+}
 
-    if (fromEnv && !/localhost|127\.0\.0\.1/i.test(fromEnv)) {
-        return fromEnv;
+/** URL ในอีเมล reset password — ห้ามใช้ localhost แม้รัน dev ในเครื่อง */
+function resolveSiteOrigin(event?: H3Event): string {
+    const config = useRuntimeConfig();
+    const candidates = [
+        process.env.NUXT_PUBLIC_SITE_ORIGIN,
+        process.env.NUXT_PUBLIC_APP_ORIGIN,
+        process.env.SITE_ORIGIN,
+        config.public.siteOrigin,
+        config.siteOrigin,
+    ]
+        .map((v) => String(v || '').trim().replace(/\/$/, ''))
+        .filter(Boolean);
+
+    for (const origin of candidates) {
+        if (!isLocalOrigin(origin)) {
+            return origin;
+        }
     }
 
     if (event) {
         const headers = getRequestHeaders(event);
         const host = (headers['x-forwarded-host'] || headers.host || '').split(',')[0].trim();
         const proto = (headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
-        if (host && !/localhost|127\.0\.0\.1/i.test(host)) {
+        if (host && !isLocalOrigin(host)) {
             return `${proto}://${host}`;
         }
     }
 
-    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-        return PRODUCTION_ORIGIN;
-    }
-
-    const vercelUrl = String(process.env.VERCEL_URL || '').trim();
-    if (vercelUrl) {
-        return `https://${vercelUrl.replace(/^https?:\/\//, '')}`;
-    }
-
-    return fromEnv || 'http://localhost:3001';
+    return PRODUCTION_ORIGIN;
 }
 
 function resetLink(type: AuthType, token: string, event?: H3Event): string {
