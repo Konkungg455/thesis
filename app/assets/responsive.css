@@ -260,8 +260,10 @@ img, video {
     .local-video-pip {
         width: 110px !important;
         height: 160px !important;
+        top: 48px !important;
         right: 12px !important;
-        bottom: 12px !important;
+        left: auto !important;
+        bottom: auto !important;
     }
     .video-call-controls {
         gap: 14px !important;

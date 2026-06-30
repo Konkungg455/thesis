@@ -1,4 +1,4 @@
-# Deploy บน Vercel (https://thesis-telebot-pharmacy.vercel.app)
+# Deploy บน Vercel
 
 ## 404 DEPLOYMENT_NOT_FOUND
 
@@ -6,14 +6,13 @@
 
 **แก้ (ครั้งเดียว):**
 1. เปิด https://vercel.com/dashboard
-2. **Add New → Project** → เลือก GitHub repo **Konkungg455/thesis**
+2. **Add New → Project** → เลือก GitHub repo
 3. Framework: **Nuxt.js** (auto)
-4. **Environment Variables → Import .env** (ใช้ `import.env` จาก Downloads)
+4. **Environment Variables → Import .env**
 5. กด **Deploy**
-6. **Settings → Domains** → ตรวจว่ามี `thesis-sandy.vercel.app`
-7. ตรวจ: `https://thesis-telebot-pharmacy.vercel.app/api/ai-chat/health` → `"configured": true`
+6. ตรวจ: `https://YOUR-PROJECT.vercel.app/api/ai-chat/health` → `"mode": "n8n"`
 
-> `NUXT_PUBLIC_SITE_ORIGIN` ใน import.env ต้องตรงกับ domain นี้ — ใช้ในลิงก์ reset password
+> ไม่ต้อง pin domain — ลิงก์ reset password ใช้ domain จาก request อัตโนมัติ
 
 ---
 
@@ -22,7 +21,8 @@
 | ปัญหา | สาเหตุ |
 |-------|--------|
 | Login / ข้อมูลว่าง | **DATABASE_URL ยังไม่ได้ใส่ใน Vercel** |
-| AI ไม่ตอบ | ยังไม่ได้ใส่ `NUXT_AI_API_KEY` บน Vercel |
+| AI ไม่ตอบ | ยังไม่ได้ใส่ `NUXT_N8N_INTERNAL_URL` (ngrok ของ n8n) |
+| ช้า / ข้อมูลกระพริบ | DB cold start — ใช้ pooler port **6543** |
 
 ---
 
@@ -37,11 +37,10 @@
 ใช้ **Connection Pooler** จาก Supabase Dashboard → Database → **Connection pooling** → Transaction mode:
 
 ```
-DATABASE_URL=postgresql://postgres.czzkubnrzhcxlcnughxf:Konkungg%400819387416@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres
+DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-1-REGION.pooler.supabase.com:6543/postgres
 ```
 
 - User = `postgres.PROJECT_REF` (ไม่ใช่แค่ `postgres`)
-- Host = `aws-1-ap-southeast-1.pooler.supabase.com` (ดู region ใน Dashboard)
 - Port = **6543** (Transaction pooler)
 
 ### Supabase
@@ -51,22 +50,15 @@ SUPABASE_URL=https://xxxxx.supabase.co
 SUPABASE_KEY=sb_publishable_xxx
 NUXT_PUBLIC_SUPABASE_URL=https://xxxxx.supabase.co
 NUXT_PUBLIC_SUPABASE_KEY=sb_publishable_xxx
-SUPABASE_ENABLED=true
 NUXT_PUBLIC_USE_SUPABASE_BACKEND=true
-SUPABASE_SERVICE_ROLE_KEY=eyJ...   # Project Settings → API → service_role (server only)
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ```
 
-**Storage buckets (มีอยู่แล้วใน Supabase — ต้อง Public):**
-- `images-pharma` — รูปเภสัช
-- `images-account` — รูปผู้ใช้/แอดมิน
-- `uploads` — chat, licenses, store_profiles, slips, qr_payment
-
-> อัปโหลดรูป (avatar, chat) บน Vercel ต้องมี `SUPABASE_SERVICE_ROLE_KEY` — ไม่ใช้ `MEDIA_ROOT`
+**Storage buckets (Public):** `images-pharma`, `images-account`, `uploads`
 
 ### SMTP (OTP / ลืมรหัสผ่าน)
 
 ```
-NUXT_PUBLIC_SITE_ORIGIN=https://thesis-telebot-pharmacy.vercel.app
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
 SMTP_SECURE=true
@@ -76,50 +68,42 @@ SMTP_FROM=your@gmail.com
 SMTP_FROM_NAME=Telebot Pharmacy
 ```
 
-### AI บน Vercel (Cloud — **ไม่ต้อง ngrok**)
+### AI บน Vercel (แบบ 26 มิ.ย. — n8n + Ollama)
 
-1. สมัครฟรี: https://console.groq.com → สร้าง API Key
-2. ใส่ใน Vercel:
+1. เปิด n8n + Ollama บน PC (`npm run dev`)
+2. เปิด ngrok ชี้ n8n: `ngrok http 5678` → ได้ URL เช่น `https://xxxx.ngrok-free.dev`
+3. ใส่ใน Vercel:
 
 ```
-NUXT_AI_API_KEY=gsk_xxxxxxxx
-NUXT_AI_PROVIDER=groq
-NUXT_AI_MODEL=llama-3.3-70b-versatile
+NUXT_AI_MODE=n8n
+NUXT_N8N_INTERNAL_URL=https://xxxx.ngrok-free.dev
+NUXT_PUBLIC_N8N_CHAT_WEBHOOK_ID=1f5ea30f-2ff0-4d32-b211-eccb342ee0df
 ```
 
-> บน Vercel ใช้ Cloud LLM โดยตรง — **ไม่ต้องเปิด n8n / ngrok / PC ค้างไว้**
-> Local (`npm run dev`) ยังใช้ n8n + Ollama ในเครื่องเหมือนเดิม
+> Client เรียก `/api/ai-chat` → server proxy ไป n8n — **PC ต้องเปิด n8n อยู่ตอนใช้ AI**
 
-**ทางเลือก:** `NUXT_AI_PROVIDER=gemini` + Google AI API key
-
-**Local only (ไม่บังคับบน Vercel):** n8n ที่ `http://127.0.0.1:5678`
+**ทางเลือก (ไม่ต้อง n8n):** ตั้ง `NUXT_AI_MODE=cloud` + `NUXT_AI_API_KEY` (Groq ฟรี)
 
 ### รูปภาพไม่ขึ้น
 
 1. ตั้ง `SUPABASE_SERVICE_ROLE_KEY` บน Vercel
-2. Buckets ใน Supabase: `images-pharma`, `images-account`, `uploads` (Public)
-3. **รันครั้งเดียวบนเครื่อง:** `npm run media:seed` (อัปโหลดรูป default ไป Supabase Storage)
-
-### โดนดีด logout "เซิร์ฟเวอร์รีสตาร์ท"
-
-แก้แล้ว — ปิด heartbeat บน production (Vercel serverless เปลี่ยน bootId ทุก instance)
+2. Buckets Public ใน Supabase
+3. รันครั้งเดียว: `npm run media:seed`
 
 ---
 
 ## ตรวจหลัง deploy
 
 ```
-https://thesis-telebot-pharmacy.vercel.app/api/supabase/health
-→ {"status":"success",...}
-
-https://thesis-telebot-pharmacy.vercel.app/api/deploy/health
-→ ดู database_url, site_origin และ AI ว่าพร้อมไหม
+/api/supabase/health
+/api/deploy/health
+/api/ai-chat/health
 ```
 
 ---
 
 ## สรุป
 
-- **Local (`npm run dev`)** — DB + AI ทำงานครบ (Ollama + n8n ในเครื่อง)
+- **Local (`npm run dev`)** — DB + AI ครบ (Ollama + n8n ในเครื่อง)
 - **Vercel** — DB ต้องมี `DATABASE_URL` + Supabase env
-- **Vercel AI** — ต้อง `NUXT_AI_API_KEY` (Groq ฟรี) — **ไม่ต้อง ngrok**
+- **Vercel AI** — `NUXT_N8N_INTERNAL_URL` (ngrok n8n) หรือ `NUXT_AI_MODE=cloud`

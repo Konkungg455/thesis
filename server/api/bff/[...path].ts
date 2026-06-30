@@ -1,6 +1,7 @@
+const PUBLIC_CACHE_PATHS = ['get_pharmacists.php', 'review-get.php'];
+
 function applyPublicBffCache(event: H3Event, pathLower: string, result: unknown) {
-    const cacheablePublic = ['get_pharmacists.php', 'review-get.php'];
-    if (!cacheablePublic.includes(pathLower) || event.method !== 'GET') {
+    if (!PUBLIC_CACHE_PATHS.includes(pathLower) || event.method !== 'GET') {
         return;
     }
 
@@ -28,6 +29,9 @@ export default defineEventHandler(async (event) => {
 
     if (!isMediaPath(pathname)) {
         setResponseHeader(event, 'Content-Type', 'application/json; charset=utf-8');
+        if (event.method === 'GET' && !PUBLIC_CACHE_PATHS.includes(pathLower)) {
+            setResponseHeader(event, 'Cache-Control', 'private, no-store, max-age=0');
+        }
     }
 
     if (event.method === 'OPTIONS') {

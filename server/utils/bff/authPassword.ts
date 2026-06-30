@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { H3Event } from 'h3';
 import { getRoleFromAuthType } from '../../utils/emailTemplates';
+import { resolveRequestOrigin } from '../../utils/requestOrigin';
 
 type AuthType = 'user' | 'admin' | 'pharmacist' | 'store';
 
@@ -51,41 +52,8 @@ function parseAuthType(raw: unknown): AuthType | null {
     return t in AUTH_TABLES ? t as AuthType : null;
 }
 
-const PRODUCTION_ORIGIN = 'https://thesis-telebot-pharmacy.vercel.app';
-
-function isLocalOrigin(origin: string): boolean {
-    return /localhost|127\.0\.0\.1/i.test(origin);
-}
-
-/** URL ในอีเมล reset password — ห้ามใช้ localhost แม้รัน dev ในเครื่อง */
 function resolveSiteOrigin(event?: H3Event): string {
-    const config = useRuntimeConfig();
-    const candidates = [
-        process.env.NUXT_PUBLIC_SITE_ORIGIN,
-        process.env.NUXT_PUBLIC_APP_ORIGIN,
-        process.env.SITE_ORIGIN,
-        config.public.siteOrigin,
-        config.siteOrigin,
-    ]
-        .map((v) => String(v || '').trim().replace(/\/$/, ''))
-        .filter(Boolean);
-
-    for (const origin of candidates) {
-        if (!isLocalOrigin(origin)) {
-            return origin;
-        }
-    }
-
-    if (event) {
-        const headers = getRequestHeaders(event);
-        const host = (headers['x-forwarded-host'] || headers.host || '').split(',')[0].trim();
-        const proto = (headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
-        if (host && !isLocalOrigin(host)) {
-            return `${proto}://${host}`;
-        }
-    }
-
-    return PRODUCTION_ORIGIN;
+    return resolveRequestOrigin(event) || 'http://localhost:3000';
 }
 
 function resetLink(type: AuthType, token: string, event?: H3Event): string {

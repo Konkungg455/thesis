@@ -1,39 +1,60 @@
 <template>
+    <!-- ขั้นตอนการใช้งาน-->
     <section class="tele-section">
-        <div class="tele-section__glow tele-section__glow--left" aria-hidden="true"></div>
-        <div class="tele-section__glow tele-section__glow--right" aria-hidden="true"></div>
-
+        <!-- ฝั่งซ้าย -->
         <div class="tele-left">
-            <header class="tele-header">
-                <span class="tele-badge">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    เริ่มใช้งานใน 5 ขั้นตอน
+            <h1 class="tele-heading">
+                <span class="tele-heading__text">ขั้นตอนการใช้ง่ายๆ</span>
+                <span class="tele-heading__icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path fill="currentColor" d="M12 2.5C7.03 2.5 3 6.2 3 10.75c0 1.95.82 3.74 2.18 5.1L3.5 21.5l5.55-2.95c.95.28 1.96.42 2.95.42 4.97 0 9-3.7 9-8.25S16.97 2.5 12 2.5Z"/>
+                        <path fill="#0288d1" d="M12 7.5v3.25M12 13.75h.01" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>
+                    </svg>
                 </span>
-                <h1 class="tele-title">
-                    <span class="tele-title__text">ขั้นตอนการใช้ง่ายๆ</span>
-                    <span class="tele-title__bubble" aria-hidden="true">
-                        <i class="fa-solid fa-comment-medical"></i>
-                    </span>
-                </h1>
-                <p class="tele-subtitle">
-                    ของ <span class="tele-brand">Telebotpharcy</span>
-                </p>
-                <p class="tele-lead">
-                    ปรึกษาเภสัชกรออนไลน์ได้ทันที — สมัคร กรอกอาการ แล้วเริ่มแชทได้เลย
-                </p>
-            </header>
+            </h1>
+            <p class="subtitle">
+                ของ <span class="tele-brand">Telebotpharcy</span>
+            </p>
 
             <div class="steps">
-                <div v-for="(item, index) in steps" :key="item.label" class="step">
+                <div class="step">
                     <div class="step-media">
-                        <span class="step-num">{{ index + 1 }}</span>
-                        <img :src="item.img" :alt="item.label">
+                        <span class="step-num">1</span>
+                        <img src="https://ik.imagekit.io/pcqen5m7p/coding-a-website.png" alt="">
                     </div>
-                    <p>{{ item.label }}</p>
+                    <p>สมัครบัญชี</p>
+                </div>
+                <div class="step">
+                    <div class="step-media">
+                        <span class="step-num">2</span>
+                        <img src="https://ik.imagekit.io/pcqen5m7p/designer-desk.png" alt="">
+                    </div>
+                    <p>กดปุ่มปรึกษาอาการ</p>
+                </div>
+                <div class="step">
+                    <div class="step-media">
+                        <span class="step-num">3</span>
+                        <img src="https://ik.imagekit.io/pcqen5m7p/designer-working.png" alt="">
+                    </div>
+                    <p>กรอกข้อมูล</p>
+                </div>
+                <div class="step">
+                    <div class="step-media">
+                        <span class="step-num">4</span>
+                        <img src="https://ik.imagekit.io/pcqen5m7p/machine-learning.png" alt="">
+                    </div>
+                    <p>กดเริ่ม chat</p>
+                </div>
+                <div class="step">
+                    <div class="step-media">
+                        <span class="step-num">5</span>
+                        <img src="https://ik.imagekit.io/pcqen5m7p/online-romance.png" alt="">
+                    </div>
+                    <p>ใช้งานได้เลย</p>
                 </div>
             </div>
         </div>
-
+        <!-- ฝั่งขวา -->
         <div class="tele-right">
             <span class="phone-bg-blob" aria-hidden="true"></span>
             <span class="phone-bg-ring" aria-hidden="true"></span>
@@ -41,16 +62,6 @@
         </div>
     </section>
 </template>
-
-<script setup>
-const steps = [
-    { label: 'สมัครบัญชี', img: 'https://ik.imagekit.io/pcqen5m7p/coding-a-website.png' },
-    { label: 'กดปุ่มปรึกษาอาการ', img: 'https://ik.imagekit.io/pcqen5m7p/designer-desk.png' },
-    { label: 'กรอกข้อมูล', img: 'https://ik.imagekit.io/pcqen5m7p/designer-working.png' },
-    { label: 'กดเริ่ม chat', img: 'https://ik.imagekit.io/pcqen5m7p/machine-learning.png' },
-    { label: 'ใช้งานได้เลย', img: 'https://ik.imagekit.io/pcqen5m7p/online-romance.png' },
-];
-</script>
 
 <style scoped>
 @import "@/assets/tele_tutorial.css";

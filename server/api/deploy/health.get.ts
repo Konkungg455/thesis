@@ -1,19 +1,16 @@
 /** ตรวจ env + ทดสอบเชื่อมต่อ Supabase จริง (มี timeout กัน hang) */
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig();
     const dbOk = Boolean(String(process.env.DATABASE_URL || '').trim());
     const supabaseOk = isSupabaseConfigured();
     const onVercel = Boolean(process.env.VERCEL);
     const serviceKey = Boolean(String(process.env.SUPABASE_SERVICE_ROLE_KEY || config.supabaseServiceKey || '').trim());
     const cloud = cloudAiStatus(config);
-    const siteOrigin = String(
-        process.env.NUXT_PUBLIC_SITE_ORIGIN
-        || config.public.siteOrigin
-        || config.siteOrigin
-        || '',
-    ).trim();
+    const useCloud = shouldUseCloudAi(config);
+    const n8nUrl = String(process.env.NUXT_N8N_INTERNAL_URL || config.n8nInternalUrl || '').trim();
+    const siteOrigin = resolveRequestOrigin(event) || '(from request headers at runtime)';
 
-    const dbPing = dbOk ? await pingDb(8000) : { ok: false as const, error: 'DATABASE_URL missing' };
+    const dbPing = dbOk ? await pingDb(12000) : { ok: false as const, error: 'DATABASE_URL missing' };
 
     let supabasePing: { ok: boolean; error?: string } = { ok: false, error: 'not configured' };
     if (supabaseOk) {
@@ -22,7 +19,7 @@ export default defineEventHandler(async () => {
             const result = await Promise.race([
                 supabase.from('chat_history').select('id').limit(1),
                 new Promise<never>((_, reject) => {
-                    setTimeout(() => reject(new Error('Supabase ping timeout after 8000ms')), 8000);
+                    setTimeout(() => reject(new Error('Supabase ping timeout after 10000ms')), 10000);
                 }),
             ]);
             supabasePing = result.error
@@ -33,12 +30,13 @@ export default defineEventHandler(async () => {
         }
     }
 
-    const allOk = dbPing.ok && supabasePing.ok && (!onVercel || cloud.hasKey);
+    const aiOk = useCloud ? cloud.hasKey : (onVercel ? Boolean(n8nUrl) : true);
+    const allOk = dbPing.ok && supabasePing.ok && aiOk;
 
     return {
         status: allOk ? 'ok' : 'needs_config',
         vercel: onVercel,
-        site_origin: siteOrigin || 'missing NUXT_PUBLIC_SITE_ORIGIN',
+        site_origin: siteOrigin,
         database_url: dbOk ? 'configured' : 'missing',
         db_ping: dbPing.ok ? 'ok' : 'fail',
         db_error: dbPing.error || null,
@@ -48,17 +46,17 @@ export default defineEventHandler(async () => {
         supabase_error: supabasePing.error || null,
         supabase_service_role: serviceKey ? 'configured' : 'missing (uploads need this)',
         storage_buckets: ['images-pharma', 'images-account', 'uploads'],
-        ai: onVercel
+        ai: useCloud
             ? (cloud.hasKey ? `cloud/${cloud.provider} (${cloud.model})` : 'missing NUXT_AI_API_KEY')
-            : 'local n8n (npm run dev)',
+            : (n8nUrl ? `n8n (${n8nUrl})` : 'n8n (local / npm run dev)'),
         hints: [
-            !siteOrigin && 'Add NUXT_PUBLIC_SITE_ORIGIN=https://thesis-telebot-pharmacy.vercel.app',
             !dbOk && 'Add DATABASE_URL (Supabase pooler port 6543)',
             dbOk && !dbPing.ok && `DB connection failed: ${dbPing.error}`,
             !supabaseOk && 'Add SUPABASE_URL + SUPABASE_KEY (+ NUXT_PUBLIC_* variants)',
             supabaseOk && !supabasePing.ok && `Supabase API failed: ${supabasePing.error}`,
             onVercel && !serviceKey && 'Add SUPABASE_SERVICE_ROLE_KEY for file uploads',
-            onVercel && !cloud.hasKey && 'Add NUXT_AI_API_KEY (Groq free: console.groq.com)',
+            onVercel && !useCloud && !n8nUrl && 'Add NUXT_N8N_INTERNAL_URL (ngrok URL of n8n port 5678)',
+            useCloud && !cloud.hasKey && 'Add NUXT_AI_API_KEY or switch NUXT_AI_MODE=n8n',
         ].filter(Boolean),
     };
 });

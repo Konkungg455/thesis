@@ -58,18 +58,17 @@ export default defineNuxtPlugin(() => {
     };
 
     const getN8nBase = () => {
-        // 🆕 ngrok / Cloudflare Tunnel — ผ่าน proxy /n8n (vite proxy → 127.0.0.1:5678)
-        //    เพราะ tunnel forward แค่ port เดียว (Nuxt 3001) — port 5678 เข้าไม่ถึง
+        // ngrok / Cloudflare / Vercel — proxy /n8n → NUXT_N8N_INTERNAL_URL (แบบ 26 มิ.ย.)
         if (import.meta.client) {
             const { protocol, hostname, host } = window.location;
-            if (isTunnelHost(hostname)) {
+            if (isTunnelHost(hostname) || hostname.endsWith('.vercel.app')) {
                 return `${protocol}//${host}/n8n`;
             }
         } else {
             const headers = useRequestHeaders(['x-forwarded-host', 'host', 'x-forwarded-proto']);
             const host = (headers['x-forwarded-host'] || headers.host || '').split(',')[0].trim();
             const proto = (headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
-            if (host && isTunnelHost(host)) {
+            if (host && (isTunnelHost(host) || host.endsWith('.vercel.app'))) {
                 return `${proto}://${host}/n8n`;
             }
         }

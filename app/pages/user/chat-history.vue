@@ -505,7 +505,10 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
             }
         });
 
-        const rawOutput = response.output || 'ขออภัยค่ะ AI ตอบไม่ได้ในตอนนี้ ลองพิมพ์อาการของคุณใหม่อีกครั้งนะคะ';
+        const rawOutput = response.output || '';
+        if (!rawOutput || /workflow.*activ|npm run dev|n8n/i.test(rawOutput)) {
+            throw new Error('invalid ai output');
+        }
         const aiOutput = sanitizeAiText(stripOffTopicLeak(rawOutput, textToSend, classifyOpts));
         const meta = buildAssistantMeta(aiOutput);
 

@@ -82,35 +82,36 @@ export default defineNuxtConfig({
     port: Number(process.env.NUXT_PORT || 3000)
   },
 
-  // Nitro — API route /api/ai-chat + proxy สำรอง
+  // Nitro — API route /api/ai-chat + proxy /n8n บน production
   nitro: {
     routeRules: {
       '/api/**': { cors: true },
-      // ไม่ใช้ ISR หน้าแรก — DB บน Vercel cold start แล้ว cache HTML ว่าง (รีวิว/เภสัชหาย)
       '/api/home/summary': { headers: { 'cache-control': 'public, s-maxage=30, stale-while-revalidate=60' } },
+      '/api/ai-chat': { headers: { 'cache-control': 'no-store' } },
+      '/api/ai-chat/**': { headers: { 'cache-control': 'no-store' } },
+      '/n8n/**': { headers: { 'cache-control': 'no-store' } },
       '/api/deploy/health': { headers: { 'cache-control': 'no-store' } },
       '/api/supabase/health': { headers: { 'cache-control': 'no-store' } },
     },
   },
 
   runtimeConfig: {
-    /** URL หลักของเว็บ — ใช้ในลิงก์ reset password ในอีเมล */
-    siteOrigin: process.env.NUXT_PUBLIC_SITE_ORIGIN
-      || 'https://thesis-telebot-pharmacy.vercel.app',
+    /** URL หลัก — ว่างได้ ระบบใช้ domain จาก request อัตโนมัติ */
+    siteOrigin: process.env.NUXT_PUBLIC_SITE_ORIGIN || '',
     /** service role — ใช้ฝั่ง server เท่านั้น (optional) */
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-    /** n8n URL สำหรับ local dev — บน Vercel ใช้ cloud AI แทน (ไม่ต้อง ngrok) */
+    /** n8n URL — local: http://127.0.0.1:5678 | Vercel: ngrok URL ของ n8n */
     n8nInternalUrl: process.env.NUXT_N8N_INTERNAL_URL || process.env.NUXT_PUBLIC_N8N_BASE || '',
-    /** Cloud LLM สำหรับ Vercel — Groq ฟรี: console.groq.com */
+    /** Cloud LLM — ใช้เมื่อ NUXT_AI_MODE=cloud เท่านั้น */
     aiApiKey: process.env.NUXT_AI_API_KEY || '',
     aiProvider: process.env.NUXT_AI_PROVIDER || 'groq',
     aiModel: process.env.NUXT_AI_MODEL || '',
     aiBaseUrl: process.env.NUXT_AI_BASE_URL || '',
-    aiMode: process.env.NUXT_AI_MODE || '',
+    aiMode: process.env.NUXT_AI_MODE || 'n8n',
     public: {
       /** legacy PHP เท่านั้น — ค่าเริ่มต้นใช้ /api/bff */
       apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
-      /** n8n base — ถ้าไม่ตั้ง จะใช้ http://{hostname ปัจจุบัน}:5678 อัตโนมัติ */
+      /** n8n base — tunnel/Vercel ใช้ /n8n proxy อัตโนมัติ */
       n8nBase: process.env.NUXT_PUBLIC_N8N_BASE || '',
       /** webhook ID ของ chatbot ใน n8n */
       n8nChatWebhookId: process.env.NUXT_PUBLIC_N8N_CHAT_WEBHOOK_ID || '1f5ea30f-2ff0-4d32-b211-eccb342ee0df',
@@ -119,8 +120,8 @@ export default defineNuxtConfig({
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || process.env.SUPABASE_KEY || '',
       /** ค่าเริ่มต้น true = /api/bff + Supabase (ตั้ง false เพื่อ legacy PHP) */
       useSupabaseBackend: process.env.NUXT_PUBLIC_USE_SUPABASE_BACKEND !== 'false',
-      /** URL หลัก production — ลิงก์ในอีเมล / share */
-      siteOrigin: process.env.NUXT_PUBLIC_SITE_ORIGIN || 'https://thesis-telebot-pharmacy.vercel.app',
+      /** ว่างได้ — ลิงก์ reset password ใช้ domain จาก request */
+      siteOrigin: process.env.NUXT_PUBLIC_SITE_ORIGIN || '',
     }
   }
 })

@@ -49,9 +49,9 @@ export function useDb() {
             prepare: false,
             fetch_types: false,
             max: isServerless ? 1 : 4,
-            connect_timeout: isServerless ? 10 : 5,
-            idle_timeout: 20,
-            max_lifetime: 60 * 10,
+            connect_timeout: isServerless ? 15 : 5,
+            idle_timeout: isServerless ? 10 : 20,
+            max_lifetime: 60 * 5,
         });
     }
 
@@ -63,7 +63,7 @@ export async function dbQuery<T>(fn: (sql: ReturnType<typeof postgres>) => Promi
         return null;
     }
 
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
         try {
             return await fn(useDb());
         } catch (err: unknown) {
@@ -71,7 +71,7 @@ export async function dbQuery<T>(fn: (sql: ReturnType<typeof postgres>) => Promi
             if (code === '42P01' || code === '42703') {
                 return null;
             }
-            if (attempt === 0 && isTransientDbError(err)) {
+            if (attempt < 2 && isTransientDbError(err)) {
                 await resetDbConnection();
                 continue;
             }
@@ -92,7 +92,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
 }
 
 /** ทดสอบ connection จริง — ใช้ใน /api/deploy/health */
-export async function pingDb(timeoutMs = 8000): Promise<{ ok: boolean; error?: string; pharmacists_verified?: number }> {
+export async function pingDb(timeoutMs = 12000): Promise<{ ok: boolean; error?: string; pharmacists_verified?: number }> {
     if (!isDbConfigured()) {
         return { ok: false, error: 'DATABASE_URL missing' };
     }

@@ -29,8 +29,10 @@ const {
     isCamOn,
     peerInfo,
     hasRemoteVideo,
+    hasRemoteAudio,
     localVideo,
     remoteVideo,
+    remoteVideoLive,
     remoteAudioSink,
     makeCall: makeCallRTC,
     acceptCall,
@@ -39,7 +41,8 @@ const {
     toggleCamera,
     retryRemoteVideo,
     startPolling: startCallPolling,
-    stopPolling: stopCallPolling
+    stopPolling: stopCallPolling,
+    initPeer,
 } = useWebRTCCall({
     myRole: 'user',
     myId: myUserId,
@@ -1047,6 +1050,7 @@ onMounted(async () => {
 
     // เริ่ม polling การโทร — composable ใช้ความถี่ของตัวเอง (2.5s)
     startCallPolling(2500);
+    try { await initPeer(); } catch (e) { /* ignore */ }
 });
 
 onBeforeUnmount(() => {
@@ -1167,12 +1171,15 @@ const closePreview = () => {
         <Teleport to="body">
             <transition name="video-pop">
                 <div v-if="isInCall && callType === 'video'" class="video-call-full-overlay" @click="retryRemoteVideo">
-                    <video ref="remoteVideo" autoplay playsinline muted class="remote-video-bg"></video>
-                    <video ref="remoteAudioSink" autoplay playsinline class="remote-audio-sink"></video>
+                    <video ref="remoteVideoLive" autoplay playsinline muted class="remote-video-bg"></video>
+                    <video ref="remoteAudioSink" autoplay playsinline :muted="false" class="remote-audio-sink"></video>
                     <div v-if="!hasRemoteVideo" class="remote-video-waiting">
                         <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=334155&color=fff&size=200'"
                              class="remote-video-waiting-avatar" alt="waiting" />
-                        <p class="remote-video-waiting-text">กำลังเชื่อมต่อภาพจากอีกฝ่าย...</p>
+                        <p class="remote-video-waiting-text">
+                            {{ hasRemoteAudio ? 'ได้ยินเสียงแล้ว — กำลังโหลดภาพ...' : 'กำลังเชื่อมต่อภาพจากอีกฝ่าย...' }}<br>
+                            <small>แตะหน้าจอเพื่อลองใหม่</small>
+                        </p>
                     </div>
                     <div class="video-caller-banner">
                         <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=00a86b&color=fff&size=80'"

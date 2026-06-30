@@ -143,6 +143,31 @@ export async function handleCallHandler(event: H3Event, action: string) {
             return { status: 'success' };
         }
 
+        if (action === 'register_peer') {
+            const fields = await readRequestFields(event);
+            const peerId = String(fields.peer_id || '').trim();
+            if (!peerId) {
+                return { status: 'error', message: 'missing peer_id' };
+            }
+
+            await sql`
+                UPDATE video_calls
+                SET caller_peer_id = CASE
+                        WHEN caller_id = ${myId} AND caller_role = ${myRole} THEN ${peerId}
+                        ELSE caller_peer_id END,
+                    receiver_peer_id = CASE
+                        WHEN receiver_id = ${myId} AND receiver_role = ${myRole} THEN ${peerId}
+                        ELSE receiver_peer_id END
+                WHERE call_status IN ('calling', 'accepted')
+                  AND (
+                    (caller_id = ${myId} AND caller_role = ${myRole})
+                    OR (receiver_id = ${myId} AND receiver_role = ${myRole})
+                  )
+            `;
+
+            return { status: 'success' };
+        }
+
         if (action === 'end') {
             await sql`
                 DELETE FROM video_calls

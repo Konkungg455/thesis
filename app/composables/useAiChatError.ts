@@ -1,4 +1,4 @@
-/** ข้อความ error AI — อ่านจาก server ก่อน ไม่บอก ngrok บน Vercel */
+/** ข้อความ error AI — ภาษาเข้าใจง่าย ไม่โชว์ข้อความ tech ในแชท */
 export function getAiChatErrorMessage(err: unknown): string {
     const e = err as {
         statusCode?: number;
@@ -7,35 +7,28 @@ export function getAiChatErrorMessage(err: unknown): string {
         data?: { detail?: string; statusMessage?: string; mode?: string };
     };
 
-    const fromServer =
+    const fromServer = String(
         e?.statusMessage
         || e?.data?.statusMessage
-        || (typeof e?.data === 'object' && e?.data && 'message' in e.data ? String((e.data as { message?: string }).message) : '');
+        || '',
+    ).replace(/^ไม่สามารถเชื่อมต่อ AI ได้ — /, '').trim();
 
     if (fromServer && !fromServer.startsWith('[')) {
-        return fromServer.replace(/^ไม่สามารถเชื่อมต่อ AI ได้ — /, '');
+        if (/workflow|activate|npm run|n8n|5678|NUXT_/i.test(fromServer)) {
+            return 'ระบบ AI ยังไม่พร้อมค่ะ — รัน npm run dev แล้วเปิด n8n ที่ http://127.0.0.1:5678 กด Activate workflow (สีเขียว) หรือใส่ NUXT_AI_API_KEY ใน .env';
+        }
+        return fromServer;
     }
 
-    const onHosted =
-        import.meta.client
-        && (window.location.hostname.endsWith('.vercel.app')
-            || !/localhost|127\.0\.0\.1|^192\.168\./.test(window.location.hostname));
-
     const statusCode = e?.statusCode;
-    const detail = String(e?.data?.detail || e?.message || '');
 
-    if (onHosted) {
-        if (statusCode === 503 || detail.includes('NUXT_AI_API_KEY')) {
-            return 'ตั้ง NUXT_AI_API_KEY บน Vercel แล้วกด Redeploy (Groq ฟรี: console.groq.com) — ไม่ต้อง ngrok';
-        }
-        if (statusCode === 502) {
-            return 'AI บน Vercel ใช้ Groq — ตรวจ NUXT_AI_API_KEY แล้ว Redeploy (ไม่ต้องเปิด n8n/ngrok)';
-        }
+    if (statusCode === 503) {
+        return 'ตั้ง NUXT_AI_API_KEY ใน .env (Groq ฟรี) แล้ว restart npm run dev';
     }
 
     if (statusCode === 502) {
-        return 'ไม่สามารถเชื่อมต่อ AI ได้ — รัน npm run dev ให้ n8n + Ollama เปิดอยู่';
+        return 'ระบบ AI ยังไม่พร้อมค่ะ — รัน npm run dev ให้ n8n + Ollama เปิดอยู่ หรือใส่ NUXT_AI_API_KEY ใน .env';
     }
 
-    return 'ไม่สามารถเชื่อมต่อ AI ได้ในขณะนี้ค่ะ ลองใหม่อีกครั้งนะคะ';
+    return 'ขออภัยค่ะ AI ตอบไม่ได้ในตอนนี้ ลองใหม่อีกครั้งนะคะ';
 }

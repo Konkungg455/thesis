@@ -20,16 +20,10 @@ function aiModel(config: ReturnType<typeof useRuntimeConfig>): string {
         : 'llama-3.3-70b-versatile';
 }
 
-/** Vercel / production — ใช้ cloud LLM แทน n8n+ngrok */
+/** ใช้ n8n+Ollama เป็นหลัก (แบบ 26 มิ.ย.) — cloud เฉพาะเมื่อ NUXT_AI_MODE=cloud */
 export function shouldUseCloudAi(config: ReturnType<typeof useRuntimeConfig>): boolean {
-    const mode = String(process.env.NUXT_AI_MODE || config.aiMode || '').trim().toLowerCase();
-    if (mode === 'n8n') return false;
-    if (mode === 'cloud') return true;
-
-    // บน Vercel ใช้ cloud เสมอ (ไม่ fallback ไป n8n/ngrok)
-    if (process.env.VERCEL) return true;
-
-    return false;
+    const mode = String(process.env.NUXT_AI_MODE || config.aiMode || 'n8n').trim().toLowerCase();
+    return mode === 'cloud';
 }
 
 export function hasAiApiKey(config: ReturnType<typeof useRuntimeConfig>): boolean {

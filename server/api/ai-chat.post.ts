@@ -1,7 +1,13 @@
 /**
- * Proxy AI — local: n8n+Ollama | Vercel: cloud LLM (Groq/Gemini) ไม่ต้อง ngrok
+ * Proxy AI — n8n+Ollama เป็นหลัก, fallback Groq ถ้า n8n ล้ม
  */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function looksLikeErrorOutput(text: string): boolean {
+    const t = String(text || '').trim().toLowerCase();
+    if (!t || t.length > 600) return false;
+    return /workflow.*activ|npm run dev|n8n.*5678|502|404 not found|cannot (post|get)|econnrefused|fetch failed|ไม่สามารถเชื่อมต่อ ai/i.test(t);
+}
 
 export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig();
@@ -18,13 +24,12 @@ export default defineEventHandler(async (event) => {
         });
     }
 
-    // Vercel → cloud Groq (ไม่เรียก n8n/ngrok)
     if (shouldUseCloudAi(config)) {
         if (!hasAiApiKey(config)) {
             throw createError({
                 statusCode: 503,
-                statusMessage: 'ตั้ง NUXT_AI_API_KEY บน Vercel แล้วกด Redeploy (Groq ฟรี: console.groq.com)',
-                data: { detail: 'NUXT_AI_API_KEY missing on Vercel', mode: 'cloud' },
+                statusMessage: 'ตั้ง NUXT_AI_API_KEY แล้ว Redeploy',
+                data: { detail: 'NUXT_AI_API_KEY missing', mode: 'cloud' },
             });
         }
         try {
@@ -69,17 +74,28 @@ export default defineEventHandler(async (event) => {
                 timeout: 180_000,
             });
 
+            let output = '';
             if (typeof data === 'string') {
-                return { output: data };
+                output = data;
+            } else if (data && typeof data === 'object' && 'output' in data) {
+                output = String((data as { output?: unknown }).output ?? '');
+            } else {
+                output = String(
+                    (data as { text?: string })?.text
+                    || (data as { message?: string })?.message
+                    || JSON.stringify(data),
+                );
             }
-            if (data && typeof data === 'object' && 'output' in data) {
-                return data;
+
+            if (output && !looksLikeErrorOutput(output)) {
+                if (typeof data === 'object' && data && 'output' in data) {
+                    return data;
+                }
+                return { output };
             }
-            const text =
-                (data as { text?: string })?.text ||
-                (data as { message?: string })?.message ||
-                JSON.stringify(data);
-            return { output: text };
+
+            lastErr = new Error(output || 'empty n8n output');
+            break;
         } catch (err: unknown) {
             lastErr = err;
             const e = err as { statusCode?: number; message?: string };
@@ -94,21 +110,27 @@ export default defineEventHandler(async (event) => {
         }
     }
 
+    // n8n ล้ม → ใช้ Groq อัตโนมัติถ้ามี key (ไม่ต้องรอ activate workflow)
+    if (hasAiApiKey(config)) {
+        try {
+            console.warn('[api/ai-chat] n8n failed — fallback Groq');
+            return await callCloudAi(config, chatInput);
+        } catch (groqErr) {
+            console.error('[api/ai-chat] groq fallback failed:', groqErr);
+        }
+    }
+
     const e = lastErr as { statusCode?: number; message?: string };
     console.error('[api/ai-chat] n8n failed:', url, e?.message || lastErr);
 
     const is404 =
         e?.statusCode === 404 || String(e?.message || '').includes('404');
-    const onVercel = Boolean(process.env.VERCEL);
-    const hint = onVercel
-        ? 'ตั้ง NUXT_AI_API_KEY บน Vercel (Groq ฟรี) — ไม่ต้อง ngrok'
-        : is404
-            ? 'workflow ยังไม่ Activate — รัน npm run dev ใหม่'
-            : 'ตรวจว่า n8n เปิดอยู่และ Ollama ทำงาน';
 
     throw createError({
         statusCode: 502,
-        statusMessage: `ไม่สามารถเชื่อมต่อ AI ได้ — ${hint}`,
+        statusMessage: is404
+            ? 'AI ยังไม่พร้อม — เปิด http://127.0.0.1:5678 แล้ว Activate workflow (สีเขียว) หรือตั้ง NUXT_AI_API_KEY'
+            : 'AI ยังไม่พร้อม — รัน npm run dev ให้ n8n + Ollama เปิดอยู่ หรือตั้ง NUXT_AI_API_KEY (Groq)',
         data: {
             detail: e?.message || String(lastErr),
             n8nUrl: url,
