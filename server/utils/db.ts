@@ -15,8 +15,42 @@ const TRANSIENT_DB_CODES = new Set([
     'CONNECTION_ENDED',
 ]);
 
-/** คิว DB — กัน concurrent query ชนกันตอน pooler 6543 ตัด connection */
-let dbQueue: Promise<unknown> = Promise.resolve();
+/** จำกัด concurrent query — ไม่ serialize ทั้งก้อน (กัน timeout รอคิว) */
+let activeQueries = 0;
+const waitQueue: Array<() => void> = [];
+
+function isServerlessRuntime(): boolean {
+    return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+function maxConcurrentQueries(): number {
+    if (isServerlessRuntime()) return 4;
+    return usesSupabasePooler() ? 4 : 8;
+}
+
+function defaultQueryTimeoutMs(): number {
+    // Vercel: ให้เวลา pooler cold start + retry; local ใช้ได้นานกว่า
+    return isServerlessRuntime() ? 28_000 : 35_000;
+}
+
+async function acquireDbSlot(): Promise<void> {
+    if (activeQueries < maxConcurrentQueries()) {
+        activeQueries += 1;
+        return;
+    }
+    await new Promise<void>((resolve) => {
+        waitQueue.push(() => {
+            activeQueries += 1;
+            resolve();
+        });
+    });
+}
+
+function releaseDbSlot(): void {
+    activeQueries = Math.max(0, activeQueries - 1);
+    const next = waitQueue.shift();
+    if (next) next();
+}
 
 function usesSupabasePooler(url?: string): boolean {
     return /pooler\.supabase\.com:6543/i.test(String(url || process.env.DATABASE_URL || ''));
@@ -53,15 +87,6 @@ export async function resetDbConnection(): Promise<void> {
     }
 }
 
-function runDbExclusive<T>(fn: () => Promise<T>): Promise<T> {
-    const run = dbQueue.then(fn, fn);
-    dbQueue = run.then(
-        () => undefined,
-        () => undefined,
-    );
-    return run;
-}
-
 export function useDb() {
     if (!isDbConfigured()) {
         throw createError({
@@ -71,19 +96,18 @@ export function useDb() {
     }
 
     if (!sql) {
-        const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+        const isServerless = isServerlessRuntime();
         const isLocalDev = !isServerless;
         const dbUrl = normalizeDatabaseUrl();
         const pooler = usesSupabasePooler(dbUrl);
-        // pooler 6543: transaction mode — connection สั้น, หมุนเร็ว, ไม่ใช้ prepared statements
         sql = postgres(dbUrl, {
             ssl: 'require',
             prepare: false,
             fetch_types: false,
-            max: isServerless ? 1 : (pooler ? 2 : 4),
-            connect_timeout: isServerless ? 25 : 15,
-            idle_timeout: pooler ? (isLocalDev ? 20 : 10) : 20,
-            max_lifetime: pooler ? (isLocalDev ? 120 : 60) : 60 * 10,
+            max: isServerless ? 3 : (pooler ? 4 : 6),
+            connect_timeout: isServerless ? 20 : 15,
+            idle_timeout: pooler ? (isLocalDev ? 20 : 15) : 20,
+            max_lifetime: pooler ? (isLocalDev ? 120 : 90) : 60 * 10,
         });
     }
 
@@ -98,10 +122,10 @@ export async function dbQuery<T>(
         return null;
     }
 
-    return runDbExclusive(async () => {
-        const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-        const timeoutMs = options?.timeoutMs ?? (isServerless ? 16_000 : 30_000);
-        const maxAttempts = usesSupabasePooler() ? 5 : 4;
+    await acquireDbSlot();
+    try {
+        const timeoutMs = options?.timeoutMs ?? defaultQueryTimeoutMs();
+        const maxAttempts = usesSupabasePooler() ? 4 : 3;
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             try {
@@ -113,7 +137,7 @@ export async function dbQuery<T>(
                 }
                 if (attempt < maxAttempts - 1 && isTransientDbError(err)) {
                     await resetDbConnection();
-                    await new Promise((r) => setTimeout(r, 150 * (attempt + 1) ** 2));
+                    await new Promise((r) => setTimeout(r, 120 * (attempt + 1)));
                     continue;
                 }
                 throw err;
@@ -121,20 +145,27 @@ export async function dbQuery<T>(
         }
 
         return null;
-    });
+    } finally {
+        releaseDbSlot();
+    }
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
-    return Promise.race([
-        promise,
-        new Promise<T>((_, reject) => {
-            setTimeout(() => reject(new Error(`${label} timeout after ${timeoutMs}ms`)), timeoutMs);
-        }),
-    ]);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<T>((_, reject) => {
+        timer = setTimeout(
+            () => reject(new Error(`${label} timeout after ${timeoutMs}ms`)),
+            timeoutMs,
+        );
+    });
+
+    return Promise.race([promise, timeoutPromise]).finally(() => {
+        if (timer) clearTimeout(timer);
+    });
 }
 
 /** ทดสอบ connection จริง — ใช้ใน /api/deploy/health */
-export async function pingDb(timeoutMs = 12000): Promise<{ ok: boolean; error?: string; pharmacists_verified?: number }> {
+export async function pingDb(timeoutMs = 15000): Promise<{ ok: boolean; error?: string; pharmacists_verified?: number }> {
     if (!isDbConfigured()) {
         return { ok: false, error: 'DATABASE_URL missing' };
     }

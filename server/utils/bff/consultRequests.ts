@@ -81,11 +81,6 @@ async function enrichUserConsultStatus(
 
     const rxConsultId = reqCid > 0 ? reqCid : reqId;
     if (targetPId > 0) {
-        // หลังจบ consult ให้มีใบสั่งยา auto สำหรับติดตาม 3 วัน (กัน race ฝั่ง client)
-        if (String(data.status || '') === 'completed' && rxConsultId > 0) {
-            await ensureConsultTrackingRecord(sql, targetPId, uId, rxConsultId);
-        }
-
         let presRows;
         if (rxConsultId > 0) {
             presRows = await sql`
@@ -104,6 +99,19 @@ async function enrichUserConsultStatus(
                 LIMIT 1
             `;
         }
+
+        // สร้างใบสั่งยา auto เฉพาะเมื่อจบ consult แล้วยังไม่มี (ไม่ INSERT ทุก poll)
+        if (!presRows[0] && String(data.status || '') === 'completed' && rxConsultId > 0) {
+            await ensureConsultTrackingRecord(sql, targetPId, uId, rxConsultId);
+            presRows = await sql`
+                SELECT tracking_status, last_followup_at, created_at
+                FROM prescriptions
+                WHERE id_account = ${uId} AND id_consult_request = ${rxConsultId}
+                ORDER BY id DESC
+                LIMIT 1
+            `;
+        }
+
         if (presRows[0]) {
             const pr = presRows[0];
             const base = pr.last_followup_at || pr.created_at || null;

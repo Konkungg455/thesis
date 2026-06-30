@@ -32,21 +32,15 @@ export async function fetchHomeSummary(event?: H3Event) {
     if (cached && isValidHomeSummary(cached)) return cached;
 
     const stale = getBffCacheStale(SUMMARY_CACHE_KEY);
-    const onServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
     let pharmacists: PharmacistPayload;
     let reviews: unknown[];
 
     try {
-        if (onServerless) {
-            pharmacists = await fetchPharmacistsPayload(event);
-            reviews = await fetchReviewsPayload();
-        } else {
-            [pharmacists, reviews] = await Promise.all([
-                fetchPharmacistsPayload(event),
-                fetchReviewsPayload(),
-            ]);
-        }
+        [pharmacists, reviews] = await Promise.all([
+            fetchPharmacistsPayload(event),
+            fetchReviewsPayload(),
+        ]);
     } catch (err) {
         console.warn('[home/summary] fetch failed:', err);
         if (stale && isValidHomeSummary(stale)) return stale;
@@ -84,7 +78,7 @@ async function fetchPharmacistsPayload(event?: H3Event): Promise<PharmacistPaylo
         && Number.isFinite(userLat) && Number.isFinite(userLng);
 
     const onServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-    const timeoutMs = onServerless ? 14_000 : 28_000;
+    const timeoutMs = onServerless ? 22_000 : 30_000;
 
     let rows;
     try {
@@ -177,7 +171,7 @@ async function fetchReviewsPayload() {
     }
 
     const onServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-    const timeoutMs = onServerless ? 10_000 : 20_000;
+    const timeoutMs = onServerless ? 20_000 : 25_000;
 
     let rows;
     try {
