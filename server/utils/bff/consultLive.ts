@@ -198,6 +198,17 @@ export async function handleCompleteConsult(event: H3Event) {
     }
 
     const result = await dbQuery(async (sql) => {
+        const accepted = await sql`
+            SELECT id FROM consult_requests
+            WHERE id_pharma = ${pId}
+              AND id_account = ${uId}
+              AND status = 'accepted'
+              AND COALESCE(is_deleted, 0) = 0
+            ORDER BY id DESC
+            LIMIT 1
+        `;
+        let consultId = Number(accepted[0]?.id || 0);
+
         await sql`
             UPDATE consult_requests
             SET status = 'completed'
@@ -207,7 +218,7 @@ export async function handleCompleteConsult(event: H3Event) {
         `;
 
         const info = await archiveAndClearChatBetween(sql, pId, uId);
-        const consultId = Number(info.consultId || 0);
+        if (consultId <= 0) consultId = Number(info.consultId || 0);
         const serviceCode = String(info.serviceCode || '');
 
         if (consultId > 0) {

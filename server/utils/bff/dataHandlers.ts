@@ -3,6 +3,7 @@ import type { H3Event } from 'h3';
 import type postgres from 'postgres';
 import { readMultipartRequest, readRequestFields } from './formData';
 import { getAuthContext } from './sessionContext';
+import { repairMissingTrackingForPharmacist } from './consultTracking';
 
 function accountDeletedFilter(sql: ReturnType<typeof postgres>, deleted: boolean) {
     return deleted ? sql`COALESCE(is_deleted, 0) = 1` : sql`COALESCE(is_deleted, 0) = 0`;
@@ -232,6 +233,9 @@ export async function handleGetPrescriptions(event: H3Event) {
     }
 
     const rows = await dbQuery(async (sql) => {
+        if (auth.id_pharma) {
+            await repairMissingTrackingForPharmacist(sql, auth.id_pharma);
+        }
         if (auth.isAdmin) {
             return sql`
                 SELECT p.*,

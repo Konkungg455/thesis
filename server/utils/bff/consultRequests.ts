@@ -315,6 +315,17 @@ export async function handleCreateConsultRequest(event: H3Event) {
             WHERE id_account = ${uId} AND status = 'waiting'
         `;
 
+        const closingRows = await sql`
+            SELECT id FROM consult_requests
+            WHERE id_account = ${uId}
+              AND id_pharma = ${pId}
+              AND status = 'accepted'
+              AND COALESCE(is_deleted, 0) = 0
+            ORDER BY id DESC
+            LIMIT 1
+        `;
+        const closingConsultId = Number(closingRows[0]?.id || 0);
+
         await sql`
             UPDATE consult_requests
             SET status = 'completed'
@@ -322,7 +333,11 @@ export async function handleCreateConsultRequest(event: H3Event) {
               AND id_pharma = ${pId}
               AND status = 'accepted'
         `;
-        await archiveAndClearChatBetween(sql, pId, uId);
+        const arch = await archiveAndClearChatBetween(sql, pId, uId);
+        const consultId = closingConsultId || Number(arch.consultId || 0);
+        if (consultId > 0) {
+            await ensureConsultTrackingRecord(sql, pId, uId, consultId);
+        }
 
         await sql`
             INSERT INTO consult_requests (
@@ -374,12 +389,12 @@ export async function handleUpdateConsultStatus(event: H3Event) {
         `;
 
         if (status === 'completed') {
-            const arch = await archiveAndClearChatBetween(
+            await archiveAndClearChatBetween(
                 sql,
                 Number(pair.id_pharma),
                 Number(pair.id_account),
             );
-            const consultId = Number(arch.consultId || 0);
+            const consultId = reqId;
             if (consultId > 0) {
                 await sql`
                     UPDATE service_usage

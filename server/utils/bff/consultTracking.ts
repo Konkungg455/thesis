@@ -2,6 +2,8 @@ import type { H3Event } from 'h3';
 import { getAuthContext } from './sessionContext';
 import { readMultipartRequest } from './formData';
 
+const TRACKING_PLACEHOLDER_MED = 'รอเภสัชกรบันทึกรายการยา — อยู่ในกรอบติดตามอาการ 3 วัน';
+
 let trackingSchemaReady = false;
 
 async function ensureTrackingColumns(sql: ReturnType<typeof useDb>) {
@@ -40,7 +42,7 @@ export async function ensureConsultTrackingRecord(
     await ensureTrackingColumns(sql);
 
     const existing = await sql`
-        SELECT id, tracking_status
+        SELECT id, tracking_status, med_details
         FROM prescriptions
         WHERE id_account = ${idAccount}
           AND id_pharma = ${idPharma}
@@ -55,7 +57,15 @@ export async function ensureConsultTrackingRecord(
             await sql`
                 UPDATE prescriptions SET
                     tracking_status = 'active',
-                    last_followup_at = COALESCE(last_followup_at, NOW())
+                    last_followup_at = COALESCE(last_followup_at, NOW()),
+                    med_details = CASE
+                        WHEN COALESCE(med_details, '') = '' THEN ${TRACKING_PLACEHOLDER_MED}
+                        ELSE med_details
+                    END,
+                    auto_created = CASE
+                        WHEN COALESCE(med_details, '') = '' THEN 1
+                        ELSE auto_created
+                    END
                 WHERE id = ${rxId}
             `;
         }
@@ -94,7 +104,7 @@ export async function ensureConsultTrackingRecord(
         ) VALUES (
             ${customerCode}, ${idAccount}, ${idPharma}, ${consultId},
             ${patientName}, ${doctorName},
-            ${'รอเภสัชกรบันทึกรายการยา — อยู่ในกรอบติดตามอาการ 3 วัน'},
+            ${TRACKING_PLACEHOLDER_MED},
             'active', 1, NOW(), NOW()
         )
         RETURNING id
@@ -103,6 +113,43 @@ export async function ensureConsultTrackingRecord(
     const rxId = Number(inserted[0]?.id || 0);
     invalidateConsultCaches(idPharma, idAccount);
     return rxId;
+}
+
+/** สร้างใบติดตามที่หายไปเมื่อ consult จบแล้วแต่ไม่มี prescriptions (เช่น ถูก auto-complete ตอนขอ consult ใหม่) */
+export async function repairMissingTrackingForPharmacist(
+    sql: ReturnType<typeof useDb>,
+    idPharma: number,
+    limit = 20,
+): Promise<number> {
+    if (idPharma <= 0) return 0;
+
+    await ensureTrackingColumns(sql);
+
+    const missing = await sql`
+        SELECT cr.id AS consult_id, cr.id_account
+        FROM consult_requests cr
+        LEFT JOIN prescriptions p
+          ON p.id_consult_request = cr.id AND p.id_pharma = cr.id_pharma
+        WHERE cr.id_pharma = ${idPharma}
+          AND cr.status = 'completed'
+          AND COALESCE(cr.is_deleted, 0) = 0
+          AND p.id IS NULL
+          AND cr.created_at > NOW() - INTERVAL '60 days'
+        ORDER BY cr.id DESC
+        LIMIT ${limit}
+    `;
+
+    let repaired = 0;
+    for (const row of missing) {
+        const rxId = await ensureConsultTrackingRecord(
+            sql,
+            idPharma,
+            Number(row.id_account),
+            Number(row.consult_id),
+        );
+        if (rxId > 0) repaired += 1;
+    }
+    return repaired;
 }
 
 export async function handleCompleteTracking(event: H3Event) {

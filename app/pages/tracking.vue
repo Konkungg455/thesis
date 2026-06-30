@@ -58,9 +58,10 @@ const fetchPrescriptionHistory = async () => {
         if (res.status === 'success') {
             // แสดงเฉพาะใบที่เปิดติดตามอาการแล้ว (tracking_status = active)
             const trackable = (res.data || []).filter((item) => {
-                const hasMeds = String(item?.med_details || '').trim() !== '';
                 const status = String(item?.tracking_status || 'active');
-                return hasMeds && status === 'active';
+                const hasMeds = String(item?.med_details || '').trim() !== '';
+                const autoCreated = Number(item?.auto_created || 0) === 1;
+                return status === 'active' && (hasMeds || autoCreated);
             });
             historyData.value = trackable.map(item => ({
                 ...item,
