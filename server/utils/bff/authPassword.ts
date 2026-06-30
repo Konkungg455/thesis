@@ -51,7 +51,7 @@ function parseAuthType(raw: unknown): AuthType | null {
     return t in AUTH_TABLES ? t as AuthType : null;
 }
 
-const PRODUCTION_ORIGIN = 'https://thesis-telebot-pharmacy.vercel.app';
+const PRODUCTION_ORIGIN = 'https://thesis-sandy.vercel.app';
 
 function resolveSiteOrigin(event?: H3Event): string {
     const fromEnv = (

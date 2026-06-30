@@ -1,4 +1,4 @@
-# Deploy บน Vercel (https://thesis-telebot-pharmacy.vercel.app)
+# Deploy บน Vercel (https://thesis-sandy.vercel.app)
 
 ## 404 DEPLOYMENT_NOT_FOUND
 
@@ -10,8 +10,8 @@
 3. Framework: **Nuxt.js** (auto)
 4. **Environment Variables → Import .env** (ใช้ `import.env` จาก Downloads)
 5. กด **Deploy**
-6. **Settings → Domains** → ตรวจว่ามี `thesis-telebot-pharmacy.vercel.app`
-7. ตรวจ: `https://thesis-telebot-pharmacy.vercel.app/api/ai-chat/health` → `"configured": true`
+6. **Settings → Domains** → ตรวจว่ามี `thesis-sandy.vercel.app`
+7. ตรวจ: `https://thesis-sandy.vercel.app/api/ai-chat/health` → `"configured": true`
 
 > `NUXT_PUBLIC_SITE_ORIGIN` ใน import.env ต้องตรงกับ domain นี้ — ใช้ในลิงก์ reset password
 
@@ -66,7 +66,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...   # Project Settings → API → service_role (
 ### SMTP (OTP / ลืมรหัสผ่าน)
 
 ```
-NUXT_PUBLIC_SITE_ORIGIN=https://thesis-telebot-pharmacy.vercel.app
+NUXT_PUBLIC_SITE_ORIGIN=https://thesis-sandy.vercel.app
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
 SMTP_SECURE=true
@@ -109,10 +109,10 @@ NUXT_AI_MODEL=llama-3.3-70b-versatile
 ## ตรวจหลัง deploy
 
 ```
-https://thesis-telebot-pharmacy.vercel.app/api/supabase/health
+https://thesis-sandy.vercel.app/api/supabase/health
 → {"status":"success",...}
 
-https://thesis-telebot-pharmacy.vercel.app/api/deploy/health
+https://thesis-sandy.vercel.app/api/deploy/health
 → ดู database_url, site_origin และ AI ว่าพร้อมไหม
 ```
 
