@@ -2,8 +2,36 @@ import postgres from 'postgres';
 
 let sql: ReturnType<typeof postgres> | null = null;
 
+const TRANSIENT_DB_CODES = new Set([
+    'ECONNRESET',
+    'ECONNREFUSED',
+    'ETIMEDOUT',
+    '53300',
+    '57P01',
+    '08006',
+    '08003',
+    'XX000',
+]);
+
+function isTransientDbError(err: unknown): boolean {
+    const code = (err as { code?: string })?.code;
+    const message = String((err as Error)?.message || err);
+    if (code && TRANSIENT_DB_CODES.has(code)) return true;
+    return /timeout|connection|terminated|closed|pool/i.test(message);
+}
+
 export function isDbConfigured(): boolean {
     return Boolean(String(process.env.DATABASE_URL || '').trim());
+}
+
+export async function resetDbConnection(): Promise<void> {
+    if (!sql) return;
+    try {
+        await sql.end({ timeout: 2 });
+    } catch {
+        /* ignore */
+    }
+    sql = null;
 }
 
 export function useDb() {
@@ -35,27 +63,51 @@ export async function dbQuery<T>(fn: (sql: ReturnType<typeof postgres>) => Promi
         return null;
     }
 
-    try {
-        return await fn(useDb());
-    } catch (err: unknown) {
-        const code = (err as { code?: string })?.code;
-        if (code === '42P01' || code === '42703') {
-            return null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+            return await fn(useDb());
+        } catch (err: unknown) {
+            const code = (err as { code?: string })?.code;
+            if (code === '42P01' || code === '42703') {
+                return null;
+            }
+            if (attempt === 0 && isTransientDbError(err)) {
+                await resetDbConnection();
+                continue;
+            }
+            throw err;
         }
-        throw err;
     }
+
+    return null;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) => {
+            setTimeout(() => reject(new Error(`${label} timeout after ${timeoutMs}ms`)), timeoutMs);
+        }),
+    ]);
 }
 
 /** ทดสอบ connection จริง — ใช้ใน /api/deploy/health */
-export async function pingDb(): Promise<{ ok: boolean; error?: string; pharmacists_verified?: number }> {
+export async function pingDb(timeoutMs = 8000): Promise<{ ok: boolean; error?: string; pharmacists_verified?: number }> {
     if (!isDbConfigured()) {
         return { ok: false, error: 'DATABASE_URL missing' };
     }
 
     try {
-        const rows = await useDb()`SELECT COUNT(*)::int AS n FROM pharmacist_account WHERE status_verify = 1`;
+        const rows = await withTimeout(
+            useDb()`SELECT COUNT(*)::int AS n FROM pharmacist_account WHERE status_verify = 1`,
+            timeoutMs,
+            'DB ping',
+        );
         return { ok: true, pharmacists_verified: Number(rows[0]?.n ?? 0) };
     } catch (err: unknown) {
+        if (isTransientDbError(err)) {
+            await resetDbConnection();
+        }
         const e = err as { message?: string; code?: string };
         const message = e.message || String(err);
         return { ok: false, error: e.code ? `${e.code}: ${message}` : message };

@@ -584,6 +584,11 @@ async function handleGetPharmacists(event: H3Event) {
     const userLat = q.lat ? Number(q.lat) : null;
     const userLng = q.lng ? Number(q.lng) : null;
     const cacheKey = `pharmacists:${userLat ?? 'x'}:${userLng ?? 'x'}`;
+
+    if (!isDbConfigured()) {
+        return { status: 'error', message: dbUnavailableMessage() };
+    }
+
     const cached = getBffCache(cacheKey);
     if (cached) return cached;
 
@@ -599,10 +604,6 @@ async function handleGetPharmacists(event: H3Event) {
         LEFT JOIN phamacy_store_details d ON d.id_store_accounts = p.id_store
         WHERE p.status_verify = 1
     `);
-
-    if (!isDbConfigured()) {
-        return { status: 'error', message: dbUnavailableMessage() };
-    }
 
     if (rows === null) {
         return { status: 'error', message: dbUnavailableMessage() };
@@ -644,7 +645,9 @@ async function handleGetPharmacists(event: H3Event) {
     }
 
     const payload = { status: 'success', total: pharmacists.length, data: pharmacists };
-    setBffCache(cacheKey, payload, 90_000);
+    if (pharmacists.length > 0) {
+        setBffCache(cacheKey, payload, 90_000);
+    }
     return payload;
 }
 
@@ -748,8 +751,14 @@ async function handleGetReviews() {
         ORDER BY r.rating DESC, r.created_at DESC
     `);
 
-    const payload = rows || [];
-    setBffCache('reviews:all', payload, 60_000);
+    if (rows === null) {
+        return { status: 'error', message: dbUnavailableMessage() };
+    }
+
+    const payload = rows;
+    if (payload.length > 0) {
+        setBffCache('reviews:all', payload, 60_000);
+    }
     return payload;
 }
 

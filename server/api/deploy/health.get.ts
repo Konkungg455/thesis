@@ -1,4 +1,4 @@
-/** ตรวจ env + ทดสอบเชื่อมต่อ Supabase จริง */
+/** ตรวจ env + ทดสอบเชื่อมต่อ Supabase จริง (มี timeout กัน hang) */
 export default defineEventHandler(async () => {
     const config = useRuntimeConfig();
     const dbOk = Boolean(String(process.env.DATABASE_URL || '').trim());
@@ -13,14 +13,21 @@ export default defineEventHandler(async () => {
         || '',
     ).trim();
 
-    const dbPing = dbOk ? await pingDb() : { ok: false as const, error: 'DATABASE_URL missing' };
+    const dbPing = dbOk ? await pingDb(8000) : { ok: false as const, error: 'DATABASE_URL missing' };
 
     let supabasePing: { ok: boolean; error?: string } = { ok: false, error: 'not configured' };
     if (supabaseOk) {
         try {
             const supabase = useSupabaseServer();
-            const { error } = await supabase.from('chat_history').select('id').limit(1);
-            supabasePing = error ? { ok: false, error: error.message } : { ok: true };
+            const result = await Promise.race([
+                supabase.from('chat_history').select('id').limit(1),
+                new Promise<never>((_, reject) => {
+                    setTimeout(() => reject(new Error('Supabase ping timeout after 8000ms')), 8000);
+                }),
+            ]);
+            supabasePing = result.error
+                ? { ok: false, error: result.error.message }
+                : { ok: true };
         } catch (err: unknown) {
             supabasePing = { ok: false, error: err instanceof Error ? err.message : String(err) };
         }

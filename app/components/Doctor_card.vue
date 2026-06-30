@@ -7,7 +7,7 @@ import { usePharmacistStatus } from '~/composables/usePharmacistStatus';
 const router = useRouter();
 const { imagesPharma } = useApiBase();
 const { computeStatus } = usePharmacistStatus();
-const { pharmacists, isLoading, refreshWithGps } = usePharmacistsList();
+const { pharmacists, isLoading, loadError, refresh, refreshWithGps } = usePharmacistsList();
 
 const userPos = ref(null);          // { lat, lng } ของผู้ใช้ ถ้าอนุญาต GPS
 const locationStatus = ref('idle'); // idle | locating | granted | denied | unavailable
@@ -113,7 +113,12 @@ const formatDistance = (km) => {
             ไม่สามารถใช้ตำแหน่งของคุณได้ — แสดงรายชื่อเภสัชกรโดยไม่จัดเรียงตามระยะทาง
         </div>
 
-        <div v-if="isLoading" class="loading-box">
+        <div v-if="loadError" class="load-error-box">
+            <p>{{ loadError }}</p>
+            <button type="button" class="retry-btn" @click="refresh()">ลองใหม่</button>
+        </div>
+
+        <div v-else-if="isLoading" class="loading-box">
             <div class="spinner"></div>
             <p>กำลังค้นหาเภสัชกรที่ออนไลน์...</p>
         </div>
@@ -189,6 +194,29 @@ const formatDistance = (km) => {
     text-align: center;
     padding: 50px;
     color: #00469c;
+}
+
+.load-error-box {
+    text-align: center;
+    padding: 1.25rem 1rem;
+    margin: 0 0 1rem;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 12px;
+    color: #b91c1c;
+}
+
+.load-error-box p {
+    margin: 0 0 0.75rem;
+}
+
+.retry-btn {
+    border: none;
+    background: #dc2626;
+    color: #fff;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
 }
 
 .spinner {

@@ -92,12 +92,9 @@ export default defineNuxtConfig({
   nitro: {
     routeRules: {
       '/api/**': { cors: true },
-      '/api/bff/get_pharmacists.php': {
-        headers: { 'cache-control': 'public, s-maxage=90, stale-while-revalidate=180' },
-      },
-      '/api/bff/review-get.php': {
-        headers: { 'cache-control': 'public, s-maxage=90, stale-while-revalidate=180' },
-      },
+      // ห้าม cache ที่ routeRules — ให้ handler ตั้ง Cache-Control ตามผลลัพธ์จริง
+      '/api/deploy/health': { headers: { 'cache-control': 'no-store' } },
+      '/api/supabase/health': { headers: { 'cache-control': 'no-store' } },
     },
   },
 

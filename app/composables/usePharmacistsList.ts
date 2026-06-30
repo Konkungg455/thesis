@@ -15,21 +15,27 @@ type PharmacistsResponse = {
     status: string;
     data: PharmacistRow[];
     total?: number;
+    message?: string;
 };
 
 /** รายชื่อเภสัช — ใช้ useAsyncData ร่วมกันทุก component (ยิง API ครั้งเดียว + SSR ได้) */
 export function usePharmacistsList() {
     const gpsList = useState<PharmacistRow[] | null>('pharmacists-gps-list', () => null);
 
-    const { data, pending, refresh, status } = useAsyncData<PharmacistsResponse>(
+    const { data, pending, refresh, status, error } = useAsyncData<PharmacistsResponse>(
         'pharmacists-list',
-        () => $fetch('/api/bff/get_pharmacists.php', { timeout: 15_000 }),
+        () => $fetch('/api/bff/get_pharmacists.php', { timeout: 25_000 }),
         { default: () => ({ status: 'success', data: [] }) },
     );
 
     const pharmacists = computed(() => gpsList.value ?? data.value?.data ?? []);
     const total = computed(() => data.value?.total ?? data.value?.data?.length ?? 0);
-    const isLoading = computed(() => pending.value && pharmacists.value.length === 0);
+    const loadError = computed(() => {
+        if (data.value?.status === 'error') return data.value.message || 'โหลดข้อมูลเภสัชไม่สำเร็จ';
+        if (error.value) return 'เชื่อมต่อ Supabase ไม่สำเร็จ — ลองรีเฟรช';
+        return '';
+    });
+    const isLoading = computed(() => pending.value && pharmacists.value.length === 0 && !loadError.value);
     const isRefreshing = computed(() => pending.value && pharmacists.value.length > 0);
 
     const refreshWithGps = async (lat: number, lng: number) => {
@@ -49,6 +55,7 @@ export function usePharmacistsList() {
     return {
         pharmacists,
         total,
+        loadError,
         isLoading,
         isRefreshing,
         pending,
