@@ -60,10 +60,14 @@ export function useHomeSummaryData() {
     // SSR/ISR อาจได้ข้อมูลว่างเมื่อ DB cold — โหลดซ้ำฝั่ง client
     onMounted(async () => {
         if (route.path !== '/' || !isHomeEmpty(result.data.value)) return;
-        try {
-            await result.refresh();
-        } catch {
-            /* ignore */
+        for (let i = 0; i < 2; i++) {
+            try {
+                await result.refresh();
+                if (!isHomeEmpty(result.data.value)) break;
+                await new Promise((r) => setTimeout(r, 1200));
+            } catch {
+                /* retry once on cold start */
+            }
         }
     });
 

@@ -21,13 +21,18 @@ function isValidHomeSummary(payload: unknown): payload is { pharmacists: Pharmac
     return true;
 }
 
+const PHARMA_CACHE_KEY = 'home:pharmacists';
+const REVIEWS_CACHE_KEY = 'home:reviews';
+const SUMMARY_CACHE_KEY = 'home:summary';
+const CACHE_TTL_MS = 120_000;
+
 /** โหลดข้อมูลหน้าแรกครั้งเดียว — ลด cold start + round-trip บน Vercel */
 export async function fetchHomeSummary(event?: H3Event) {
-    const cached = getBffCache('home:summary');
+    const cached = getBffCache(SUMMARY_CACHE_KEY);
     if (cached && isValidHomeSummary(cached)) return cached;
 
-    // serverless pool = 1 connection — รันทีละ query กัน timeout/ข้อมูลเพี้ยน
     const onServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
     let pharmacists: PharmacistPayload;
     let reviews: unknown[];
 
@@ -43,18 +48,21 @@ export async function fetchHomeSummary(event?: H3Event) {
 
     const payload = { pharmacists, reviews };
 
-    const total = Number(pharmacists?.total ?? pharmacists?.data?.length ?? 0);
-    const reviewCount = Array.isArray(reviews) ? reviews.length : 0;
-    const pharmaOk = pharmacists?.status === 'success' && total > 0;
-    const reviewsOk = reviewCount === 0 || isValidReviewRow(reviews[0]);
-    if (reviewsOk && (pharmaOk || reviewCount > 0) && isValidHomeSummary(payload)) {
-        setBffCache('home:summary', payload, 90_000);
+    if (isValidHomeSummary(payload)) {
+        const total = Number(pharmacists?.total ?? pharmacists?.data?.length ?? 0);
+        const reviewCount = Array.isArray(reviews) ? reviews.length : 0;
+        if (total > 0 || reviewCount > 0) {
+            setBffCache(SUMMARY_CACHE_KEY, payload, CACHE_TTL_MS);
+        }
     }
 
     return payload;
 }
 
 async function fetchPharmacistsPayload(event?: H3Event): Promise<PharmacistPayload> {
+    const cached = getBffCache(PHARMA_CACHE_KEY);
+    if (cached) return cached as PharmacistPayload;
+
     if (!isDbConfigured()) {
         return { status: 'error', message: dbUnavailableMessage(), data: [] };
     }
@@ -62,35 +70,52 @@ async function fetchPharmacistsPayload(event?: H3Event): Promise<PharmacistPaylo
     const q = event ? getQuery(event) : {};
     const userLat = q.lat ? Number(q.lat) : null;
     const userLng = q.lng ? Number(q.lng) : null;
+    const hasGps = userLat != null && userLng != null
+        && Number.isFinite(userLat) && Number.isFinite(userLng);
 
-    const rows = await dbQuery(async (sql) => sql`
-        SELECT p.id_pharma, p.firstname_pharma, p.lastname_pharma,
-               p.images_pharma, p.work_time, p.status_verify, p.id_store,
-               d.store_name, d.latitude, d.longitude,
-               d.house_no, d.road, d.sub_district, d.district, d.province
-        FROM pharmacist_account p
-        LEFT JOIN phamacy_store_accounts a ON a.id_store_accounts = p.id_store
-              AND a.status = 1
-              AND (a.admin_status IS NULL OR a.admin_status = 'approved')
-        LEFT JOIN phamacy_store_details d ON d.id_store_accounts = p.id_store
-        WHERE p.status_verify = 1
-    `);
+    const rows = await dbQuery(async (sql) => {
+        if (hasGps) {
+            return sql`
+                SELECT p.id_pharma, p.firstname_pharma, p.lastname_pharma,
+                       p.images_pharma, p.work_time, p.status_verify, p.id_store,
+                       d.store_name, d.latitude, d.longitude,
+                       d.house_no, d.road, d.sub_district, d.district, d.province
+                FROM pharmacist_account p
+                LEFT JOIN phamacy_store_accounts a ON a.id_store_accounts = p.id_store
+                      AND a.status = 1
+                      AND (a.admin_status IS NULL OR a.admin_status = 'approved')
+                LEFT JOIN phamacy_store_details d ON d.id_store_accounts = p.id_store
+                WHERE p.status_verify = 1
+            `;
+        }
+        return sql`
+            SELECT p.id_pharma, p.firstname_pharma, p.lastname_pharma,
+                   p.images_pharma, p.work_time, p.id_store,
+                   d.store_name
+            FROM pharmacist_account p
+            LEFT JOIN phamacy_store_details d ON d.id_store_accounts = p.id_store
+            WHERE p.status_verify = 1
+        `;
+    }, { timeoutMs: 14_000 });
 
     if (rows === null) {
+        const stale = getBffCacheStale(PHARMA_CACHE_KEY);
+        if (stale) return stale as PharmacistPayload;
         return { status: 'error', message: dbUnavailableMessage(), data: [] };
     }
 
     const pharmacists = rows.map((row) => {
-        const address = [row.house_no, row.road, row.sub_district, row.district, row.province]
-            .filter(Boolean)
-            .join(' ');
+        const address = hasGps
+            ? [row.house_no, row.road, row.sub_district, row.district, row.province]
+                .filter(Boolean)
+                .join(' ')
+            : '';
         let distance_km: number | null = null;
         const storeLat = row.latitude != null ? Number(row.latitude) : null;
         const storeLng = row.longitude != null ? Number(row.longitude) : null;
-        if (userLat != null && userLng != null && storeLat != null && storeLng != null
-            && Number.isFinite(userLat) && Number.isFinite(userLng)
+        if (hasGps && storeLat != null && storeLng != null
             && Number.isFinite(storeLat) && Number.isFinite(storeLng)) {
-            distance_km = Math.round(haversineKm(userLat, userLng, storeLat, storeLng) * 100) / 100;
+            distance_km = Math.round(haversineKm(userLat!, userLng!, storeLat, storeLng) * 100) / 100;
         }
         return {
             id: Number(row.id_pharma),
@@ -106,7 +131,7 @@ async function fetchPharmacistsPayload(event?: H3Event): Promise<PharmacistPaylo
         };
     });
 
-    if (userLat != null && userLng != null) {
+    if (hasGps) {
         pharmacists.sort((a, b) => {
             if (a.distance_km == null && b.distance_km == null) return 0;
             if (a.distance_km == null) return 1;
@@ -115,16 +140,24 @@ async function fetchPharmacistsPayload(event?: H3Event): Promise<PharmacistPaylo
         });
     }
 
-    return { status: 'success', total: pharmacists.length, data: pharmacists };
+    const payload: PharmacistPayload = { status: 'success', total: pharmacists.length, data: pharmacists };
+    if (pharmacists.length > 0) {
+        setBffCache(PHARMA_CACHE_KEY, payload, CACHE_TTL_MS);
+    }
+    return payload;
 }
 
 async function fetchReviewsPayload() {
+    const cached = getBffCache(REVIEWS_CACHE_KEY);
+    if (cached) return cached as unknown[];
+
     if (!isDbConfigured()) {
         return [];
     }
 
     const rows = await dbQuery(async (sql) => sql`
-        SELECT r.*, a.firstname, a.lastname, a.images_account
+        SELECT r.id, r.user_id, r.rating, r.comment, r.created_at,
+               a.firstname, a.lastname, a.images_account
         FROM reviews r
         INNER JOIN (
             SELECT user_id, MAX(id) AS latest_id
@@ -133,9 +166,19 @@ async function fetchReviewsPayload() {
         ) latest ON latest.user_id = r.user_id AND latest.latest_id = r.id
         JOIN account a ON r.user_id = a.id_account
         ORDER BY r.rating DESC, r.created_at DESC
-    `);
+        LIMIT 30
+    `, { timeoutMs: 10_000 });
 
-    return rows ?? [];
+    if (rows === null) {
+        const stale = getBffCacheStale(REVIEWS_CACHE_KEY);
+        return (stale as unknown[]) ?? [];
+    }
+
+    const payload = rows ?? [];
+    if (payload.length > 0) {
+        setBffCache(REVIEWS_CACHE_KEY, payload, CACHE_TTL_MS);
+    }
+    return payload;
 }
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {

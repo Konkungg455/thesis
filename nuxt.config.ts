@@ -86,7 +86,9 @@ export default defineNuxtConfig({
   nitro: {
     routeRules: {
       '/api/**': { cors: true },
-      '/api/home/summary': { headers: { 'cache-control': 'public, s-maxage=30, stale-while-revalidate=60' } },
+      '/api/home/summary': { headers: { 'cache-control': 'public, s-maxage=120, stale-while-revalidate=300' } },
+      '/api/bff/get_pharmacists.php': { headers: { 'cache-control': 'public, s-maxage=120, stale-while-revalidate=300' } },
+      '/api/bff/review-get.php': { headers: { 'cache-control': 'public, s-maxage=120, stale-while-revalidate=300' } },
       '/api/ai-chat': { headers: { 'cache-control': 'no-store' } },
       '/api/ai-chat/**': { headers: { 'cache-control': 'no-store' } },
       '/n8n/**': { headers: { 'cache-control': 'no-store' } },

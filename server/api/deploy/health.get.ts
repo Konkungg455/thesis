@@ -56,7 +56,8 @@ export default defineEventHandler(async (event) => {
             supabaseOk && !supabasePing.ok && `Supabase API failed: ${supabasePing.error}`,
             onVercel && !serviceKey && 'Add SUPABASE_SERVICE_ROLE_KEY for file uploads',
             onVercel && !useCloud && !n8nUrl && 'Add NUXT_N8N_INTERNAL_URL (ngrok URL of n8n port 5678)',
-            useCloud && !cloud.hasKey && 'Add NUXT_AI_API_KEY or switch NUXT_AI_MODE=n8n',
+            onVercel && useCloud && n8nUrl && 'Remove NUXT_N8N_INTERNAL_URL when NUXT_AI_MODE=cloud',
+            onVercel && useCloud && !cloud.hasKey && 'Add NUXT_AI_API_KEY for Groq cloud AI',
         ].filter(Boolean),
     };
 });

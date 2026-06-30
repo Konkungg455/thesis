@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
         event,
         'Cache-Control',
         total > 0 || reviewCount > 0
-            ? 'public, s-maxage=30, stale-while-revalidate=60'
+            ? 'public, s-maxage=120, stale-while-revalidate=300'
             : 'no-store, max-age=0',
     );
 
