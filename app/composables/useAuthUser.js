@@ -1,10 +1,5 @@
 import { computed } from 'vue';
 
-/** กัน sync ซ้ำทุก Header / ทุกหน้า — ลดการยิง Supabase */
-const SYNC_TTL_MS = 90_000;
-let lastSyncAt = 0;
-let syncInFlight = null;
-
 /**
  * สถานะผู้ใช้ร่วมทั้งแอป (Header / pharmacy_header)
  * ใช้ useNuxtApp() โดยตรง แทน useApiBase() เพื่อไม่พังตอน SSR/ngrok
@@ -44,7 +39,7 @@ export function useAuthUser() {
         return imagesAccount(file);
     });
 
-    const persistUser = (payload, options = {}) => {
+    const persistUser = (payload) => {
         if (!import.meta.client || !payload) return;
         let role = payload.role || payload.role_account || null;
         if (role === 'member') role = 'user';
@@ -60,15 +55,10 @@ export function useAuthUser() {
         if (role) {
             localStorage.setItem('user_role', role);
         }
-        if (options.markSynced !== false) {
-            lastSyncAt = Date.now();
-        }
     };
 
     const clearUser = () => {
         user.value = null;
-        lastSyncAt = 0;
-        syncInFlight = null;
         if (import.meta.client) {
             localStorage.removeItem('user_data');
             localStorage.removeItem('user_role');
@@ -81,14 +71,16 @@ export function useAuthUser() {
         if (!saved) return;
         try {
             const parsed = JSON.parse(saved);
-            persistUser(parsed, { markSynced: false });
+            persistUser(parsed);
         } catch {
             localStorage.removeItem('user_data');
             localStorage.removeItem('user_role');
         }
     };
 
-    const performSync = async () => {
+    const syncFromServer = async () => {
+        loadFromStorage();
+
         const config = useRuntimeConfig();
         const useBff = Boolean(String(config.public.supabaseUrl || '').trim())
             && config.public.useSupabaseBackend !== false;
@@ -119,10 +111,7 @@ export function useAuthUser() {
                     query.image = u.image;
                 }
 
-                const response = await $fetch(apiUrl('get-user-session.php'), {
-                    query,
-                    timeout: 8_000,
-                });
+                const response = await $fetch(apiUrl('get-user-session.php'), { query });
                 if (response.authenticated && response.user) {
                     const parsed = { ...response.user };
                     if (parsed.role === 'member') parsed.role = 'user';
@@ -143,7 +132,6 @@ export function useAuthUser() {
         try {
             const response = await $fetch(apiUrl('get-user-session.php'), {
                 credentials: 'include',
-                timeout: 8_000,
             });
             if (response.authenticated && response.user) {
                 const u = { ...response.user };
@@ -162,27 +150,6 @@ export function useAuthUser() {
         } catch (err) {
             console.warn('syncFromServer failed, using cached user if any:', err);
             return !!user.value;
-        }
-    };
-
-    const syncFromServer = async (options = {}) => {
-        loadFromStorage();
-
-        const force = Boolean(options.force);
-        if (!force && user.value && Date.now() - lastSyncAt < SYNC_TTL_MS) {
-            return true;
-        }
-
-        if (syncInFlight && !force) {
-            return syncInFlight;
-        }
-
-        syncInFlight = performSync();
-        try {
-            return await syncInFlight;
-        } finally {
-            syncInFlight = null;
-            lastSyncAt = Date.now();
         }
     };
 

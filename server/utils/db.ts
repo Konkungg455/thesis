@@ -15,15 +15,10 @@ export function useDb() {
     }
 
     if (!sql) {
-        const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
         sql = postgres(String(process.env.DATABASE_URL), {
             ssl: 'require',
             prepare: false,
-            fetch_types: false,
-            max: isServerless ? 1 : 4,
-            connect_timeout: 5,
-            idle_timeout: 20,
-            max_lifetime: 60 * 10,
+            max: 3,
         });
     }
 

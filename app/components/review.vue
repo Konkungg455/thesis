@@ -5,10 +5,7 @@
     <h2 class="section-title">รีวิวจากผู้ใช้บริการ</h2>
     
     <div class="review-container">
-      <div v-if="isLoading" class="no-reviews">
-        <p><i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดรีวิว...</p>
-      </div>
-      <div v-else-if="displayedReviews.length === 0" class="no-reviews">
+      <div v-if="displayedReviews.length === 0" class="no-reviews">
         <p>ยังไม่มีข้อมูลรีวิวในขณะนี้</p>
       </div>
 
@@ -56,7 +53,6 @@ import { useApiBase } from '~/composables/useApiBase'
 
 const { apiUrl, imagesAccount } = useApiBase()
 const reviews = ref([])
-const isLoading = ref(true)
 const MAX_REVIEWS = 3
 
 // แสดงเฉพาะรีวิวคะแนนสูงสุด สูงสุด 3 อัน (ของใหม่สุดมาก่อน หากคะแนนเท่ากัน)
@@ -66,11 +62,9 @@ const displayedReviews = computed(() => {
 })
 
 const fetchReviews = async () => {
-  isLoading.value = true
   try {
     const data = await $fetch(apiUrl('review-get.php'), {
-      credentials: 'include',
-      timeout: 10_000,
+      credentials: 'include'
     });
     
     if (data && Array.isArray(data)) {
@@ -80,13 +74,9 @@ const fetchReviews = async () => {
         image: imagesAccount(item.images_account || 'default.png'),
         text: item.comment
       }));
-    } else {
-      reviews.value = []
     }
   } catch (err) {
     console.error("Fetch Reviews Error:", err);
-  } finally {
-    isLoading.value = false
   }
 }
 

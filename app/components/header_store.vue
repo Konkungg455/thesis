@@ -202,8 +202,8 @@ const checkStoreNotifications = async () => {
     }
 }
 
-const checkUserStatus = () => {
-    syncFromServer().catch(() => {})
+const checkUserStatus = async () => {
+    await syncFromServer()
     if (user.value) {
         checkStoreNotifications()
     }

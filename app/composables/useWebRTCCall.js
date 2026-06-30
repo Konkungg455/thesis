@@ -332,7 +332,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
     const checkCallSystem = async () => {
         try {
             const data = await apiCallCheck();
-            if (!data?.call_status || data.call_status === 'idle' || data.call_status === 'ended') {
+            if (!data || data.call_status === 'idle' || data.call_status === 'ended') {
                 if (isCalling.value || isReceivingCall.value || isInCall.value) stopCallUI();
                 return;
             }
@@ -405,14 +405,10 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         try {
             await initPeer();
             await startMedia(type === 'video');
-            const res = await apiCallStart(receiverId, type, peer.id);
-            if (res?.status !== 'success') {
-                throw new Error(res?.message || 'ไม่สามารถเริ่มสายได้');
-            }
+            await apiCallStart(receiverId, type, peer.id);
             isCalling.value = true;
         } catch (err) {
             console.error('[Call] makeCall error:', err);
-            alert(err?.message || 'ไม่สามารถเริ่มสายได้ — กรุณาลองใหม่');
             stopCallUI();
         }
     };
