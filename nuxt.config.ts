@@ -104,7 +104,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     /** URL หลักของเว็บ — ใช้ในลิงก์ reset password ในอีเมล */
     siteOrigin: process.env.NUXT_PUBLIC_SITE_ORIGIN
-      || 'https://thesis-sandy.vercel.app',
+      || 'https://thesis-telebot-pharmacy.vercel.app',
     /** service role — ใช้ฝั่ง server เท่านั้น (optional) */
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
     /** n8n URL สำหรับ local dev — บน Vercel ใช้ cloud AI แทน (ไม่ต้อง ngrok) */
@@ -128,7 +128,7 @@ export default defineNuxtConfig({
       /** ค่าเริ่มต้น true = /api/bff + Supabase (ตั้ง false เพื่อ legacy PHP) */
       useSupabaseBackend: process.env.NUXT_PUBLIC_USE_SUPABASE_BACKEND !== 'false',
       /** URL หลัก production — ลิงก์ในอีเมล / share */
-      siteOrigin: process.env.NUXT_PUBLIC_SITE_ORIGIN || 'https://thesis-sandy.vercel.app',
+      siteOrigin: process.env.NUXT_PUBLIC_SITE_ORIGIN || 'https://thesis-telebot-pharmacy.vercel.app',
     }
   }
 })

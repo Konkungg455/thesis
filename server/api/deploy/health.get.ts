@@ -25,7 +25,7 @@ export default defineEventHandler(() => {
             ? (cloud.hasKey ? `cloud/${cloud.provider} (${cloud.model})` : 'missing NUXT_AI_API_KEY')
             : 'local n8n (npm run dev)',
         hints: [
-            !siteOrigin && 'Add NUXT_PUBLIC_SITE_ORIGIN=https://thesis-sandy.vercel.app',
+            !siteOrigin && 'Add NUXT_PUBLIC_SITE_ORIGIN=https://thesis-telebot-pharmacy.vercel.app',
             !dbOk && 'Add DATABASE_URL in Vercel env',
             !supabaseOk && 'Add SUPABASE_URL + SUPABASE_KEY (+ NUXT_PUBLIC_* variants)',
             onVercel && !serviceKey && 'Add SUPABASE_SERVICE_ROLE_KEY for file uploads',
