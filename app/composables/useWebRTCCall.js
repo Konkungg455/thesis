@@ -56,7 +56,8 @@ const buildPeerOptions = (forceRelay = false) => ({
     config: {
         iceServers: ICE_SERVERS,
         iceCandidatePoolSize: 10,
-        ...((forceRelay || needsTurnRelay()) ? { iceTransportPolicy: 'relay' } : {}),
+        // เริ่มด้วย all — บังคับ relay อย่างเดียวมักทำให้จอดำบน ngrok (TURN ฟรีไม่เสถียร)
+        ...(forceRelay ? { iceTransportPolicy: 'relay' } : {}),
     },
 });
 
@@ -228,12 +229,17 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         if (!stream) return;
 
         if (isVideoCallUI()) {
+            const { display, audio } = rebuildRemoteStreams(stream);
             const videoEl = remoteVideoLive.value || remoteVideo.value;
-            bindStreamToElement(videoEl, stream, { muted: true });
-            bindStreamToElement(remoteAudioSink.value, stream, { muted: false });
+            bindStreamToElement(videoEl, display || stream, { muted: true });
+            const audioStream = audio || stream;
+            bindStreamToElement(remoteAudioSink.value, audioStream, { muted: false });
+            // fallback เสียงผ่าน video 1px (Safari / autoplay)
+            bindStreamToElement(remoteVideo.value, audioStream, { muted: false });
             updateRemoteMediaFlags(stream);
         } else {
             bindStreamToElement(remoteVideo.value, stream, { muted: false });
+            bindStreamToElement(remoteAudioSink.value, stream, { muted: false });
             hasRemoteAudio.value = !!stream.getAudioTracks?.().length;
         }
     };
@@ -267,7 +273,8 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
     let callInterval    = null;
     let peerReadyPromise = null;
     let inCallConnectTimer = null;
-    let useRelayIce = needsTurnRelay();
+    let useRelayIce = false;
+    let relayEscalated = false;
 
     const buildPeerImage = (image, role) => {
         if (!image) return '';
@@ -283,6 +290,24 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         if (typeof window === 'undefined') return null;
         const mod = await import('peerjs');
         return mod.default || mod.Peer || mod;
+    };
+
+    const escalateToRelayIce = async () => {
+        if (relayEscalated || useRelayIce) return;
+        relayEscalated = true;
+        useRelayIce = true;
+        console.warn('[WebRTC] escalating to TURN relay ICE');
+        try { peer?.destroy?.(); } catch (e) {}
+        peer = null;
+        peerReadyPromise = null;
+        activeCall = null;
+        pendingIncoming = null;
+        await initPeer();
+        if (peer?.id) await syncPeerIdToBackend(peer.id);
+        try {
+            const data = await apiCallCheck();
+            if (data?.call_status === 'accepted') tryConnectRemote(data);
+        } catch (e) { /* ignore */ }
     };
 
     /**
@@ -308,9 +333,18 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
                 // ใช้ PeerJS public cloud (ฟรี + พร้อมใช้ทันที) เป็น signaling
                 peer = new Peer(myPeerId, buildPeerOptions(useRelayIce));
 
-                peer.on('open', (id) => {
+                peer.on('open', async (id) => {
                     console.log('[PeerJS] connected as', id);
-                    syncPeerIdToBackend(id);
+                    try {
+                        const data = await apiCallCheck();
+                        const active = data?.call_status
+                            && data.call_status !== 'idle'
+                            && data.call_status !== 'ended';
+                        if (active) await apiCallRegisterPeer(id);
+                        else await syncPeerIdToBackend(id);
+                    } catch (e) {
+                        await syncPeerIdToBackend(id);
+                    }
                     resolve(peer);
                 });
 
@@ -323,15 +357,27 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
                 peer.on('error', (err) => {
                     console.error('[PeerJS] error:', err?.type, err?.message);
                     if (err?.type === 'unavailable-id') {
-                        // มี session ของเราเปิดอยู่ที่แท็บอื่น — ลองใช้ id ใหม่ที่ random
+                        // แท็บอื่นจับ id ไว้ — รอแล้วลอง id เดิมก่อน (กันโทรผิด peer)
+                        console.warn('[PeerJS] id busy — retry same id in 1.5s');
                         try { peer.destroy(); } catch (e) {}
-                        const fallback = `${myPeerId}-${Math.floor(Math.random() * 10000)}`;
-                        peer = new Peer(fallback, buildPeerOptions(useRelayIce));
-                        peer.on('open', (id) => {
-                            syncPeerIdToBackend(id);
-                            resolve(peer);
-                        });
-                        peer.on('call', handleIncomingPeerCall);
+                        peer = null;
+                        setTimeout(async () => {
+                            try {
+                                peer = new Peer(myPeerId, buildPeerOptions(useRelayIce));
+                                peer.on('open', async (id) => {
+                                    await syncPeerIdToBackend(id);
+                                    resolve(peer);
+                                });
+                                peer.on('call', handleIncomingPeerCall);
+                                peer.on('error', (e2) => {
+                                    if (e2?.type === 'unavailable-id') {
+                                        reject(new Error('Peer id unavailable — ปิดแท็บอื่นที่เปิดหน้านี้แล้วลองใหม่'));
+                                    }
+                                });
+                            } catch (e2) {
+                                reject(e2);
+                            }
+                        }, 1500);
                     }
                 });
 
@@ -429,7 +475,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
     let dialRetryTimer = null;
     let lastDialAt = 0;
     let dialAttempts = 0;
-    const MAX_DIAL_ATTEMPTS = 6;
+    const MAX_DIAL_ATTEMPTS = 12;
 
     const resolveRemotePeerId = (data) => {
         if (!data) return null;
@@ -516,15 +562,19 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
                 const state = pc.connectionState;
                 console.log('[WebRTC] connectionState:', state);
                 if (state === 'failed' && lastRemotePeerId) {
-                    if (pendingIncoming && localStream) answerPendingIncoming();
-                    else dialPeer(lastRemotePeerId, { force: true });
+                    escalateToRelayIce().then(() => {
+                        if (pendingIncoming && localStream) answerPendingIncoming();
+                        else dialPeer(lastRemotePeerId, { force: true });
+                    });
                 }
             };
             pc.oniceconnectionstatechange = () => {
                 const ice = pc.iceConnectionState;
                 console.log('[WebRTC] iceConnectionState:', ice);
                 if ((ice === 'failed' || ice === 'disconnected') && lastRemotePeerId && needsRemoteMedia()) {
-                    setTimeout(() => {
+                    setTimeout(async () => {
+                        if (!needsRemoteMedia()) return;
+                        if (!relayEscalated) await escalateToRelayIce();
                         if (pendingIncoming && localStream) answerPendingIncoming();
                         else dialPeer(lastRemotePeerId, { force: true });
                     }, 800);
@@ -684,7 +734,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             // เรา = ผู้รับ + ยังไม่ได้รับสาย
             if (data.call_status === 'calling' && !data.is_caller && !isReceivingCall.value && !isInCall.value) {
                 isReceivingCall.value = true;
-                await initPeer();   // เตรียม peer ไว้รอ peer.on('call')
+                await initPeer();
             }
 
             // เรา = ผู้โทร + ฝั่งรับกดรับแล้ว
@@ -828,6 +878,8 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         lastRemotePeerId = null;
         lastDialAt = 0;
         dialAttempts = 0;
+        relayEscalated = false;
+        useRelayIce = false;
 
         try { activeCall?.close?.(); } catch (e) {}
         try { pendingIncoming?.close?.(); } catch (e) {}

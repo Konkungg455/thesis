@@ -1340,7 +1340,8 @@ const closePreview = () => { isShowPreview.value = false; };
             <transition name="video-pop">
                 <div v-if="isInCall && callType === 'video'" class="video-call-full-overlay" @click="retryRemoteVideo">
                     <video ref="remoteVideoLive" autoplay playsinline muted class="remote-video-bg"></video>
-                    <video ref="remoteAudioSink" autoplay playsinline :muted="false" class="remote-audio-sink"></video>
+                    <video ref="remoteVideo" autoplay playsinline style="position:absolute;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:1;"></video>
+                    <audio ref="remoteAudioSink" autoplay playsinline></audio>
                     <div v-if="!hasRemoteVideo" class="remote-video-waiting">
                         <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=334155&color=fff&size=200'"
                              class="remote-video-waiting-avatar" alt="waiting" />

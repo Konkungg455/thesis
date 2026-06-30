@@ -48,9 +48,9 @@ export function useDb() {
             ssl: 'require',
             prepare: false,
             fetch_types: false,
-            max: isServerless ? 1 : 4,
-            connect_timeout: isServerless ? 15 : 5,
-            idle_timeout: isServerless ? 10 : 20,
+            max: isServerless ? 2 : 4,
+            connect_timeout: isServerless ? 20 : 5,
+            idle_timeout: isServerless ? 15 : 20,
             max_lifetime: 60 * 5,
         });
     }

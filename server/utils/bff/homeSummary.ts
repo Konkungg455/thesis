@@ -7,22 +7,47 @@ type PharmacistPayload = {
     message?: string;
 };
 
+function isValidReviewRow(row: unknown): boolean {
+    if (!row || typeof row !== 'object') return false;
+    const r = row as Record<string, unknown>;
+    return 'comment' in r || 'rating' in r || ('firstname' in r && !('id_pharma' in r));
+}
+
+function isValidHomeSummary(payload: unknown): payload is { pharmacists: PharmacistPayload; reviews: unknown[] } {
+    if (!payload || typeof payload !== 'object') return false;
+    const p = payload as { pharmacists?: PharmacistPayload; reviews?: unknown[] };
+    if (!p.pharmacists || !Array.isArray(p.reviews)) return false;
+    if (p.reviews.length > 0 && !isValidReviewRow(p.reviews[0])) return false;
+    return true;
+}
+
 /** โหลดข้อมูลหน้าแรกครั้งเดียว — ลด cold start + round-trip บน Vercel */
 export async function fetchHomeSummary(event?: H3Event) {
     const cached = getBffCache('home:summary');
-    if (cached) return cached;
+    if (cached && isValidHomeSummary(cached)) return cached;
 
-    const [pharmacists, reviews] = await Promise.all([
-        fetchPharmacistsPayload(event),
-        fetchReviewsPayload(),
-    ]);
+    // serverless pool = 1 connection — รันทีละ query กัน timeout/ข้อมูลเพี้ยน
+    const onServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    let pharmacists: PharmacistPayload;
+    let reviews: unknown[];
+
+    if (onServerless) {
+        pharmacists = await fetchPharmacistsPayload(event);
+        reviews = await fetchReviewsPayload();
+    } else {
+        [pharmacists, reviews] = await Promise.all([
+            fetchPharmacistsPayload(event),
+            fetchReviewsPayload(),
+        ]);
+    }
 
     const payload = { pharmacists, reviews };
 
-    const total = Number((pharmacists as PharmacistPayload)?.total ?? (pharmacists as PharmacistPayload)?.data?.length ?? 0);
+    const total = Number(pharmacists?.total ?? pharmacists?.data?.length ?? 0);
     const reviewCount = Array.isArray(reviews) ? reviews.length : 0;
-    const pharmaOk = (pharmacists as PharmacistPayload)?.status === 'success' && total > 0;
-    if (pharmaOk || reviewCount > 0) {
+    const pharmaOk = pharmacists?.status === 'success' && total > 0;
+    const reviewsOk = reviewCount === 0 || isValidReviewRow(reviews[0]);
+    if (reviewsOk && (pharmaOk || reviewCount > 0) && isValidHomeSummary(payload)) {
         setBffCache('home:summary', payload, 90_000);
     }
 
