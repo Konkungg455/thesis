@@ -1,6 +1,6 @@
 /** โหลดข้อมูลผู้ใช้จาก localStorage ทันทีที่เปิดแอป (ก่อน Header mount) */
 export default defineNuxtPlugin(() => {
-    const { loadFromStorage, syncFromServer } = useAuthUser();
+    const { loadFromStorage, syncFromServer, user } = useAuthUser();
     loadFromStorage();
 
     // หน้า login ไม่ต้อง sync กับ DB ทันที — ลด request ซ้ำตอนกดเข้าสู่ระบบ
@@ -8,5 +8,8 @@ export default defineNuxtPlugin(() => {
         return;
     }
 
-    syncFromServer().catch(() => {});
+    // guest ไม่ต้องยิง get-user-session — ลด cold start บน Vercel
+    if (user.value) {
+        syncFromServer().catch(() => {});
+    }
 });

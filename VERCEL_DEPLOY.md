@@ -66,6 +66,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...   # Project Settings → API → service_role (
 ### SMTP (OTP / ลืมรหัสผ่าน)
 
 ```
+NUXT_PUBLIC_SITE_ORIGIN=https://thesis-telebot-pharmacy.vercel.app
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
 SMTP_SECURE=true

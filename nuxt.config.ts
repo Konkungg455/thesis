@@ -40,6 +40,9 @@ export default defineNuxtConfig({
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
+        ...(process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+            ? [{ rel: 'preconnect', href: String(process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL) }]
+            : []),
         {
           rel: 'stylesheet',
           href: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Sarabun:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap'
@@ -96,10 +99,20 @@ export default defineNuxtConfig({
   nitro: {
     routeRules: {
       '/api/**': { cors: true },
+      '/api/bff/get_pharmacists.php': {
+        headers: { 'cache-control': 'public, s-maxage=90, stale-while-revalidate=180' },
+      },
+      '/api/bff/review-get.php': {
+        headers: { 'cache-control': 'public, s-maxage=90, stale-while-revalidate=180' },
+      },
     },
   },
 
   runtimeConfig: {
+    /** URL หลักของเว็บ — ใช้ในลิงก์ reset password ในอีเมล */
+    siteOrigin: process.env.NUXT_PUBLIC_SITE_ORIGIN
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
+      || 'https://thesis-telebot-pharmacy.vercel.app',
     /** service role — ใช้ฝั่ง server เท่านั้น (optional) */
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
     /** n8n URL สำหรับ local dev — บน Vercel ใช้ cloud AI แทน (ไม่ต้อง ngrok) */
@@ -122,6 +135,8 @@ export default defineNuxtConfig({
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || process.env.SUPABASE_KEY || '',
       /** true = ใช้ /api/bff + Supabase แทน XAMPP (default เมื่อมี SUPABASE_URL) */
       useSupabaseBackend: process.env.NUXT_PUBLIC_USE_SUPABASE_BACKEND !== 'false',
+      /** URL หลัก production — ลิงก์ในอีเมล / share */
+      siteOrigin: process.env.NUXT_PUBLIC_SITE_ORIGIN || 'https://thesis-telebot-pharmacy.vercel.app',
     }
   }
 })

@@ -19,26 +19,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useApiBase } from '~/composables/useApiBase'
-
-const { apiUrl } = useApiBase()
-const totalPharmacists = ref(0)
-const isLoading = ref(true)
-
-onMounted(async () => {
-    try {
-        const response = await $fetch(apiUrl('get_pharmacists.php'), { credentials: 'include' })
-        if (response.status === 'success') {
-            totalPharmacists.value = response.total ?? response.data?.length ?? 0
-        }
-    } catch (err) {
-        console.error('Error fetching pharmacist count:', err)
-        totalPharmacists.value = 0
-    } finally {
-        isLoading.value = false
-    }
-})
+const { total, isLoading } = usePharmacistsList()
+const totalPharmacists = total
 </script>
 
 <style scoped>

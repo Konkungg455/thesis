@@ -12,6 +12,10 @@ import Symptom_Categories from '~/components/Symptom_Categories.vue';
 import Tele_tutorial from '~/components/tele_tutorial.vue';
 
 definePageMeta({ middleware: 'smart-home' });
+
+// โหลดเภสัช + รีวิวพร้อม SSR (ยิง API ครั้งเดียว ไม่รอ onMounted)
+usePharmacistsList();
+useReviewsList();
 </script>
 
 <template>

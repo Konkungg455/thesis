@@ -206,6 +206,8 @@ export async function handleChatSend(event: H3Event) {
 }
 
 export async function handleChatTimer(event: H3Event) {
+    await ensureBffSchema();
+
     const query = getQuery(event);
     const fields = event.method?.toUpperCase() === 'POST'
         ? (await readMultipartRequest(event)).fields

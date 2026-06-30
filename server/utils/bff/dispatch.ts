@@ -639,8 +639,8 @@ async function handleGetPharmacists(event: H3Event) {
         });
     }
 
-    const payload = { status: 'success', data: pharmacists };
-    setBffCache(cacheKey, payload, 45_000);
+    const payload = { status: 'success', total: pharmacists.length, data: pharmacists };
+    setBffCache(cacheKey, payload, 90_000);
     return payload;
 }
 

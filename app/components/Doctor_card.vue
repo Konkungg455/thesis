@@ -5,12 +5,10 @@ import { useApiBase } from '~/composables/useApiBase';
 import { usePharmacistStatus } from '~/composables/usePharmacistStatus';
 
 const router = useRouter();
-const { apiUrl, imagesPharma } = useApiBase();
+const { imagesPharma } = useApiBase();
 const { computeStatus } = usePharmacistStatus();
+const { pharmacists, isLoading, refreshWithGps } = usePharmacistsList();
 
-/* ================= 1. State สำหรับเก็บข้อมูลจาก PHP ================= */
-const pharmacists = ref([]);
-const isLoading = ref(true);
 const userPos = ref(null);          // { lat, lng } ของผู้ใช้ ถ้าอนุญาต GPS
 const locationStatus = ref('idle'); // idle | locating | granted | denied | unavailable
 const nowTick = ref(Date.now());    // ใช้ทริกเกอร์ recompute สถานะทุก 30 วินาที
@@ -41,37 +39,11 @@ const getUserPosition = () =>
         );
     });
 
-/* ================= 3. ดึงข้อมูลจาก API (PHP) ================= */
-const fetchPharmacists = async (options = {}) => {
-    const showLoading = options.showLoading !== false;
-    if (showLoading) isLoading.value = true;
-    try {
-        let url = apiUrl('get_pharmacists.php');
-        if (userPos.value) {
-            url += `?lat=${userPos.value.lat}&lng=${userPos.value.lng}`;
-        }
-        const response = await $fetch(url, {
-            credentials: 'include',
-            timeout: 10_000,
-        });
-
-        if (response.status === 'success' && Array.isArray(response.data)) {
-            pharmacists.value = response.data;
-        }
-    } catch (err) {
-        console.error("Fetch Error:", err);
-    } finally {
-        if (showLoading) isLoading.value = false;
-    }
-};
-
 onMounted(() => {
-    fetchPharmacists({ showLoading: true });
-
     getUserPosition().then((pos) => {
         if (pos) {
             userPos.value = pos;
-            fetchPharmacists({ showLoading: false });
+            refreshWithGps(pos.lat, pos.lng);
         }
     });
 

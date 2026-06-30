@@ -300,6 +300,14 @@ const activeRequestId = ref(0);
 const timerRequestId = ref(0);
 const activeServiceCode = ref(''); // SRV-xxx ของรอบที่กำลังดู (จาก /tracking หรือ URL)
 
+const resolveTimerRequestId = () => {
+    const fromRoute = Number(route.query.consult_id) || 0;
+    if (fromRoute > 0) return fromRoute;
+    if (timerRequestId.value > 0) return timerRequestId.value;
+    if (activeRequestId.value > 0) return activeRequestId.value;
+    return 0;
+};
+
 const resolveViewConsultId = () => {
     const fromRoute = Number(route.query.consult_id) || 0;
     if (fromRoute > 0) return fromRoute;
@@ -438,13 +446,12 @@ const syncChatTimer = async ({ reset = false } = {}) => {
     if (!import.meta.client) return;
     if (!activePatientId.value) return;
     if (isTrackingMode.value) return;
-    if (!reset && !timerRequestId.value) return;
     // ส่ง heartbeat เฉพาะตอน "เปิดหน้าจออยู่จริง" — ถ้าแท็บถูกซ่อน = ถือว่าไม่อยู่ เวลาหยุด
     if (!reset && typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
     try {
         const body = new FormData();
         body.append('target_id', activePatientId.value);
-        body.append('request_id', timerRequestId.value || 0);
+        body.append('request_id', String(resolveTimerRequestId() || 0));
         if (reset) body.append('reset', '1');
         const data = await $fetch(apiUrl('chat-timer.php'), {
             method: 'POST',
@@ -589,6 +596,9 @@ const tickConsultCountdown = () => {
     }
 
     if (!lastSyncAt.value) {
+        if (activePatientId.value && !timerResyncing.value && !consultCountdownStarting) {
+            syncChatTimer();
+        }
         consultTimeLeftText.value = '--:--';
         return;
     }
@@ -651,6 +661,9 @@ const fetchActiveConsultInfo = async () => {
             const liveId = Number(data.id) || 0;
             if (liveId > 0) {
                 timerRequestId.value = liveId;
+                if (!isTrackingMode.value && !isTrackingEnded.value) {
+                    startConsultCountdown({ force: true });
+                }
             }
         }
         // โหมดติดตามอาการ:
@@ -731,7 +744,8 @@ const endConsultation = async () => {
         }
     } catch (e) {
         console.error('complete_consult', e);
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+        const msg = e?.data?.message || e?.message;
+        alert(msg || 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
         isEndingConsult.value = false;
         return;
     }
@@ -808,12 +822,6 @@ const startConsultCountdown = async ({ force = false } = {}) => {
         clearConsultCountdown();
         tickConsultCountdown();
         consultCountdownTimer = setInterval(tickConsultCountdown, 1000);
-        return;
-    }
-
-    if (!timerRequestId.value) {
-        consultTimeLeftText.value = '--:--';
-        clearConsultCountdown();
         return;
     }
 
@@ -1082,7 +1090,7 @@ const initPharmacyFromRoute = async (newId) => {
     activePatientId.value = normalized;
     showEndConsultFab.value = false;
     activeRequestId.value = routeCid;
-    timerRequestId.value = 0;
+    timerRequestId.value = routeCid > 0 ? routeCid : 0;
     activeServiceCode.value = routeSrv;
     lastSyncAt.value = 0;
     serverRemaining.value = 0;
@@ -1129,11 +1137,21 @@ watch(
         if (!import.meta.client) return;
         const routeCid = Number(route.query.consult_id) || 0;
         const routeSrv = String(route.query.srv || '').trim();
-        if (routeCid > 0) activeRequestId.value = routeCid;
+        if (routeCid > 0) {
+            activeRequestId.value = routeCid;
+            timerRequestId.value = routeCid;
+        }
         if (routeSrv) activeServiceCode.value = routeSrv;
         fetchMessages();
     }
 );
+
+watch(timerRequestId, (id, prev) => {
+    if (!import.meta.client) return;
+    if (id > 0 && id !== prev && activePatientId.value && !isTrackingMode.value && !isTrackingEnded.value) {
+        startConsultCountdown({ force: true });
+    }
+});
 
 watch(sidebarPatientIds, () => {
     saveSidebarPatients();

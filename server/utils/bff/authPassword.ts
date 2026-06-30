@@ -51,11 +51,44 @@ function parseAuthType(raw: unknown): AuthType | null {
     return t in AUTH_TABLES ? t as AuthType : null;
 }
 
-function resetLink(type: AuthType, token: string): string {
-    const origin = process.env.NUXT_PUBLIC_SITE_ORIGIN
+const PRODUCTION_ORIGIN = 'https://thesis-telebot-pharmacy.vercel.app';
+
+function resolveSiteOrigin(event?: H3Event): string {
+    const fromEnv = (
+        process.env.NUXT_PUBLIC_SITE_ORIGIN
         || process.env.NUXT_PUBLIC_APP_ORIGIN
-        || 'http://localhost:3001';
-    return `${origin.replace(/\/$/, '')}/auth/reset-password?type=${type}&token=${encodeURIComponent(token)}`;
+        || process.env.SITE_ORIGIN
+        || ''
+    ).trim().replace(/\/$/, '');
+
+    if (fromEnv && !/localhost|127\.0\.0\.1/i.test(fromEnv)) {
+        return fromEnv;
+    }
+
+    if (event) {
+        const headers = getRequestHeaders(event);
+        const host = (headers['x-forwarded-host'] || headers.host || '').split(',')[0].trim();
+        const proto = (headers['x-forwarded-proto'] || 'https').split(',')[0].trim();
+        if (host && !/localhost|127\.0\.0\.1/i.test(host)) {
+            return `${proto}://${host}`;
+        }
+    }
+
+    const vercelUrl = String(process.env.VERCEL_URL || '').trim();
+    if (vercelUrl) {
+        return `https://${vercelUrl.replace(/^https?:\/\//, '')}`;
+    }
+
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+        return PRODUCTION_ORIGIN;
+    }
+
+    return fromEnv || 'http://localhost:3001';
+}
+
+function resetLink(type: AuthType, token: string, event?: H3Event): string {
+    const origin = resolveSiteOrigin(event);
+    return `${origin}/auth/reset-password?type=${type}&token=${encodeURIComponent(token)}`;
 }
 
 async function sendResetEmail(to: string, link: string, type: AuthType): Promise<boolean> {
@@ -104,7 +137,7 @@ export async function handleForgotPassword(event: H3Event) {
         return { status: 'error', message: messages[type] };
     }
 
-    const link = resetLink(type, token);
+    const link = resetLink(type, token, event);
     const mailed = await sendResetEmail(email, link, type);
 
     const payload: Record<string, unknown> = {

@@ -132,8 +132,8 @@ const topPharmacists = computed(() => {
     )
   }
 
-  const apiBase = useNuxtApp().$getApiBase()
-  const defaultPharmaImage = `${apiBase}/images_pharma/default.png`
+  const imagesPharma = useNuxtApp().$imagesPharma
+  const defaultPharmaImage = imagesPharma('default.png')
   return [...map.values()]
     .sort((a, b) => b.count - a.count)
     .slice(0, 5)
@@ -143,7 +143,7 @@ const topPharmacists = computed(() => {
         ? `ภก. ${(profile.firstname || '').trim()} ${(profile.lastname || '').trim()}`.trim()
         : (entry.name.startsWith('ภก.') ? entry.name : `ภก. ${entry.name}`)
       const image = profile?.image
-        ? `${apiBase}/images_pharma/${profile.image}`
+        ? imagesPharma(profile.image)
         : defaultPharmaImage
       // 🏪 แสดงชื่อร้านยาที่ทำงานอยู่ (แทน @username เดิม)
       //    เภสัชที่ยังไม่สังกัดร้าน → "ยังไม่ระบุร้าน"
@@ -159,6 +159,11 @@ const topPharmacists = computed(() => {
     })
 })
 
+const maxRankCount = computed(() => {
+  const top = topPharmacists.value[0]?.count || 0
+  return top > 0 ? top : 1
+})
+
 onMounted(() => {
   fetchOverview()
 })
@@ -167,14 +172,34 @@ onMounted(() => {
 <template>
   <AdminLayout active-tab="overview">
     <div class="overview-view fade-in">
+      <header class="overview-hero">
+        <div class="overview-hero-text">
+          <span class="overview-eyebrow"><i class="fa-solid fa-chart-line"></i> Admin Overview</span>
+          <h2 class="overview-title">ภาพรวมระบบ Telepharmacy</h2>
+          <p class="overview-subtitle">สถิติผู้ใช้ เภสัชกร และใบสั่งยาจากฐานข้อมูลจริง</p>
+        </div>
+        <div class="overview-hero-badge">
+          <i class="fa-solid fa-calendar-days"></i>
+          <span>7 วันล่าสุด</span>
+        </div>
+      </header>
+
       <div class="stat-grid">
         <div class="stat-card main-stat">
-          <span class="stat-label">ผู้ใช้บริการในระบบ</span>
+          <div class="stat-card-top">
+            <span class="stat-icon stat-icon-users"><i class="fa-solid fa-users"></i></span>
+            <span class="stat-label">ผู้ใช้บริการในระบบ</span>
+          </div>
           <span class="stat-value">{{ totalUserCount.toLocaleString('th-TH') }}</span>
+          <span class="stat-footnote">บัญชีผู้ป่วยที่ลงทะเบียน</span>
         </div>
         <div class="stat-card dark-stat">
-          <span class="stat-label">เภสัชกรที่ได้รับการอนุมัติ</span>
+          <div class="stat-card-top">
+            <span class="stat-icon stat-icon-pharma"><i class="fa-solid fa-user-doctor"></i></span>
+            <span class="stat-label">เภสัชกรที่ได้รับการอนุมัติ</span>
+          </div>
           <span class="stat-value text-white">{{ totalPharmaCount.toLocaleString('th-TH') }}</span>
+          <span class="stat-footnote light">พร้อมให้บริการในแพลตฟอร์ม</span>
         </div>
       </div>
 
@@ -182,14 +207,18 @@ onMounted(() => {
         <div class="chart-card shadow-sm">
           <div class="chart-header">
             <div>
-              <h3>จำนวนใบสั่งยาที่บันทึก (7 วันล่าสุด)</h3>
+              <h3><i class="fa-solid fa-chart-column"></i> จำนวนใบสั่งยาที่บันทึก (7 วันล่าสุด)</h3>
               <p>ข้อมูลจริงจากระบบ • รวมทั้งหมด <strong>{{ totalWeeklyCount }}</strong> ใบ</p>
             </div>
           </div>
 
-          <div v-if="isLoading" class="chart-loading">⏳ กำลังโหลดข้อมูล...</div>
+          <div v-if="isLoading" class="chart-loading">
+            <div class="loading-ring"></div>
+            <span>กำลังโหลดข้อมูล...</span>
+          </div>
           <div v-else-if="totalWeeklyCount === 0" class="chart-empty">
-            📭 ยังไม่มีการบันทึกใบสั่งยาในช่วง 7 วันที่ผ่านมา
+            <i class="fa-regular fa-folder-open"></i>
+            <span>ยังไม่มีการบันทึกใบสั่งยาในช่วง 7 วันที่ผ่านมา</span>
           </div>
           <div v-else class="bar-chart">
             <div class="bar-chart-grid">
@@ -221,27 +250,43 @@ onMounted(() => {
         </div>
 
         <div class="top-list-card shadow-sm">
-          <h3>เภสัชกรที่บันทึกใบสั่งยามากที่สุด</h3>
-          <div v-if="isLoading" class="empty-state-mini">⏳ กำลังโหลด...</div>
+          <div class="top-list-header">
+            <h3><i class="fa-solid fa-trophy"></i> เภสัชกรที่บันทึกใบสั่งยามากที่สุด</h3>
+            <span class="top-list-badge">Top 5</span>
+          </div>
+          <div v-if="isLoading" class="empty-state-mini">
+            <div class="loading-ring small"></div>
+            <span>กำลังโหลด...</span>
+          </div>
           <div v-else-if="topPharmacists.length === 0" class="empty-state-mini">
-            📭 ยังไม่มีข้อมูลการบันทึกใบสั่งยา
+            <i class="fa-regular fa-clipboard"></i>
+            <span>ยังไม่มีข้อมูลการบันทึกใบสั่งยา</span>
           </div>
           <div v-else class="pharma-rank-container">
             <div
               v-for="(pharma, idx) in topPharmacists"
               :key="pharma.key"
               class="rank-row"
+              :class="{ 'rank-row-gold': idx === 0 }"
             >
               <div class="rank-profile">
                 <span class="rank-medal" :class="`medal-${idx + 1}`">{{ idx + 1 }}</span>
-                <img
-                  :src="pharma.image"
-                  alt="pharma"
-                  @error="(e) => e.target.src = `${useNuxtApp().$getApiBase()}/images_pharma/default.png`"
-                >
+                <div class="rank-avatar-wrap">
+                  <img
+                    :src="pharma.image"
+                    alt="pharma"
+                    @error="(e) => e.target.src = useNuxtApp().$imagesPharma('default.png')"
+                  >
+                </div>
                 <div class="rank-name">
                   <strong>{{ pharma.displayName }}</strong>
                   <small>{{ pharma.subText || '—' }}</small>
+                  <div class="rank-progress">
+                    <div
+                      class="rank-progress-fill"
+                      :style="{ width: Math.round((pharma.count / maxRankCount) * 100) + '%' }"
+                    ></div>
+                  </div>
                 </div>
               </div>
               <span class="rank-count">{{ pharma.count }} ใบ</span>

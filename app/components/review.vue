@@ -51,47 +51,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { computed } from 'vue'
 import { useApiBase } from '~/composables/useApiBase'
 
-const { apiUrl, imagesAccount } = useApiBase()
-const reviews = ref([])
-const isLoading = ref(true)
+const { imagesAccount } = useApiBase()
+const { reviews, isLoading, fetchReviews } = useReviewsList()
 const MAX_REVIEWS = 3
 
 // แสดงเฉพาะรีวิวคะแนนสูงสุด สูงสุด 3 อัน (ของใหม่สุดมาก่อน หากคะแนนเท่ากัน)
 const displayedReviews = computed(() => {
     const sorted = [...reviews.value].sort((a, b) => (b.rating || 0) - (a.rating || 0));
     return sorted.slice(0, MAX_REVIEWS);
-})
-
-const fetchReviews = async () => {
-  isLoading.value = true
-  try {
-    const data = await $fetch(apiUrl('review-get.php'), {
-      credentials: 'include',
-      timeout: 10_000,
-    });
-    
-    if (data && Array.isArray(data)) {
-      reviews.value = data.map(item => ({
-        name: item.firstname + ' ' + item.lastname,
-        rating: parseInt(item.rating),
-        image: imagesAccount(item.images_account || 'default.png'),
-        text: item.comment
-      }));
-    } else {
-      reviews.value = []
-    }
-  } catch (err) {
-    console.error("Fetch Reviews Error:", err);
-  } finally {
-    isLoading.value = false
-  }
-}
-
-onMounted(() => {
-  fetchReviews();
 })
 </script>
 

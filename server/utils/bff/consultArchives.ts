@@ -38,8 +38,8 @@ async function resolveServiceCode(
         LIMIT 1
     `;
     const code = String(rows[0]?.service_code || '').trim();
-    if (code) return code;
-    return `SRV-${String(consultId).padStart(3, '0')}`;
+    if (code) return code.slice(0, 32);
+    return `SRV-${String(consultId).padStart(3, '0')}`.slice(0, 32);
 }
 
 export async function archiveAndClearChatBetween(

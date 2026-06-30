@@ -156,6 +156,8 @@ export async function handleGetActiveConsult(event: H3Event) {
 }
 
 export async function handleCompleteConsult(event: H3Event) {
+    await ensureBffSchema();
+
     const auth = getAuthContext(event);
     const pId = auth.id_pharma || 0;
 
