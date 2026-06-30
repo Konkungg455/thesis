@@ -183,7 +183,7 @@ export async function handleVerifyOtp(event: H3Event) {
         return { status: 'success', message: 'สมัครสมาชิกสำเร็จ!', redirect: '/auth/login-user' };
     }
 
-    return { status: 'error', message: `ยืนยัน OTP สำหรับ ${type} ยังไม่พร้อม — ใช้ XAMPP ชั่วคราวหรือติดต่อผู้ดูแล` };
+    return { status: 'error', message: `ยืนยัน OTP สำหรับ ${type} ยังไม่พร้อม — ติดต่อผู้ดูแลระบบ` };
 }
 
 export async function handleResendOtp(event: H3Event) {

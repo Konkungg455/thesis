@@ -108,6 +108,10 @@ export async function handleGetPatientInfo(event: H3Event) {
         return { status: 'error', message: 'ไม่พบรหัสผู้ป่วย' };
     }
 
+    const cacheKey = `patient-info:${id}:${consultId}:${roleHint || 'auto'}`;
+    const cached = getBffCache(cacheKey);
+    if (cached) return cached;
+
     const data = await dbQuery(async (sql) => {
         if (roleHint === 'pharma' || roleHint === 'pharmacist') {
             return (await findInPharma(sql, id)) || (await findInAccount(sql, id, consultId));
@@ -119,5 +123,7 @@ export async function handleGetPatientInfo(event: H3Event) {
         return { status: 'error', message: 'ไม่พบข้อมูล' };
     }
 
-    return { status: 'success', data };
+    const payload = { status: 'success', data };
+    setBffCache(cacheKey, payload, consultId > 0 ? 12_000 : 30_000);
+    return payload;
 }

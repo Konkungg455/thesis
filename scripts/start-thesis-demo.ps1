@@ -1,4 +1,4 @@
-# Start Thesis demo: XAMPP + Nuxt + ngrok
+# Start Thesis demo: Nuxt + Supabase BFF + ngrok
 # Usage: npm run demo
 
 $ErrorActionPreference = "Stop"
@@ -8,24 +8,13 @@ Write-Host ""
 Write-Host "=== Thesis Demo Startup ===" -ForegroundColor Cyan
 Write-Host ""
 
-Write-Host "[1/4] XAMPP Apache..." -NoNewline
-try {
-    $xampp = Invoke-WebRequest -Uri "http://127.0.0.1/4/" -UseBasicParsing -TimeoutSec 5
-    Write-Host " OK ($($xampp.StatusCode))" -ForegroundColor Green
-} catch {
-    Write-Host " FAIL" -ForegroundColor Red
-    Write-Host "  -> Start Apache + MySQL in XAMPP Control Panel" -ForegroundColor Yellow
-    Start-Process "C:\xampp\xampp-control.exe" -ErrorAction SilentlyContinue
-    exit 1
-}
-
 $port = 3001
 if (Test-Path "$ProjectRoot\.env") {
     $envLine = Get-Content "$ProjectRoot\.env" | Where-Object { $_ -match '^NUXT_PORT=' } | Select-Object -First 1
     if ($envLine -match 'NUXT_PORT=(\d+)') { $port = [int]$Matches[1] }
 }
 
-Write-Host "[2/4] Nuxt (port $port)..." -NoNewline
+Write-Host "[1/3] Nuxt (port $port)..." -NoNewline
 try {
     $nuxt = Invoke-WebRequest -Uri "http://127.0.0.1:$port/" -UseBasicParsing -TimeoutSec 5
     Write-Host " OK ($($nuxt.StatusCode))" -ForegroundColor Green
@@ -37,15 +26,20 @@ try {
     Start-Sleep -Seconds 15
 }
 
-Write-Host "[3/4] n8n (port 5678)..." -NoNewline
+Write-Host "[2/3] Supabase BFF..." -NoNewline
 try {
-    Invoke-WebRequest -Uri "http://127.0.0.1:5678/" -UseBasicParsing -TimeoutSec 3 | Out-Null
-    Write-Host " OK" -ForegroundColor Green
+    $health = Invoke-RestMethod -Uri "http://127.0.0.1:$port/api/deploy/health" -TimeoutSec 8
+    if ($health.database_url -eq 'configured') {
+        Write-Host " OK" -ForegroundColor Green
+    } else {
+        Write-Host " WARN (ตั้ง DATABASE_URL ใน .env)" -ForegroundColor Yellow
+    }
 } catch {
-    Write-Host " off (AI chat may not work)" -ForegroundColor Yellow
+    Write-Host " FAIL" -ForegroundColor Red
+    Write-Host "  -> ตรวจ .env: DATABASE_URL + NUXT_PUBLIC_SUPABASE_URL" -ForegroundColor Yellow
 }
 
-Write-Host "[4/4] ngrok tunnel..." -NoNewline
+Write-Host "[3/3] ngrok tunnel..." -NoNewline
 $ngrokRunning = $false
 $publicUrl = $null
 try {
@@ -92,7 +86,7 @@ Thesis Demo URLs - $timestamp
 
 Public (QR Code):  $publicUrl
 LAN:               http://${lanIp}:$port
-API (local):       http://127.0.0.1/4
+API (BFF):         http://127.0.0.1:$port/api/bff
 "@
 Set-Content -Path $urlFile -Value $content -Encoding UTF8
 

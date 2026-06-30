@@ -49,7 +49,7 @@ const handleFetch = async () => {
   } catch (err) {
     console.error('get-service-usage:', err)
     serviceUsageData.value = []
-    fetchError.value = 'เชื่อมต่อ API ไม่สำเร็จ — ตรวจสอบว่า XAMPP เปิดอยู่และล็อกอินเป็น admin'
+    fetchError.value = 'เชื่อมต่อ API ไม่สำเร็จ — ตรวจสอบ DATABASE_URL / Supabase และล็อกอินเป็น admin'
   } finally {
     isLoading.value = false
   }
@@ -241,7 +241,7 @@ onMounted(async () => {
               <i :class="searchQuery ? 'fa-solid fa-search' : 'fa-solid fa-folder-open'"></i>
             </div>
             <h3>{{ searchQuery ? 'ไม่พบข้อมูลที่ตรงกับคำค้น' : (fetchError || 'ยังไม่มีรายการให้บริการ') }}</h3>
-            <p>{{ searchQuery ? 'ลองเปลี่ยนคำค้น หรือเปลี่ยนตัวกรองประเภท' : (fetchError ? 'ตรวจสอบ session admin และไฟล์ get-service-usage.php ในโฟลเดอร์ /4' : 'เมื่อมีผู้ใช้จองปรึกษาเภสัชกร รายการจะมาจากตาราง consult_requests') }}</p>
+            <p>{{ searchQuery ? 'ลองเปลี่ยนคำค้น หรือเปลี่ยนตัวกรองประเภท' : (fetchError ? 'ตรวจสอบ session admin และการเชื่อมต่อ Supabase' : 'เมื่อมีผู้ใช้จองปรึกษาเภสัชกร รายการจะมาจากตาราง consult_requests') }}</p>
           </div>
 
           <!-- ===== Header (เฉพาะจอใหญ่) ===== -->

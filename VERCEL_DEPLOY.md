@@ -98,7 +98,7 @@ NUXT_AI_MODEL=llama-3.3-70b-versatile
 
 1. ตั้ง `SUPABASE_SERVICE_ROLE_KEY` บน Vercel
 2. Buckets ใน Supabase: `images-pharma`, `images-account`, `uploads` (Public)
-3. **รันครั้งเดียวบนเครื่อง:** `npm run media:migrate` (sync จาก XAMPP)
+3. **รันครั้งเดียวบนเครื่อง:** `npm run media:seed` (อัปโหลดรูป default ไป Supabase Storage)
 
 ### โดนดีด logout "เซิร์ฟเวอร์รีสตาร์ท"
 

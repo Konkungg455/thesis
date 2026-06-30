@@ -12,7 +12,6 @@ const isPrivateLanHost = (hostname: string) =>
     || /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)
     || /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname);
 
-/** Vercel / production — ไม่มี XAMPP /4 */
 const isHostedProduction = (hostname: string) =>
     hostname.endsWith('.vercel.app')
     || (!isPrivateLanHost(hostname) && !isTunnelHost(hostname) && hostname.includes('.'));
@@ -20,19 +19,8 @@ const isHostedProduction = (hostname: string) =>
 export default defineNuxtPlugin(() => {
     const config = useRuntimeConfig();
 
-    const useSupabaseBackend = () => {
-        if (config.public.useSupabaseBackend === false) {
-            return false;
-        }
-        if (Boolean(String(config.public.supabaseUrl || '').trim())) {
-            return true;
-        }
-        // Vercel / production — ใช้ /api/bff แทน XAMPP /4
-        if (import.meta.client && isHostedProduction(window.location.hostname)) {
-            return true;
-        }
-        return false;
-    };
+    /** ค่าเริ่มต้น: /api/bff + Supabase — ตั้ง NUXT_PUBLIC_USE_SUPABASE_BACKEND=false เพื่อ legacy PHP */
+    const useSupabaseBackend = () => config.public.useSupabaseBackend !== false;
 
     const getBffBase = () => {
         if (import.meta.client) {
@@ -50,40 +38,20 @@ export default defineNuxtPlugin(() => {
             return getBffBase();
         }
 
-        if (import.meta.client) {
-            const { protocol, hostname, host } = window.location;
-
-            if (isTunnelHost(hostname)) {
-                return `${protocol}//${host}/4`;
-            }
-        } else {
-            // SSR — อ่าน host จาก proxy/ngrok headers
-            const headers = useRequestHeaders(['x-forwarded-host', 'host', 'x-forwarded-proto']);
-            const host = (headers['x-forwarded-host'] || headers.host || '').split(',')[0].trim();
-            const proto = (headers['x-forwarded-proto'] || 'http').split(',')[0].trim();
-
-            if (host && isTunnelHost(host)) {
-                return `${proto}://${host}/4`;
-            }
-        }
-
         const fromEnv = (config.public.apiBase as string || '').trim();
         if (fromEnv) {
-            if (import.meta.client && isTunnelHost(window.location.hostname)) {
-                return `${window.location.protocol}//${window.location.host}/4`;
-            }
             return fromEnv.replace(/\/$/, '');
         }
 
         if (import.meta.client) {
-            const host = window.location.hostname;
-            if (isPrivateLanHost(host)) {
-                return `http://${host}/4`;
+            const { protocol, hostname, host } = window.location;
+            if (isTunnelHost(hostname)) {
+                return `${protocol}//${host}/4`;
             }
-            if (isHostedProduction(host)) {
-                return `${window.location.origin}/api/bff`;
+            if (isPrivateLanHost(hostname)) {
+                return `http://${hostname}/4`;
             }
-            return `${window.location.protocol}//${window.location.host}/4`;
+            return `${protocol}//${host}/4`;
         }
 
         return 'http://localhost/4';

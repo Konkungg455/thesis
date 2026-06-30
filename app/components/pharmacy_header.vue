@@ -518,10 +518,9 @@ const updateRequestStatus = async (status) => {
 }
 
 const checkUserStatus = () => {
-    syncFromServer().catch(() => {})
     if (user.value) {
-        checkIncomingRequest()
-        checkStoreStatus()
+        checkIncomingRequest();
+        checkStoreStatus();
     }
 }
 
@@ -576,10 +575,13 @@ onMounted(() => {
 
     window.addEventListener("click", handleClickOutside)
     checkUserStatus()
+    let pollTick = 0
     pollTimer = setInterval(() => {
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
         checkIncomingRequest()
-        checkStoreStatus()
-    }, 5000);
+        pollTick += 1
+        if (pollTick % 2 === 0) checkStoreStatus()
+    }, 8000)
 })
 
 onBeforeUnmount(() => {

@@ -1,4 +1,4 @@
-# Thesis demo health check
+# Thesis demo health check (Supabase + Nuxt)
 $ErrorActionPreference = "Continue"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 
@@ -9,9 +9,9 @@ if (Test-Path "$ProjectRoot\.env") {
 }
 
 $checks = @(
-    @{ Name = "XAMPP Apache (/4)"; Url = "http://127.0.0.1/4/" },
-    @{ Name = "MySQL via PHP API"; Url = "http://127.0.0.1/4/get-user-session.php"; ExpectJson = $true },
     @{ Name = "Nuxt frontend"; Url = "http://127.0.0.1:$port/" },
+    @{ Name = "Deploy health"; Url = "http://127.0.0.1:$port/api/deploy/health"; ExpectJson = $true },
+    @{ Name = "Supabase health"; Url = "http://127.0.0.1:$port/api/supabase/health"; ExpectJson = $true },
     @{ Name = "n8n AI chat"; Url = "http://127.0.0.1:5678/"; Optional = $true }
 )
 
@@ -50,11 +50,11 @@ try {
 
         $h = @{ 'ngrok-skip-browser-warning' = '1' }
         try {
-            Invoke-WebRequest -Uri "$publicUrl/4/get-user-session.php" -Headers $h -UseBasicParsing -TimeoutSec 10 | Out-Null
-            Write-Host ("{0,-28}" -f "ngrok API proxy (/4)") -NoNewline
+            Invoke-WebRequest -Uri "$publicUrl/api/deploy/health" -Headers $h -UseBasicParsing -TimeoutSec 10 | Out-Null
+            Write-Host ("{0,-28}" -f "ngrok BFF (/api/bff)") -NoNewline
             Write-Host " OK" -ForegroundColor Green
         } catch {
-            Write-Host ("{0,-28}" -f "ngrok API proxy (/4)") -NoNewline
+            Write-Host ("{0,-28}" -f "ngrok BFF (/api/bff)") -NoNewline
             Write-Host " FAIL" -ForegroundColor Red
             $allOk = $false
         }

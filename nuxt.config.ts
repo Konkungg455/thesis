@@ -66,18 +66,11 @@ export default defineNuxtConfig({
     '@nuxt/image'
   ],
 
-  // ngrok / Cloudflare Tunnel — อนุญาต host ภายนอก + proxy PHP API ผ่าน path /4 + n8n ผ่าน /n8n
+  // ngrok / Cloudflare Tunnel — proxy n8n ผ่าน /n8n (API ใช้ /api/bff + Supabase)
   vite: {
     server: {
       allowedHosts: true,
       proxy: {
-        '/4': {
-          target: process.env.NUXT_PROXY_API_TARGET || 'http://127.0.0.1',
-          changeOrigin: true,
-          secure: false
-        },
-        // 🆕 proxy n8n webhook → ใช้งานผ่าน ngrok ได้
-        //    /n8n/webhook/xxx  →  http://127.0.0.1:5678/webhook/xxx
         '/n8n': {
           target: process.env.NUXT_PROXY_N8N_TARGET || 'http://127.0.0.1:5678',
           changeOrigin: true,
@@ -124,7 +117,7 @@ export default defineNuxtConfig({
     aiBaseUrl: process.env.NUXT_AI_BASE_URL || '',
     aiMode: process.env.NUXT_AI_MODE || '',
     public: {
-      /** ถ้าไม่ตั้ง จะใช้ http://{hostname ปัจจุบัน}/4 อัตโนมัติ */
+      /** legacy PHP เท่านั้น — ค่าเริ่มต้นใช้ /api/bff */
       apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
       /** n8n base — ถ้าไม่ตั้ง จะใช้ http://{hostname ปัจจุบัน}:5678 อัตโนมัติ */
       n8nBase: process.env.NUXT_PUBLIC_N8N_BASE || '',
@@ -133,7 +126,7 @@ export default defineNuxtConfig({
       supabaseStorageBucket: process.env.SUPABASE_STORAGE_BUCKET || 'media',
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || '',
       supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || process.env.SUPABASE_KEY || '',
-      /** true = ใช้ /api/bff + Supabase แทน XAMPP (default เมื่อมี SUPABASE_URL) */
+      /** ค่าเริ่มต้น true = /api/bff + Supabase (ตั้ง false เพื่อ legacy PHP) */
       useSupabaseBackend: process.env.NUXT_PUBLIC_USE_SUPABASE_BACKEND !== 'false',
       /** URL หลัก production — ลิงก์ในอีเมล / share */
       siteOrigin: process.env.NUXT_PUBLIC_SITE_ORIGIN || 'https://thesis-telebot-pharmacy.vercel.app',

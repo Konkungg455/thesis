@@ -14,7 +14,7 @@ const MIME: Record<string, string> = {
 };
 
 function mediaRoot(): string {
-    return process.env.MEDIA_ROOT || 'C:/xampp/htdocs/4';
+    return String(process.env.MEDIA_ROOT || '').trim();
 }
 
 export function serveLocalMedia(event: H3Event, pathname: string) {
@@ -32,7 +32,7 @@ export function serveLocalMedia(event: H3Event, pathname: string) {
     const filename = parts[parts.length - 1] || '';
     const folder = parts.slice(0, -1).join('/');
 
-    // Vercel — ใช้ Supabase Storage public URL (ไม่มี C:/xampp)
+    // ไม่มี MEDIA_ROOT — redirect ไป Supabase Storage
     if (!canUseLocalMediaStorage()) {
         const publicUrl = getMediaPublicUrl(folder, filename);
         if (publicUrl) {
@@ -42,6 +42,14 @@ export function serveLocalMedia(event: H3Event, pathname: string) {
     }
 
     const root = normalize(mediaRoot());
+    if (!root) {
+        const publicUrl = getMediaPublicUrl(folder, filename);
+        if (publicUrl) {
+            return sendRedirect(event, publicUrl, 302);
+        }
+        throw createError({ statusCode: 404, statusMessage: 'File not found' });
+    }
+
     let filePath = normalize(join(root, ...parts));
 
     if (!filePath.startsWith(root)) {

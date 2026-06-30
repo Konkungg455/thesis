@@ -3,15 +3,21 @@ import { join } from 'node:path';
 import { buildSupabasePublicUrl, resolveSupabaseObject } from '~/utils/mediaStorage';
 
 function localRoot(): string {
-    return process.env.MEDIA_ROOT || 'C:/xampp/htdocs/4';
+    return String(process.env.MEDIA_ROOT || '').trim();
 }
 
-/** Vercel / Linux serverless — ห้ามเขียน C:/xampp */
+/** ใช้ดิสก์ local เฉพาะเมื่อตั้ง MEDIA_ROOT เอง — ค่าเริ่มต้นใช้ Supabase Storage */
 export function canUseLocalMediaStorage(): boolean {
     if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
         return false;
     }
+    if (isSupabaseConfigured() || String(process.env.DATABASE_URL || '').trim()) {
+        return false;
+    }
     const root = localRoot();
+    if (!root) {
+        return false;
+    }
     if (process.platform !== 'win32' && /^[A-Za-z]:[/\\]/.test(root)) {
         return false;
     }

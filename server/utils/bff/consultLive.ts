@@ -10,17 +10,21 @@ export async function handleListMyPatients(event: H3Event) {
         return { status: 'error', data: [] };
     }
 
+    const cacheKey = `list-my-patients:${pId}`;
+    const cached = getBffCache(cacheKey);
+    if (cached) return cached;
+
     const list = await dbQuery(async (sql) => {
         const rows = await sql`
             SELECT r.id_account,
                    MAX(r.id)::int AS request_id,
-                   a.firstname, a.lastname, a.username_account
+                   a.firstname, a.lastname, a.username_account, a.images_account
             FROM consult_requests r
             INNER JOIN account a ON r.id_account = a.id_account
             WHERE r.id_pharma = ${pId}
               AND r.status = 'accepted'
               AND COALESCE(r.is_deleted, 0) = 0
-            GROUP BY r.id_account, a.firstname, a.lastname, a.username_account
+            GROUP BY r.id_account, a.firstname, a.lastname, a.username_account, a.images_account
             ORDER BY request_id DESC
         `;
         return rows.map((row) => {
@@ -30,15 +34,19 @@ export async function handleListMyPatients(event: H3Event) {
             if (!name) {
                 name = String(row.username_account || '').trim() || `ผู้ป่วย #${row.id_account}`;
             }
+            const imgFile = String(row.images_account || '').trim();
             return {
                 id_account: Number(row.id_account),
                 request_id: Number(row.request_id),
                 patient_name: name,
+                image_url: imgFile ? `images_account/${imgFile}` : 'images_account/default.png',
             };
         });
     });
 
-    return { status: 'success', data: list || [] };
+    const payload = { status: 'success', data: list || [] };
+    setBffCache(cacheKey, payload, 20_000);
+    return payload;
 }
 
 export async function handleGetActiveConsult(event: H3Event) {
@@ -51,6 +59,10 @@ export async function handleGetActiveConsult(event: H3Event) {
     if (pId <= 0 || uId <= 0) {
         return { status: 'none' };
     }
+
+    const cacheKey = `active-consult:${pId}:${uId}:${reqCid}`;
+    const cached = getBffCache(cacheKey);
+    if (cached) return cached;
 
     const result = await dbQuery(async (sql) => {
         let trackingActive = 0;
@@ -152,7 +164,9 @@ export async function handleGetActiveConsult(event: H3Event) {
         return { status: 'none' };
     });
 
-    return result || { status: 'none' };
+    const payload = result || { status: 'none' };
+    setBffCache(cacheKey, payload, 8_000);
+    return payload;
 }
 
 export async function handleCompleteConsult(event: H3Event) {

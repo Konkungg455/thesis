@@ -20,7 +20,7 @@ export interface PrescriptionEmailResult {
 }
 
 function mediaRoot(): string {
-    return process.env.MEDIA_ROOT || 'C:/xampp/htdocs/4';
+    return String(process.env.MEDIA_ROOT || '').trim();
 }
 
 function rxEsc(v: unknown): string {

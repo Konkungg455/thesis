@@ -44,6 +44,10 @@ export async function handleGetPharmaStoreStatus(event: H3Event) {
         return { status: 'error', message: 'ไม่ใช่บัญชีเภสัชกร' };
     }
 
+    const cacheKey = `pharma-store-status:${pId}`;
+    const cached = getBffCache(cacheKey);
+    if (cached) return cached;
+
     const result = await dbQuery(async (sql) => {
         await ensurePharmaStoreNoticeColumns(sql);
         const rows = await sql`
@@ -71,18 +75,20 @@ export async function handleGetPharmaStoreStatus(event: H3Event) {
 
     if (pendingId > 0) {
         const label = String(result.pending_store_name || '').trim() || `ร้าน #${pendingId}`;
-        return {
+        const payload = {
             ...base,
             status: 'success',
             state: 'pending',
             store_name: label,
             message: `กำลังรอเจ้าของร้าน "${label}" อนุมัติคำขอเข้าร้าน`,
         };
+        setBffCache(cacheKey, payload, 45_000);
+        return payload;
     }
 
     if (storeId > 0) {
         const label = String(result.current_store_name || '').trim() || `ร้าน #${storeId}`;
-        return {
+        const payload = {
             ...base,
             status: 'success',
             state: 'active',
@@ -90,15 +96,19 @@ export async function handleGetPharmaStoreStatus(event: H3Event) {
             store_id: storeId,
             message: `คุณกำลังทำงานที่ "${label}"`,
         };
+        setBffCache(cacheKey, payload, 45_000);
+        return payload;
     }
 
-    return {
+    const payload = {
         ...base,
         status: 'success',
         state: 'unassigned',
         store_name: '',
         message: 'คุณยังไม่ได้สังกัดร้านยา — รอเจ้าของร้านเชิญเข้าร้าน',
     };
+    setBffCache(cacheKey, payload, 45_000);
+    return payload;
 }
 
 export async function handleAckPharmaStoreWelcome(event: H3Event) {

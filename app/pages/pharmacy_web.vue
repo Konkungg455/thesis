@@ -127,36 +127,60 @@ const patientAvatar = (id) => {
     return '';
 };
 
+// กันยิง get-patient-info ซ้ำพร้อมกัน
+const patientInfoInflight = new Map();
+
 // ฟังก์ชันดึงชื่อ + รูป + อาการคนไข้จาก backend
 //   - ถ้าระบุ consultId → ดึงอาการของ "รอบนั้น" (ไม่ใช่อาการล่าสุดรวม)
 //   - markLoaded=false → ยังไม่แสดงข้อความ "ยังไม่มีข้อมูลอาการ" (ใช้ตอน preload sidebar)
-const fetchPatientInfo = async (id, { consultId = 0, markLoaded = true } = {}) => {
+const fetchPatientInfo = async (id, { consultId = 0, markLoaded = true, force = false } = {}) => {
     const cleanId = normalizePatientId(id);
     if (!cleanId) return;
     const cid = Number(consultId) || Number(activeRequestId.value) || Number(route.query.consult_id) || 0;
     const isActive = Number(activePatientId.value) === cleanId;
-    let url = `get-patient-info.php?id=${cleanId}&role=user`;
-    // ส่ง consult_id เฉพาะคนไข้ที่กำลังเปิดแชทอยู่ → ได้อาการของรอบรับเคสนั้น
-    if (isActive && cid > 0) url += `&consult_id=${cid}`;
-    try {
-        const res = await $fetch(apiUrl(url), { credentials: 'include' });
-        if (res && res.status === 'success') {
-            setPatientDisplayName(cleanId, res.data.patient_name);
-            if (res.data.image_url) setPatientImage(cleanId, res.data.image_url);
-            if (isActive || markLoaded) {
-                setPatientSymptom(cleanId, res.data.symptom_name || '');
-            }
-        } else if (!patientDetailsMap.value[cleanId]) {
-            setPatientDisplayName(cleanId, `ผู้ป่วยคนที่ ${cleanId}`);
-        }
-    } catch {
-        if (!patientDetailsMap.value[cleanId]) {
-            setPatientDisplayName(cleanId, `ผู้ป่วยคนที่ ${cleanId}`);
-        }
-    } finally {
+    const inflightKey = `${cleanId}:${isActive && cid > 0 ? cid : 0}`;
+
+    if (!force && patientDetailsMap.value[cleanId] && !(isActive && cid > 0 && !patientSymptomLoaded.value[cleanId])) {
         if (markLoaded) {
             patientSymptomLoaded.value = { ...patientSymptomLoaded.value, [cleanId]: true };
         }
+        return;
+    }
+
+    if (patientInfoInflight.has(inflightKey)) {
+        return patientInfoInflight.get(inflightKey);
+    }
+
+    const task = (async () => {
+        let url = `get-patient-info.php?id=${cleanId}&role=user`;
+        if (isActive && cid > 0) url += `&consult_id=${cid}`;
+        try {
+            const res = await $fetch(apiUrl(url), { credentials: 'include' });
+            if (res && res.status === 'success') {
+                setPatientDisplayName(cleanId, res.data.patient_name);
+                if (res.data.image_url) setPatientImage(cleanId, res.data.image_url);
+                if (isActive || markLoaded) {
+                    setPatientSymptom(cleanId, res.data.symptom_name || '');
+                }
+            } else if (!patientDetailsMap.value[cleanId]) {
+                setPatientDisplayName(cleanId, `ผู้ป่วยคนที่ ${cleanId}`);
+            }
+        } catch {
+            if (!patientDetailsMap.value[cleanId]) {
+                setPatientDisplayName(cleanId, `ผู้ป่วยคนที่ ${cleanId}`);
+            }
+        } finally {
+            if (markLoaded) {
+                patientSymptomLoaded.value = { ...patientSymptomLoaded.value, [cleanId]: true };
+            }
+        }
+    })();
+
+    patientInfoInflight.set(inflightKey, task);
+    try {
+        await task;
+    } finally {
+        patientInfoInflight.delete(inflightKey);
     }
 };
 
@@ -166,11 +190,12 @@ const ensurePatientInSidebar = (id) => {
     if (!normalized) return;
     
     if (!sidebarPatientIds.value.includes(normalized)) {
-        // เปลี่ยนมาสร้างก้อน Array สดใหม่ทับลงไป เพื่อส่งสัญญาณ Reactivity ลั่นแจ้งเตือนสเตตทันที
         sidebarPatientIds.value = [...sidebarPatientIds.value, normalized].sort((a, b) => a - b);
-        saveSidebarPatients(); // เขียนเก็บลงกล่องถาวร
+        saveSidebarPatients();
     }
-    fetchPatientInfo(normalized, { markLoaded: true }); // โหลดชื่อ + อาการ (แสดงในรายการแม้ยังไม่คลิก)
+    if (!patientDetailsMap.value[normalized]) {
+        fetchPatientInfo(normalized, { markLoaded: false });
+    }
 };
 
 // ระบบ Auto-Focus ดึงแชทและชื่อคนไข้จริงขึ้นบาร์ทันทีหลังคลิกกระดิ่งรับเคส
@@ -218,11 +243,10 @@ const loadSidebarPatients = async () => {
                 .map((p) => normalizePatientId(p.id_account))
                 .filter((v) => v !== null);
             res.data.forEach((p) => {
-                if (p.patient_name) {
-                    setPatientDisplayName(p.id_account, p.patient_name);
-                }
-                // โหลดอาการของแต่ละคนมาแสดงในรายการเลย (ไม่ต้องรอคลิก)
-                fetchPatientInfo(p.id_account, { markLoaded: true });
+                const pid = normalizePatientId(p.id_account);
+                if (!pid) return;
+                if (p.patient_name) setPatientDisplayName(pid, p.patient_name);
+                if (p.image_url) setPatientImage(pid, p.image_url);
             });
             saveSidebarPatients();
             return;
@@ -239,7 +263,6 @@ const loadSidebarPatients = async () => {
         sidebarPatientIds.value = list
             .map((v) => normalizePatientId(v))
             .filter((v) => v !== null);
-        sidebarPatientIds.value.forEach((id) => fetchPatientInfo(id, { markLoaded: true }));
     } catch {
         // ignore
     }
@@ -687,6 +710,7 @@ const fetchActiveConsultInfo = async () => {
             await fetchPatientInfo(activePatientId.value, {
                 consultId: Number(data.id) || 0,
                 markLoaded: true,
+                force: true,
             });
         }
     } catch (e) {
@@ -1157,6 +1181,19 @@ watch(sidebarPatientIds, () => {
     saveSidebarPatients();
 }, { deep: true });
 
+const isPageVisible = () => typeof document === 'undefined' || document.visibilityState === 'visible';
+
+const runMainPoll = () => {
+    if (!isPageVisible()) return;
+    checkExternalBellTrigger();
+    if (activePatientId.value) fetchMessages();
+};
+
+const runConsultPoll = () => {
+    if (!isPageVisible() || !activePatientId.value) return;
+    fetchActiveConsultInfo();
+};
+
 onMounted(async () => {
     if (route.query.consult_done === '1' || route.query.consult_done === 'true') {
         const pid = normalizePatientId(route.query.patient_id);
@@ -1171,17 +1208,15 @@ onMounted(async () => {
 
     await checkExternalBellTrigger();
 
-    mainTimer = setInterval(() => { 
-        fetchMessages(); 
-        checkExternalBellTrigger();
-    }, 3000);
+    mainTimer = setInterval(runMainPoll, 4000);
 
     // เริ่ม polling การโทร (ใน composable) — ใช้ความถี่ของตัวเอง
-    startCallPolling(2500);
+    startCallPolling(4000);
 
-    // ตรวจสอบโหมดติดตามอาการทุก 4 วินาที (จับเหตุการณ์ user หรือ pharma กดปรึกษาอีกครั้ง)
-    fetchActiveConsultInfo();
-    consultInfoPollTimer = setInterval(fetchActiveConsultInfo, 4000);
+    if (activePatientId.value) {
+        fetchActiveConsultInfo();
+    }
+    consultInfoPollTimer = setInterval(runConsultPoll, 6000);
 
     // 💓 heartbeat นาฬิกากลางทุก 5 วิ (ส่งเฉพาะตอนเปิดหน้าจออยู่) + เช็คทันทีเมื่อกลับมาที่แท็บ
     chatTimerHeartbeat = setInterval(() => syncChatTimer(), 5000);
