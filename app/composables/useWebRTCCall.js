@@ -26,11 +26,13 @@ const buildPeerId = (role, id) => `${PEER_PREFIX}-${unref(role)}-${unref(id)}`;
 const ICE_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
     {
         urls: [
             'turn:openrelay.metered.ca:80',
             'turn:openrelay.metered.ca:443',
-            'turn:openrelay.metered.ca:443?transport=tcp'
+            'turn:openrelay.metered.ca:443?transport=tcp',
+            'turns:openrelay.metered.ca:443'
         ],
         username: 'openrelayproject',
         credential: 'openrelayproject'
@@ -179,10 +181,11 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         if (!stream) return;
 
         if (isVideoCallUI()) {
-            const { display, audio } = rebuildRemoteStreams(stream);
-            bindStreamToElement(remoteVideo.value, display || stream, { muted: true });
-            bindStreamToElement(remoteAudioSink.value, audio || stream, { muted: false });
-            hasRemoteVideo.value = !!display?.getVideoTracks?.().length && remoteVideo.value?.videoWidth > 0;
+            // ใช้ stream เดิมทั้งก้อน — อย่าแยก track (มือถือบางรุ่นแยกแล้วภาพไม่ขึ้น)
+            bindStreamToElement(remoteVideo.value, stream, { muted: true });
+            bindStreamToElement(remoteAudioSink.value, stream, { muted: false });
+            hasRemoteVideo.value = !!stream.getVideoTracks?.().length
+                && (remoteVideo.value?.videoWidth > 0 || stream.getVideoTracks()[0]?.readyState === 'live');
         } else {
             bindStreamToElement(remoteVideo.value, stream, { muted: false });
         }
@@ -330,9 +333,13 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
      */
     const handleIncomingPeerCall = (call) => {
         console.log('[PeerJS] incoming call from', call.peer);
+        // สาย outbound ค้างแต่ไม่ได้ media → ปิดแล้วรับสายเข้าแทน
+        if (activeCall && !remoteStreamRef.value) {
+            try { activeCall.close(); } catch (e) {}
+            activeCall = null;
+        }
         pendingIncoming = call;
 
-        // ถ้า isInCall แล้ว → answer เลย (เกิดจาก caller ส่งใหม่)
         if (isInCall.value && localStream) {
             answerPendingIncoming();
         }
@@ -355,26 +362,49 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
      */
     let lastRemotePeerId = null;
     let dialRetryTimer = null;
-    const dialPeer = (remotePeerId) => {
-        if (!peer || peer.destroyed || !localStream) return;
+    let lastDialAt = 0;
+    let dialAttempts = 0;
+    const MAX_DIAL_ATTEMPTS = 6;
+
+    const resolveRemotePeerId = (data) => {
+        if (!data) return null;
+        if (data.is_caller) {
+            return data.receiver_peer_id || buildPeerId(data.peer_role, data.peer_id);
+        }
+        return data.caller_peer_id || buildPeerId(data.peer_role, data.peer_id);
+    };
+
+    const needsRemoteMedia = () => {
+        if (!isInCall.value) return false;
+        const stream = remoteStreamRef.value;
+        if (!stream) return true;
+        if (isVideoCallUI() && !stream.getVideoTracks?.().length) return true;
+        return false;
+    };
+
+    const dialPeer = (remotePeerId, { force = false } = {}) => {
+        if (!remotePeerId || !peer || peer.destroyed || !localStream) return;
+        const now = Date.now();
+        if (!force && remotePeerId === lastRemotePeerId && now - lastDialAt < 2800) return;
+        if (dialAttempts >= MAX_DIAL_ATTEMPTS && !force) return;
+
         lastRemotePeerId = remotePeerId;
+        lastDialAt = now;
+        dialAttempts += 1;
+
         try {
-            activeCall = peer.call(remotePeerId, localStream);
+            try { activeCall?.close?.(); } catch (e) {}
+            console.log('[PeerJS] dialing', remotePeerId, 'attempt', dialAttempts);
+            activeCall = peer.call(remotePeerId, localStream, { metadata: { type: callType.value } });
             attachRemoteStream(activeCall);
 
-            // กันสายแรกหลุด/ฝั่งรับยังไม่พร้อม — ถ้ายังไม่ได้ remote stream ใน 5 วิ ลองโทรใหม่
             if (dialRetryTimer) clearTimeout(dialRetryTimer);
             dialRetryTimer = setTimeout(() => {
-                const stream = remoteStreamRef.value;
-                const missingStream = isInCall.value && !stream;
-                const missingVideo = isInCall.value && isVideoCallUI() && stream && !stream.getVideoTracks?.().length;
-                if ((missingStream || missingVideo) && lastRemotePeerId && peer && !peer.destroyed && localStream) {
-                    console.warn('[PeerJS] remote video missing — re-dialing', lastRemotePeerId);
-                    try { activeCall?.close?.(); } catch (e) {}
-                    activeCall = peer.call(lastRemotePeerId, localStream);
-                    attachRemoteStream(activeCall);
+                if (needsRemoteMedia() && lastRemotePeerId && peer && !peer.destroyed && localStream) {
+                    console.warn('[PeerJS] still no remote media — retry dial');
+                    dialPeer(lastRemotePeerId, { force: true });
                 }
-            }, 5000);
+            }, 4000);
         } catch (err) {
             console.error('[PeerJS] dialPeer error:', err);
         }
@@ -387,6 +417,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             if (!remoteStream) return;
             remoteStream.getTracks().forEach((t) => { t.enabled = true; });
             remoteStreamRef.value = remoteStream;
+            dialAttempts = 0;
             if (dialRetryTimer) { clearTimeout(dialRetryTimer); dialRetryTimer = null; }
             nextTick().then(() => {
                 playRemote();
@@ -404,6 +435,20 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             pc.ontrack = (event) => {
                 const stream = event.streams?.[0] || new MediaStream([event.track]);
                 handleRemoteStream(stream);
+            };
+            pc.onconnectionstatechange = () => {
+                const state = pc.connectionState;
+                console.log('[WebRTC] connectionState:', state);
+                if (state === 'failed' && lastRemotePeerId) {
+                    dialPeer(lastRemotePeerId, { force: true });
+                }
+            };
+            pc.oniceconnectionstatechange = () => {
+                const ice = pc.iceConnectionState;
+                console.log('[WebRTC] iceConnectionState:', ice);
+                if ((ice === 'failed' || ice === 'disconnected') && lastRemotePeerId && needsRemoteMedia()) {
+                    setTimeout(() => dialPeer(lastRemotePeerId, { force: true }), 800);
+                }
             };
         }
 
@@ -474,27 +519,44 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
                 await initPeer();   // เตรียม peer ไว้รอ peer.on('call')
             }
 
-            // เรา = ผู้โทร + ฝั่งรับเพิ่งกดรับ → dial peer
-            if (data.call_status === 'accepted' && data.is_caller && isCalling.value) {
-                isCalling.value = false;
-                isInCall.value = true;
-                startCallTimer();
-                // ดึง peer ปลายทาง + เรียก
-                const remotePeerId = data.receiver_peer_id || buildPeerId(data.peer_role, data.peer_id);
-                if (remotePeerId) dialPeer(remotePeerId);
-                startRemotePlayLoop();
+            // เรา = ผู้โทร + ฝั่งรับกดรับแล้ว
+            if (data.call_status === 'accepted' && data.is_caller && (isCalling.value || isInCall.value)) {
+                if (isCalling.value) {
+                    isCalling.value = false;
+                    isInCall.value = true;
+                    startCallTimer();
+                }
+                if (needsRemoteMedia()) {
+                    const remotePeerId = resolveRemotePeerId(data);
+                    if (remotePeerId) dialPeer(remotePeerId);
+                    startRemotePlayLoop();
+                }
+            }
+
+            // เรา = ผู้รับ + อยู่ในสายแล้ว — รับสายหรือโทรกลับ caller ถ้ายังไม่ได้ stream
+            if (data.call_status === 'accepted' && !data.is_caller && isInCall.value && localStream) {
+                if (pendingIncoming) {
+                    answerPendingIncoming();
+                } else if (needsRemoteMedia()) {
+                    const remotePeerId = resolveRemotePeerId(data);
+                    if (remotePeerId) dialPeer(remotePeerId);
+                    startRemotePlayLoop();
+                }
             }
         } catch (err) {
             console.warn('[Call] check error:', err);
         }
     };
 
-    const startPolling = (intervalMs = 2500) => {
+    const startPolling = (intervalMs = 2000) => {
         if (pollTimer) return;
-        const tick = () => {
-            // skip ถ้ายังไม่รู้ id (รอ user load เสร็จ)
+        const tick = async () => {
             if (!unref(myId)) return;
-            checkCallSystem();
+            await checkCallSystem();
+            // เตรียม Peer ไว้ก่อน — ลดโอกาสพลาดสาย
+            if (!peer || peer.destroyed) {
+                try { await initPeer(); } catch (e) { /* ignore */ }
+            }
         };
         tick();
         pollTimer = setInterval(tick, intervalMs);
@@ -553,8 +615,20 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             await apiCallAccept(peer.id);
             isInCall.value = true;
             startCallTimer();
-            // ถ้า caller ส่ง peer.call() มาก่อนหน้านี้ (เร็วมาก) → answer ทันที
             if (pendingIncoming) answerPendingIncoming();
+            // ฝั่งรับ: ถ้า caller ยังไม่โทรมา ให้โทรหา caller เอง (สำคัญบนมือถือ/ngrok)
+            setTimeout(async () => {
+                if (!isInCall.value || remoteStreamRef.value) return;
+                if (pendingIncoming) {
+                    answerPendingIncoming();
+                    return;
+                }
+                try {
+                    const latest = await apiCallCheck();
+                    const callerPeerId = resolveRemotePeerId(latest);
+                    if (callerPeerId) dialPeer(callerPeerId, { force: true });
+                } catch (e) { /* ignore */ }
+            }, 1200);
             await nextTick();
             playRemote();
             startRemotePlayLoop();
@@ -583,6 +657,8 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         callInterval = null;
         if (dialRetryTimer) { clearTimeout(dialRetryTimer); dialRetryTimer = null; }
         lastRemotePeerId = null;
+        lastDialAt = 0;
+        dialAttempts = 0;
 
         try { activeCall?.close?.(); } catch (e) {}
         try { pendingIncoming?.close?.(); } catch (e) {}
@@ -620,6 +696,18 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         peerReadyPromise = null;
     };
 
+    const retryRemoteVideo = async () => {
+        playRemote();
+        if (!needsRemoteMedia()) return;
+        try {
+            const data = await apiCallCheck();
+            const remotePeerId = resolveRemotePeerId(data);
+            if (remotePeerId) dialPeer(remotePeerId, { force: true });
+        } catch (e) {
+            if (lastRemotePeerId) dialPeer(lastRemotePeerId, { force: true });
+        }
+    };
+
     onBeforeUnmount(destroy);
 
     return {
@@ -646,7 +734,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         startPolling,
         stopPolling,
         initPeer,
-        retryRemoteVideo: playRemote,
+        retryRemoteVideo,
         destroy
     };
 }

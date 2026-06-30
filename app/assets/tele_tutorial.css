@@ -1,199 +1,381 @@
-/* SECTION */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: "Inter", sans-serif;
-}
-
+/* ===== Tele Tutorial Section ===== */
 .tele-section {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 150px;
+    gap: 48px;
+    padding: 72px clamp(20px, 8vw, 150px);
+    background: linear-gradient(165deg, #eef6ff 0%, #ffffff 42%, #f4faff 100%);
+    overflow: hidden;
+    font-family: "Inter", "Sarabun", sans-serif;
 }
 
-
-/* LEFT */
-.tele-left {
-    max-width: 55%;
+.tele-section__glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    opacity: 0.55;
+}
+.tele-section__glow--left {
+    width: 320px;
+    height: 320px;
+    top: -80px;
+    left: -60px;
+    background: rgba(61, 189, 236, 0.28);
+}
+.tele-section__glow--right {
+    width: 280px;
+    height: 280px;
+    bottom: -40px;
+    right: 8%;
+    background: rgba(0, 70, 157, 0.16);
 }
 
-.tele-left h1 {
-    font-size: 32px;
-    color: #0d47a1;
-    display: flex;
+.tele-section .fa-solid,
+.tele-section .fa-regular {
+    font-family: "Font Awesome 6 Free", sans-serif !important;
+    font-weight: 900;
+}
+
+/* ----- Header ----- */
+.tele-header {
+    margin-bottom: 8px;
+}
+
+.tele-badge {
+    display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    padding: 8px 16px;
+    margin-bottom: 18px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #00469d;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(61, 189, 236, 0.45);
+    box-shadow: 0 4px 18px rgba(0, 70, 157, 0.08);
+    backdrop-filter: blur(6px);
 }
 
-.chat-bubble {
-    color: #3DBDEC;
-    font-size: 30px;
+.tele-badge i {
+    color: #3dbdec;
+    font-size: 0.9rem;
 }
 
-.subtitle {
-    margin-top: 10px;
-    font-size: 24px;
-    color: #3DBDEC;
+.tele-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+    margin: 0;
+    line-height: 1.15;
 }
 
-.subtitle span {
-    color: #3DBDEC;
-    font-weight: 600;
+.tele-title__text {
+    font-size: clamp(1.75rem, 3.2vw, 2.65rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(120deg, #0d47a1 0%, #1565c0 45%, #0288d1 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
 }
 
-/* STEPS */
+.tele-title__bubble {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #3dbdec 0%, #0288d1 100%);
+    color: #fff;
+    font-size: 1.35rem;
+    box-shadow: 0 10px 28px rgba(2, 136, 209, 0.35);
+    transform: rotate(-6deg);
+    animation: tele-bubble-float 3.5s ease-in-out infinite;
+}
+
+@keyframes tele-bubble-float {
+    0%, 100% { transform: rotate(-6deg) translateY(0); }
+    50% { transform: rotate(-3deg) translateY(-6px); }
+}
+
+.tele-subtitle {
+    margin: 14px 0 0;
+    font-size: clamp(1.1rem, 2vw, 1.45rem);
+    font-weight: 500;
+    color: #5c7a99;
+}
+
+.tele-brand {
+    font-weight: 800;
+    background: linear-gradient(90deg, #0288d1, #3dbdec);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    position: relative;
+}
+
+.tele-brand::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 2px;
+    width: 100%;
+    height: 6px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, rgba(61, 189, 236, 0.35), rgba(2, 136, 209, 0.15));
+    z-index: -1;
+}
+
+.tele-lead {
+    margin: 12px 0 0;
+    max-width: 520px;
+    font-size: 0.98rem;
+    line-height: 1.65;
+    color: #64748b;
+}
+
+/* ----- Left / Steps ----- */
+.tele-left {
+    position: relative;
+    z-index: 1;
+    max-width: 58%;
+}
+
 .steps {
     display: flex;
-    gap: 18px;
-    margin-top: 44px;
+    gap: 14px;
+    margin-top: 36px;
     flex-wrap: wrap;
 }
 
 .step {
     position: relative;
-    text-align: center;
-    font-size: 16px;
-    font-weight: 600;
-    color: #0d47a1;
     flex: 1 1 0;
-    min-width: 120px;
-    padding: 18px 12px 16px;
-    background: #ffffff;
-    border: 1px solid #e4eefb;
-    border-radius: 18px;
-    box-shadow: 0 8px 22px rgba(13, 71, 161, 0.06);
-    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    min-width: 118px;
+    padding: 20px 12px 18px;
+    text-align: center;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #0d47a1;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(188, 220, 255, 0.9);
+    border-radius: 20px;
+    box-shadow: 0 10px 28px rgba(13, 71, 161, 0.07);
+    transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
 }
 
 .step:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 16px 34px rgba(13, 71, 161, 0.15);
-    border-color: #bcdcff;
-}
-
-/* เส้นเชื่อมระหว่างขั้นตอน — ตัดออกตามที่ร้องขอ */
-.step:not(:last-child)::after {
-    display: none;
+    transform: translateY(-8px);
+    border-color: #7ec8ff;
+    box-shadow: 0 18px 40px rgba(13, 71, 161, 0.14);
 }
 
 .step-media {
     position: relative;
-    width: 120px;
-    height: 120px;
-    margin: 0 auto 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.step-num {
-    position: absolute;
-    top: -6px;
-    left: -6px;
-    width: 26px;
-    height: 26px;
+    width: 108px;
+    height: 108px;
+    margin: 0 auto 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background: linear-gradient(135deg, #00469D 0%, #3DBDEC 100%);
+    background: linear-gradient(180deg, #f0f9ff 0%, #e3f2fd 100%);
+}
+
+.step-num {
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    z-index: 2;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #00469d 0%, #3dbdec 100%);
     color: #fff;
-    font-size: 13px;
-    font-weight: 700;
-    box-shadow: 0 4px 10px rgba(0, 70, 157, 0.3);
+    font-size: 0.78rem;
+    font-weight: 800;
+    box-shadow: 0 4px 12px rgba(0, 70, 157, 0.35);
+    border: 2px solid #fff;
 }
 
 .step img {
-    width: 88px;
+    width: 72px;
     height: auto;
+    object-fit: contain;
 }
 
 .step p {
     margin: 0;
-    line-height: 1.35;
+    line-height: 1.4;
 }
 
-/* RIGHT */
-.tele-right img {
-    height: 350px;
+/* ----- Right / Phone ----- */
+.tele-right {
+    position: relative;
+    z-index: 1;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 280px;
+}
+
+.phone-bg-blob {
+    position: absolute;
+    width: 340px;
+    height: 340px;
+    border-radius: 45% 55% 52% 48% / 48% 42% 58% 52%;
+    background: linear-gradient(145deg, rgba(61, 189, 236, 0.35), rgba(0, 70, 157, 0.2));
+    animation: tele-blob-morph 8s ease-in-out infinite;
+}
+
+.phone-bg-ring {
+    position: absolute;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    border: 2px dashed rgba(2, 136, 209, 0.25);
+    animation: tele-ring-spin 24s linear infinite;
+}
+
+@keyframes tele-blob-morph {
+    0%, 100% { border-radius: 45% 55% 52% 48% / 48% 42% 58% 52%; transform: rotate(0deg); }
+    50% { border-radius: 52% 48% 45% 55% / 55% 50% 50% 45%; transform: rotate(8deg); }
+}
+
+@keyframes tele-ring-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.phone-image {
+    position: relative;
+    z-index: 2;
+    height: clamp(280px, 32vw, 380px);
     max-width: 100%;
+    filter: drop-shadow(0 24px 48px rgba(13, 71, 161, 0.22));
 }
 
-.organic_shape_left {
-  position: relative;
-  left: -120px;      /* ⭐ ดันออกไปให้ชิด/ล้นซ้าย */
-  width: 420px;      /* ⭐ ปรับขนาด */
-  height: auto;
-  z-index: 0;
-}
-
-
-/* RESPONSIVE — ครอบ iPad gen 9 (แนวตั้ง 810px) ด้วย เพื่อจัดหัวข้อให้สวยและไม่ล้น */
+/* ----- Responsive ----- */
 @media (max-width: 1024px) {
     .tele-section {
         flex-direction: column;
         text-align: center;
-        padding: 40px 24px;
+        padding: 48px 20px 56px;
+        gap: 32px;
     }
-    .tele-left h1 {
-    font-size: 24px;
-    color: #0d47a1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-.subtitle {
-    margin-top: 10px;
-    font-size: 18px;
-    color: #1e88e5;
-}
 
     .tele-left {
         max-width: 100%;
     }
 
+    .tele-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .tele-title {
+        justify-content: center;
+    }
+
+    .tele-lead {
+        max-width: 100%;
+    }
+
     .steps {
-        flex-wrap: wrap;
         justify-content: center;
-        gap: 14px;
-    }
-
-    .tele-right {
-        margin-top: 40px;
-    }
-
-    .tele-left h1 {
-        justify-content: center;
-        /* จัดกลางแนวนอน */
-        text-align: center;
-        /* ตัวหนังสือกลาง */
+        margin-top: 28px;
     }
 
     .step {
         flex: 1 1 130px;
-        max-width: 160px;
-        font-size: 15px;
+        max-width: 168px;
     }
 
-    /* ซ่อนเส้นเชื่อมตอน wrap หลายแถว */
-    .step:not(:last-child)::after { display: none; }
+    .tele-right {
+        margin-top: 8px;
+        min-width: 0;
+    }
+
+    .phone-bg-blob {
+        width: 260px;
+        height: 260px;
+    }
+
+    .phone-bg-ring {
+        width: 230px;
+        height: 230px;
+    }
+}
+
+@media (max-width: 480px) {
+    .tele-title__bubble {
+        width: 44px;
+        height: 44px;
+        font-size: 1.1rem;
+    }
+
+    .step {
+        flex: 1 1 calc(50% - 10px);
+        min-width: 0;
+        max-width: none;
+    }
 
     .step-media {
-        width: 84px;
-        height: 84px;
+        width: 88px;
+        height: 88px;
     }
 
     .step img {
-        width: 52px;
-        height: auto;
+        width: 56px;
     }
-/* RIGHT */
-.tele-right img {
-    height: 350px;
-    max-width: 100%;
 }
+
+/* Dark mode */
+html.dark .tele-section {
+    background: linear-gradient(165deg, #0f172a 0%, #111827 50%, #0b1220 100%);
+}
+
+html.dark .tele-badge {
+    background: rgba(15, 23, 42, 0.85);
+    border-color: rgba(56, 189, 248, 0.35);
+    color: #7dd3fc;
+}
+
+html.dark .tele-title__text {
+    background: linear-gradient(120deg, #e0f2fe, #7dd3fc, #38bdf8);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+html.dark .tele-subtitle,
+html.dark .tele-lead {
+    color: #94a3b8;
+}
+
+html.dark .tele-brand {
+    background: linear-gradient(90deg, #38bdf8, #7dd3fc);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+html.dark .step {
+    background: rgba(15, 23, 42, 0.75);
+    border-color: rgba(56, 189, 248, 0.2);
+    color: #e2e8f0;
+}
+
+html.dark .step-media {
+    background: linear-gradient(180deg, #1e293b, #0f172a);
 }
