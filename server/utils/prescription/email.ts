@@ -1,15 +1,17 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { basename, extname, join } from 'node:path';
+import { basename, extname } from 'node:path';
 import { sendRichEmail, type EmailAttachment } from '../mail';
 import { buildPrescriptionPdfBinary } from './pdf';
 import { getPrescriptionBillNo, type PrescriptionRow } from './receiptHtml';
 import { resolveAccountPatientName } from '../bff/patientInfo';
+import { downloadMediaFile } from '../storageUpload';
 
 export interface StorePaymentInfo {
     bank_name: string;
     bank_account_name: string;
     bank_account_number: string;
-    qr_path: string;
+    qr_file: string;
+    qr_buffer: Buffer | null;
+    qr_content_type: string;
 }
 
 export interface PrescriptionEmailResult {
@@ -18,10 +20,6 @@ export interface PrescriptionEmailResult {
     sent_to: string;
     payment_qr_attached: boolean;
     payment_bank_included: boolean;
-}
-
-function mediaRoot(): string {
-    return String(process.env.MEDIA_ROOT || '').trim();
 }
 
 function rxEsc(v: unknown): string {
@@ -44,7 +42,9 @@ export async function fetchStorePaymentInfo(
         bank_name: '',
         bank_account_name: '',
         bank_account_number: '',
-        qr_path: '',
+        qr_file: '',
+        qr_buffer: null,
+        qr_content_type: 'image/jpeg',
     };
 
     if (idPharma <= 0) return payment;
@@ -65,9 +65,11 @@ export async function fetchStorePaymentInfo(
 
     const qrFile = String(row.qr_payment_file ?? '').trim();
     if (qrFile) {
-        const candidate = join(mediaRoot(), 'uploads/qr_payment', basename(qrFile));
-        if (existsSync(candidate)) {
-            payment.qr_path = candidate;
+        payment.qr_file = basename(qrFile);
+        const downloaded = await downloadMediaFile('uploads/qr_payment', payment.qr_file);
+        if (downloaded) {
+            payment.qr_buffer = downloaded.buffer;
+            payment.qr_content_type = downloaded.contentType;
         }
     }
 
@@ -78,7 +80,7 @@ function buildPrescriptionPaymentHtml(payment: StorePaymentInfo): string {
     const hasBank = payment.bank_name !== ''
         || payment.bank_account_name !== ''
         || payment.bank_account_number !== '';
-    const hasQr = payment.qr_path !== '';
+    const hasQr = payment.qr_buffer != null;
 
     if (!hasBank && !hasQr) return '';
 
@@ -159,7 +161,7 @@ export async function sendPrescriptionEmailInternal(
     const medDetails = String(row.med_details ?? '').trim();
 
     const payment = await fetchStorePaymentInfo(sql, Number(row.id_pharma ?? 0));
-    const paymentQrAttached = payment.qr_path !== '';
+    const paymentQrAttached = payment.qr_buffer != null;
     const paymentBankIncluded = payment.bank_name !== ''
         || payment.bank_account_name !== ''
         || payment.bank_account_number !== '';
@@ -240,20 +242,18 @@ export async function sendPrescriptionEmailInternal(
         });
     }
 
-    if (paymentQrAttached) {
-        const qrExt = extname(payment.qr_path).slice(1).toLowerCase() || 'jpg';
-        const qrMime = qrExt === 'png' ? 'image/png' : (qrExt === 'webp' ? 'image/webp' : 'image/jpeg');
-        const qrBuf = readFileSync(payment.qr_path);
+    if (paymentQrAttached && payment.qr_buffer) {
+        const qrExt = extname(payment.qr_file).slice(1).toLowerCase() || 'jpg';
         attachments.push({
             filename: `qr-payment.${qrExt}`,
-            content: qrBuf,
+            content: payment.qr_buffer,
             cid: 'qrpayment',
-            contentType: qrMime,
+            contentType: payment.qr_content_type,
         });
         attachments.push({
             filename: `qr-payment.${qrExt}`,
-            content: qrBuf,
-            contentType: qrMime,
+            content: payment.qr_buffer,
+            contentType: payment.qr_content_type,
         });
     }
 
