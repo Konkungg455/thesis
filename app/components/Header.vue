@@ -445,8 +445,8 @@ const checkConsultStatus = async () => {
     }
 }
 
-const checkUserStatus = async () => {
-    await syncFromServer()
+const checkUserStatus = () => {
+    syncFromServer().catch(() => {})
     if (user.value) {
         checkConsultStatus()
     }

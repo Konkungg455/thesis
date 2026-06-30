@@ -517,8 +517,8 @@ const updateRequestStatus = async (status) => {
     }
 }
 
-const checkUserStatus = async () => {
-    await syncFromServer()
+const checkUserStatus = () => {
+    syncFromServer().catch(() => {})
     if (user.value) {
         checkIncomingRequest()
         checkStoreStatus()

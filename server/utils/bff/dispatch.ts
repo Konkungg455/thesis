@@ -244,6 +244,11 @@ export async function dispatchBff(event: H3Event, pathname: string) {
 
 async function handleGetUserSession(event: H3Event) {
     const q = getQuery(event);
+    const cacheKey = buildSessionCacheKey(q as Record<string, unknown>);
+    if (cacheKey) {
+        const cached = getSessionCache(cacheKey);
+        if (cached) return cached;
+    }
 
     const fromDb = await dbQuery(async (sql) => {
         if (q.id_store_accounts) {
@@ -358,6 +363,7 @@ async function handleGetUserSession(event: H3Event) {
     });
 
     if (fromDb) {
+        if (cacheKey) setSessionCache(cacheKey, fromDb);
         return fromDb;
     }
 
