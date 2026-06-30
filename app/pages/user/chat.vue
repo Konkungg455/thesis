@@ -52,6 +52,24 @@ const makeCall = (type = 'voice') => {
     return makeCallRTC(activePatientId.value, type);
 };
 
+const getAutoCallKey = (reqId) => `consult-auto-call-${reqId || '0'}`;
+
+const maybeAutoStartCall = (data, reqId, forceType = '') => {
+    if (!import.meta.client || !activePatientId.value) return;
+    const method = String(forceType || data?.consult_method || 'chat');
+    if (method !== 'video' && method !== 'voice') return;
+    if (isConsultEnded.value || isInCall.value || isCalling.value) return;
+    const rid = Number(reqId) || 0;
+    const key = getAutoCallKey(rid);
+    if (sessionStorage.getItem(key) === '1') return;
+    sessionStorage.setItem(key, '1');
+    setTimeout(() => {
+        if (!isInCall.value && !isCalling.value && activePatientId.value) {
+            makeCall(method);
+        }
+    }, 2200);
+};
+
 const callerDisplayName = computed(() => peerInfo.value.name || 'เภสัชกร');
 const callerDisplayImage = computed(() => peerInfo.value.image || '');
 
@@ -483,9 +501,20 @@ const reopenConsultForFollowup = (opts = { showBanner: true, requestId: 0 }) => 
 // ===== Polling: ตรวจสถานะ consult ฝั่งเภสัชกรแบบ live =====
 //   - เภสัชกรกด "จบบทสนทนา" (accepted → completed) → เด้งไป /review_write
 //   - เภสัชกรเปิด follow-up หรือรับคำขอใหม่ → ปลดล็อก + รีเซ็ตเวลา 15:00
-const handleConsultEndedByPharma = () => {
+const handleConsultEndedByPharma = async () => {
     if (isConsultEnded.value) return;
     clearConsultCountdown();
+    await checkForFollowup();
+    if (isTrackingMode.value) {
+        if (import.meta.client) {
+            sessionStorage.removeItem(getConsultEndedKey());
+            sessionStorage.removeItem(getTimerStorageKey());
+        }
+        isConsultEnded.value = false;
+        cancelAutoRedirect();
+        startConsultCountdown({ force: true });
+        return;
+    }
     if (import.meta.client) {
         sessionStorage.removeItem(getTimerStorageKey()); // ล้าง deadline → ครั้งหน้าเริ่มใหม่ 15:00
         sessionStorage.setItem(getConsultEndedKey(), '1');
@@ -545,8 +574,10 @@ const checkForFollowup = async () => {
         //        ที่กำลังติดตามอยู่ในกรอบ 3 วัน → ห้องยังใช้งานได้ ไม่บังคับไปรีวิว
         const followupAccepted = newStatus === 'accepted' && Number(data.is_followup) === 1;
         const rxTrackingActive = Number(data.tracking_active) === 1 && newStatus !== 'accepted';
-        // เคยมีการติดตามอาการ (มีใบสั่งยา/ฐานเวลา) แต่ตอนนี้หมดกรอบ 3 วันแล้ว
-        const hadTracking = !!data.tracking_base;
+        const trackingPeriodEnded = Number(data.tracking_ended) === 1
+            || (newStatus === 'completed'
+                && Number(data.tracking_active) !== 1
+                && String(data.tracking_status || '') === 'completed');
         const wasTracking = isTrackingMode.value;
         isTrackingMode.value = followupAccepted || rxTrackingActive;
         trackingStartedAt.value = followupAccepted
@@ -575,9 +606,8 @@ const checkForFollowup = async () => {
         //  - trigger เฉพาะตอนเห็น transition: accepted → completed
         //  - กันเด้งซ้ำตอนเปิดแชทใหม่แล้วเจอ completed ค้างอยู่ตั้งแต่แรก
         if (newStatus === 'completed' && !isConsultEnded.value) {
-            if (hadTracking) {
-                // เคยติดตามอาการแล้วครบกรอบ 3 วัน → สิ้นสุดการติดตาม
-                // เข้าไปดูแชทได้ แต่พิมพ์ตอบไม่ได้ (ไม่เด้งไปหน้ารีวิว)
+            if (trackingPeriodEnded) {
+                // ครบ 3 วันหรือเภสัชปิดติดตามแล้ว → สิ้นสุดการติดตาม (ไม่เด้งรีวิวทันที)
                 clearConsultCountdown();
                 if (import.meta.client) {
                     sessionStorage.setItem(getConsultEndedKey(), '1');
@@ -585,9 +615,19 @@ const checkForFollowup = async () => {
                 }
                 isConsultEnded.value = true;
                 isTrackingEnded.value = true;
+                isTrackingMode.value = false;
                 consultTimeLeftText.value = 'สิ้นสุดการติดตามอาการแล้ว';
             } else if (lastKnownConsultStatus === 'accepted') {
-                handleConsultEndedByPharma();
+                await handleConsultEndedByPharma();
+            } else if (Number(data.tracking_active) === 1) {
+                // เพิ่งจบ consult → เข้าโหมดติดตาม 3 วัน
+                cancelAutoRedirect();
+                isConsultEnded.value = false;
+                isTrackingEnded.value = false;
+                isTrackingMode.value = true;
+                trackingStartedAt.value = data.tracking_base || data.last_followup_at || null;
+                if (import.meta.client) sessionStorage.removeItem(getConsultEndedKey());
+                startConsultCountdown({ force: true });
             } else {
                 // เพิ่งเข้ามาเจอ completed → ปิดห้องไว้เฉย ๆ (ไม่ redirect)
                 clearConsultCountdown();
@@ -624,6 +664,7 @@ const checkForFollowup = async () => {
                 reopenConsultForFollowup({ showBanner: false, requestId: reqId });
             } else if (isFreshAccept) {
                 lastSeenAcceptedId = Math.max(lastSeenAcceptedId, reqId);
+                maybeAutoStartCall(data, reqId);
             } else if (reqId > 0 && !consultCountdownTimer && !consultCountdownStarting && !isConsultEnded.value) {
                 startConsultCountdown();
             }
@@ -675,13 +716,24 @@ const startAutoRedirectToReview = () => {
 const handleConsultTimeout = async () => {
     if (isConsultEnded.value) return;
     clearConsultCountdown();
+    await markConsultCompleted();
+    await checkForFollowup();
+    if (isTrackingMode.value) {
+        if (import.meta.client) {
+            sessionStorage.removeItem(getConsultEndedKey());
+            sessionStorage.removeItem(getTimerStorageKey());
+        }
+        isConsultEnded.value = false;
+        cancelAutoRedirect();
+        startConsultCountdown({ force: true });
+        return;
+    }
     if (import.meta.client) {
         sessionStorage.removeItem(getTimerStorageKey());
         sessionStorage.setItem(getConsultEndedKey(), '1');
     }
     isConsultEnded.value = true;
     consultTimeLeftText.value = '00:00';
-    await markConsultCompleted();
 
     // หลังบันทึก consult เป็น completed → ดีเลย์สั้น ๆ ให้ผู้ใช้เห็นข้อความก่อน แล้ว auto-redirect ไป review_write
     if (!isFollowupActive.value) {
@@ -761,20 +813,24 @@ const startConsultCountdown = async ({ force = false } = {}) => {
     clearConsultCountdown();
     warnedAt.value = new Set();
 
-    if (sessionStorage.getItem(getConsultEndedKey()) === '1') {
-        isConsultEnded.value = true;
-        consultTimeLeftText.value = '00:00';
-        return;
-    }
-
     if (isTrackingEnded.value) {
         consultTimeLeftText.value = 'สิ้นสุดการติดตามอาการแล้ว';
         return;
     }
 
     if (isTrackingMode.value) {
+        if (import.meta.client) {
+            sessionStorage.removeItem(getConsultEndedKey());
+        }
+        isConsultEnded.value = false;
         tickConsultCountdown();
         consultCountdownTimer = setInterval(tickConsultCountdown, 1000);
+        return;
+    }
+
+    if (sessionStorage.getItem(getConsultEndedKey()) === '1') {
+        isConsultEnded.value = true;
+        consultTimeLeftText.value = '00:00';
         return;
     }
 
@@ -1011,6 +1067,15 @@ const initChatFromRoute = async (newId) => {
 
     await checkForFollowup();
     if (myGen !== initRouteGen) return;
+    if (isTrackingMode.value) {
+        isConsultEnded.value = false;
+        if (import.meta.client) sessionStorage.removeItem(getConsultEndedKey());
+    }
+
+    const autoCall = String(route.query.auto_call || '').trim();
+    if (autoCall === 'video' || autoCall === 'voice') {
+        maybeAutoStartCall({ consult_method: autoCall }, activeRequestId.value || timerRequestId.value, autoCall);
+    }
 
     await fetchMessages();
     if (myGen !== initRouteGen) return;
@@ -1224,7 +1289,17 @@ const closePreview = () => {
                     </div>
                 </div>
 
-                <div v-if="isConsultEnded && !isTrackingEnded" class="consult-ended-bar">
+                <div v-if="isTrackingMode && !isTrackingEnded && !isFollowupActive" class="tracking-mode-bar">
+                    <div class="consult-ended-icon">
+                        <i class="fa-solid fa-stethoscope"></i>
+                    </div>
+                    <div class="consult-ended-text">
+                        <strong>อยู่ในกรอบติดตามอาการ 3 วัน</strong>
+                        <p>สามารถแชทถามอาการเภสัชกรได้จนกว่าจะครบกำหนด — ไม่จำกัด 15 นาที</p>
+                    </div>
+                </div>
+
+                <div v-if="isConsultEnded && !isTrackingEnded && !isTrackingMode" class="consult-ended-bar">
                     <div class="consult-ended-icon">
                         <i class="fa-solid fa-user-doctor"></i>
                     </div>
@@ -1742,6 +1817,18 @@ const closePreview = () => {
 }
 .consult-ended-bar.tracking-ended-bar .consult-ended-icon {
   background: #64748b;
+}
+.tracking-mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  background: linear-gradient(90deg, #ecfdf5 0%, #f0fdf4 100%);
+  border-bottom: 2px solid #16a34a;
+  flex-wrap: wrap;
+}
+.tracking-mode-bar .consult-ended-icon {
+  background: #16a34a;
 }
 
 .consult-ended-icon {

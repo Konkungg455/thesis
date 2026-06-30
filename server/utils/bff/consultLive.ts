@@ -2,6 +2,7 @@ import type { H3Event } from 'h3';
 import { getAuthContext } from './sessionContext';
 import { readMultipartRequest } from './formData';
 import { archiveAndClearChatBetween } from './consultArchives';
+import { ensureConsultTrackingRecord } from './consultTracking';
 
 export async function handleListMyPatients(event: H3Event) {
     const auth = getAuthContext(event);
@@ -149,16 +150,23 @@ export async function handleGetActiveConsult(event: H3Event) {
             };
         }
 
-        if (trackingBase !== null && (reqCid > 0 || trackingCid > 0)) {
-            const fallbackCid = reqCid > 0 ? reqCid : trackingCid;
-            return {
-                status: 'tracking_ended',
-                id: fallbackCid,
-                is_followup: 0,
-                tracking_active: 0,
-                tracking_base: trackingBase,
-                last_followup_at: trackingBase,
-            };
+        if (presRows[0] && trackingBase !== null && (reqCid > 0 || trackingCid > 0)) {
+            const prow = presRows[0];
+            const isDone = String(prow.tracking_status || '') === 'completed';
+            const baseMs = new Date(String(trackingBase)).getTime();
+            const expired = Number.isFinite(baseMs)
+                && Date.now() >= baseMs + 3 * 24 * 60 * 60 * 1000;
+            if (isDone || expired) {
+                const fallbackCid = reqCid > 0 ? reqCid : trackingCid;
+                return {
+                    status: 'tracking_ended',
+                    id: fallbackCid,
+                    is_followup: 0,
+                    tracking_active: 0,
+                    tracking_base: trackingBase,
+                    last_followup_at: trackingBase,
+                };
+            }
         }
 
         return { status: 'none' };
@@ -208,6 +216,7 @@ export async function handleCompleteConsult(event: H3Event) {
                 SET service_status = 'completed', completed_at = NOW()
                 WHERE id_consult_request = ${consultId}
             `;
+            await ensureConsultTrackingRecord(sql, pId, uId, consultId);
         }
 
         return { consult_id: consultId, service_code: serviceCode };

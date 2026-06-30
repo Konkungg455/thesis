@@ -11,13 +11,22 @@ const TRANSIENT_DB_CODES = new Set([
     '08006',
     '08003',
     'XX000',
+    'CONNECTION_DESTROYED',
+    'CONNECTION_ENDED',
 ]);
+
+/** คิว DB — กัน concurrent query ชนกันตอน pooler 6543 ตัด connection */
+let dbQueue: Promise<unknown> = Promise.resolve();
+
+function usesSupabasePooler(url?: string): boolean {
+    return /pooler\.supabase\.com:6543/i.test(String(url || process.env.DATABASE_URL || ''));
+}
 
 function isTransientDbError(err: unknown): boolean {
     const code = (err as { code?: string })?.code;
     const message = String((err as Error)?.message || err);
     if (code && TRANSIENT_DB_CODES.has(code)) return true;
-    return /timeout|connection|terminated|closed|pool/i.test(message);
+    return /timeout|connection|terminated|closed|pool|destroyed|ended|broken/i.test(message);
 }
 
 export function isDbConfigured(): boolean {
@@ -34,13 +43,23 @@ export function normalizeDatabaseUrl(raw?: string): string {
 }
 
 export async function resetDbConnection(): Promise<void> {
-    if (!sql) return;
+    const old = sql;
+    sql = null;
+    if (!old) return;
     try {
-        await sql.end({ timeout: 2 });
+        await old.end({ timeout: 2 });
     } catch {
         /* ignore */
     }
-    sql = null;
+}
+
+function runDbExclusive<T>(fn: () => Promise<T>): Promise<T> {
+    const run = dbQueue.then(fn, fn);
+    dbQueue = run.then(
+        () => undefined,
+        () => undefined,
+    );
+    return run;
 }
 
 export function useDb() {
@@ -53,14 +72,18 @@ export function useDb() {
 
     if (!sql) {
         const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-        sql = postgres(normalizeDatabaseUrl(), {
+        const isLocalDev = !isServerless;
+        const dbUrl = normalizeDatabaseUrl();
+        const pooler = usesSupabasePooler(dbUrl);
+        // pooler 6543: transaction mode — connection สั้น, หมุนเร็ว, ไม่ใช้ prepared statements
+        sql = postgres(dbUrl, {
             ssl: 'require',
             prepare: false,
             fetch_types: false,
-            max: isServerless ? 1 : 4,
-            connect_timeout: isServerless ? 25 : 5,
-            idle_timeout: isServerless ? 20 : 20,
-            max_lifetime: 60 * 10,
+            max: isServerless ? 1 : (pooler ? 2 : 4),
+            connect_timeout: isServerless ? 25 : 15,
+            idle_timeout: pooler ? (isLocalDev ? 20 : 10) : 20,
+            max_lifetime: pooler ? (isLocalDev ? 120 : 60) : 60 * 10,
         });
     }
 
@@ -75,26 +98,30 @@ export async function dbQuery<T>(
         return null;
     }
 
-    const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
-    const timeoutMs = options?.timeoutMs ?? (isServerless ? 16_000 : 30_000);
+    return runDbExclusive(async () => {
+        const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+        const timeoutMs = options?.timeoutMs ?? (isServerless ? 16_000 : 30_000);
+        const maxAttempts = usesSupabasePooler() ? 5 : 4;
 
-    for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-            return await withTimeout(fn(useDb()), timeoutMs, 'DB query');
-        } catch (err: unknown) {
-            const code = (err as { code?: string })?.code;
-            if (code === '42P01' || code === '42703') {
-                return null;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                return await withTimeout(fn(useDb()), timeoutMs, 'DB query');
+            } catch (err: unknown) {
+                const code = (err as { code?: string })?.code;
+                if (code === '42P01' || code === '42703') {
+                    return null;
+                }
+                if (attempt < maxAttempts - 1 && isTransientDbError(err)) {
+                    await resetDbConnection();
+                    await new Promise((r) => setTimeout(r, 150 * (attempt + 1) ** 2));
+                    continue;
+                }
+                throw err;
             }
-            if (attempt < 2 && isTransientDbError(err)) {
-                await resetDbConnection();
-                continue;
-            }
-            throw err;
         }
-    }
 
-    return null;
+        return null;
+    });
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
@@ -113,16 +140,14 @@ export async function pingDb(timeoutMs = 12000): Promise<{ ok: boolean; error?: 
     }
 
     try {
-        const rows = await withTimeout(
-            useDb()`SELECT COUNT(*)::int AS n FROM pharmacist_account WHERE status_verify = 1`,
-            timeoutMs,
-            'DB ping',
-        );
+        const rows = await dbQuery(async (sql) => sql`
+            SELECT COUNT(*)::int AS n FROM pharmacist_account WHERE status_verify = 1
+        `, { timeoutMs });
+        if (!rows) {
+            return { ok: false, error: 'DB query returned no rows' };
+        }
         return { ok: true, pharmacists_verified: Number(rows[0]?.n ?? 0) };
     } catch (err: unknown) {
-        if (isTransientDbError(err)) {
-            await resetDbConnection();
-        }
         const e = err as { message?: string; code?: string };
         const message = e.message || String(err);
         return { ok: false, error: e.code ? `${e.code}: ${message}` : message };

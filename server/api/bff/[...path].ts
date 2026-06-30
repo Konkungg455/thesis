@@ -44,11 +44,18 @@ export default defineEventHandler(async (event) => {
         return result;
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error('[api/bff]', pathname, message);
+        const isTransientDb = /CONNECTION_DESTROYED|CONNECTION_ENDED|connection|timeout|pool/i.test(message);
+        if (isTransientDb) {
+            console.warn('[api/bff]', pathname, event.method, message);
+        } else {
+            console.error('[api/bff]', pathname, event.method, message);
+        }
         setResponseHeader(event, 'Cache-Control', 'no-store, max-age=0');
         return {
             status: 'error',
-            message: message || 'เกิดข้อผิดพลาด',
+            message: isTransientDb
+                ? 'เชื่อมต่อฐานข้อมูลชั่วคราวไม่สำเร็จ กรุณารอสักครู่แล้วลองใหม่'
+                : (message || 'เกิดข้อผิดพลาด'),
         };
     }
 });

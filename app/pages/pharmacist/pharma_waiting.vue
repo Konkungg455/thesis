@@ -27,6 +27,26 @@ const countdownDisplay = computed(() => {
 
 // 1. ดึง ID หมอจาก URL (เพื่อใช้สร้าง Request)
 const pharmacistId = computed(() => route.query.id || '1');
+const consultMethod = computed(() => route.query.method || 'chat');
+const bookingType = computed(() => route.query.type || 'now');
+const isAppointment = computed(() => bookingType.value === 'appointment');
+const appointmentDate = computed(() => String(route.query.date || ''));
+const appointmentTime = computed(() => String(route.query.time || ''));
+
+const methodLabel = computed(() => ({
+    video: '📹 โทรแบบวิดีโอ',
+    voice: '📞 โทรแบบเสียง',
+    chat: '💬 พิมพ์แชท',
+}[consultMethod.value] || '💬 พิมพ์แชท'));
+
+const formatAppointmentDate = (iso) => {
+    if (!iso) return '-';
+    try {
+        return new Date(`${iso}T12:00:00`).toLocaleDateString('th-TH', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+        });
+    } catch { return iso; }
+};
 
 /**
  * 2. ฟังก์ชันสร้างคำขอปรึกษา (เรียกทันทีที่เข้าหน้า)
@@ -35,13 +55,12 @@ const initRequest = async () => {
     const body = new FormData();
     body.append('id_pharma', pharmacistId.value);
     body.append('privilege', route.query.privilege || 'normal');
-    body.append('consult_method', route.query.method || 'chat');
-    body.append('booking_type', route.query.type || 'now');
+    body.append('consult_method', consultMethod.value);
+    body.append('booking_type', bookingType.value);
     body.append('delivery_prepaid', route.query.delivery_prepaid === 'true' ? '1' : '0');
+    if (appointmentDate.value) body.append('appointment_date', appointmentDate.value);
+    if (appointmentTime.value) body.append('appointment_time', appointmentTime.value);
 
-    // 🆕 แนบ session ปัจจุบันของห้องแชท AI ที่ผู้ป่วยกำลังคุยอยู่ตอนกด "ปรึกษาเภสัช"
-    //    ฝั่งเภสัชจะได้เห็นประวัติแชทตรง session นั้นๆ ไม่ใช่ session ล่าสุดเฉยๆ
-    //    ลองอ่าน 3 แหล่ง ตามลำดับความน่าเชื่อถือ: URL query > localStorage > none
     let activeSid = (route.query.bot_session_id || '').toString();
     if (!activeSid && import.meta.client) {
         try { activeSid = localStorage.getItem('telebot_active_bot_session') || ''; } catch {}
@@ -62,9 +81,11 @@ const initRequest = async () => {
 
         if (res.status === 'success') {
             isCreating.value = false;
-            statusText.value = "รอเภสัชกรตอบรับคำขอของคุณ...";
-            startPolling(); // 🚩 เริ่มเฝ้ารอจนกว่าหมอจะกดรับสาย
-            startCountdown(); // 🆕 เริ่มจับเวลา 5 นาที
+            statusText.value = isAppointment.value
+                ? 'จองนัดหมายเรียบร้อย — รอเภสัชกรยืนยัน...'
+                : 'รอเภสัชกรตอบรับคำขอของคุณ...';
+            startPolling();
+            if (!isAppointment.value) startCountdown();
         }
     } catch (err) {
         console.error("Error creating request:", err);
@@ -85,11 +106,16 @@ const startPolling = () => {
             // ✅ ถ้าหมอกดรับสาย (accepted) ให้พาไปหน้าแชททันที
             if (data && data.status === 'accepted') {
                 stopPolling();
+                const chatQuery = { id: data.id_pharma };
+                const method = String(data.consult_method || consultMethod.value || 'chat');
+                if (method === 'video' || method === 'voice') {
+                    chatQuery.auto_call = method;
+                }
                 router.push({
-                    path: '/user/chat', // 🚩 ปลายทางที่เพื่อนต้องการ
-                    query: { id: data.id_pharma } // ส่ง ID หมอไปเปิดห้องแชท
+                    path: '/user/chat',
+                    query: chatQuery,
                 });
-            } 
+            }
             // ❌ ถ้าหมอปฏิเสธ (rejected)
             else if (data && data.status === 'rejected') {
                 stopPolling();
@@ -147,9 +173,11 @@ const handleTimeoutExpired = async () => {
 onMounted(() => {
     if (route.query.from_payment === '1') {
         isCreating.value = false;
-        statusText.value = 'รอเภสัชกรตอบรับคำขอของคุณ...';
+        statusText.value = isAppointment.value
+            ? 'จองนัดหมายเรียบร้อย — รอเภสัชกรยืนยัน...'
+            : 'รอเภสัชกรตอบรับคำขอของคุณ...';
         startPolling();
-        startCountdown();
+        if (!isAppointment.value) startCountdown();
         return;
     }
     initRequest();
@@ -176,18 +204,39 @@ onUnmounted(() => {
                 </div>
 
                 <div class="text-content">
-                    <h1 class="status-title" v-if="!isCreating">กำลังรอเภสัชกร</h1>
+                    <h1 class="status-title" v-if="!isCreating">
+                        {{ isAppointment ? 'จองนัดหมายสำเร็จ' : 'กำลังรอเภสัชกร' }}
+                    </h1>
                     <h1 class="status-title" v-else>กำลังเริ่มการเชื่อมต่อ</h1>
                     <p class="status-subtitle">{{ statusText }}</p>
+                </div>
+
+                <div v-if="!isCreating" class="booking-info-box">
+                    <div class="booking-info-row">
+                        <span>ช่องทาง:</span>
+                        <strong>{{ methodLabel }}</strong>
+                    </div>
+                    <div v-if="isAppointment" class="booking-info-row">
+                        <span>วันนัด:</span>
+                        <strong>{{ formatAppointmentDate(appointmentDate) }}</strong>
+                    </div>
+                    <div v-if="isAppointment && appointmentTime" class="booking-info-row">
+                        <span>เวลา:</span>
+                        <strong>{{ appointmentTime }}</strong>
+                    </div>
                 </div>
 
                 <div class="waiting-box" v-if="!isCreating">
                     <div class="loading-bar-container">
                         <div class="loading-bar-infinite"></div>
                     </div>
-                    <p class="wait-text">กรุณาอย่าปิดหน้านี้ ระบบจะพาคุณเข้าสู่ห้องแชทอัตโนมัติ</p>
-                    <!-- 🆕 countdown 5 นาที -->
-                    <div class="countdown-box" :class="{ 'countdown-box--urgent': remainingSec <= 60 }">
+                    <p class="wait-text">
+                        {{ isAppointment
+                            ? 'เภสัชกรจะยืนยันนัดหมายและเปิดห้องแชทให้ — ระบบจะพาคุณเข้าห้องอัตโนมัติเมื่อได้รับการตอบรับ'
+                            : 'กรุณาอย่าปิดหน้านี้ ระบบจะพาคุณเข้าสู่ห้องแชทอัตโนมัติ' }}
+                    </p>
+                    <!-- countdown 5 นาที (เฉพาะติดต่อตอนนี้) -->
+                    <div v-if="!isAppointment" class="countdown-box" :class="{ 'countdown-box--urgent': remainingSec <= 60 }">
                         <i class="fa-solid fa-hourglass-half"></i>
                         <span>หมดเวลาภายใน <strong>{{ countdownDisplay }}</strong> นาที</span>
                     </div>
@@ -240,7 +289,25 @@ onUnmounted(() => {
 .btn-skip { background: none; border: 1px solid #ddd; padding: 10px 20px; border-radius: 30px; color: #555; cursor: pointer; margin-top: 25px; transition: 0.3s; }
 .tips-box { margin-top: 30px; padding: 15px; background: #e6f6f5; border-radius: 12px; font-size: 13px; color: #00796b; }
 
-/* 🆕 countdown 5 นาที */
+.booking-info-box {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    text-align: left;
+    font-size: 0.92rem;
+}
+.booking-info-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.booking-info-row:last-child { margin-bottom: 0; }
+.booking-info-row strong { color: #0369a1; }
+
+/* countdown 5 นาที */
 .countdown-box {
     display: inline-flex;
     align-items: center;

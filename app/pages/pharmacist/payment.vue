@@ -234,6 +234,7 @@ const processPayment = () => {
         router.push({
             path: '/pharmacist/payment-success',
             query: {
+                ...route.query,
                 id: pharmacistId.value,
                 method: consultMethod.value,
                 privilege: privilege.value,

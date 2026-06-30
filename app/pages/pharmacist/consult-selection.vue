@@ -7,6 +7,17 @@ definePageMeta({ middleware: 'user-only' });
 const route = useRoute();
 const router = useRouter();
 
+const resolveBotSessionId = () => {
+    const fromQuery = String(route.query.bot_session_id || '').trim();
+    if (fromQuery) return fromQuery;
+    if (import.meta.client) {
+        try {
+            return localStorage.getItem('telebot_active_bot_session') || '';
+        } catch { /* ignore */ }
+    }
+    return '';
+};
+
 // สถานะการเลือกช่องทาง
 const selectedMethod = ref('chat');
 
@@ -30,9 +41,9 @@ const handleNext = () => {
             id: route.query.id, 
             method: selectedMethod.value,
             privilege: 'normal',
-            // ส่งค่าไปว่ารับทราบเรื่องค่าส่งแล้ว
             delivery_accepted: hasAcceptedDeliveryFee.value ? 'true' : 'false',
-            amount: totalPrice.value
+            amount: totalPrice.value,
+            ...(resolveBotSessionId() ? { bot_session_id: resolveBotSessionId() } : {}),
         }
     });
 };

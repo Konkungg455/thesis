@@ -3,6 +3,25 @@ import { getAuthContext } from './sessionContext';
 import { readMultipartRequest } from './formData';
 import { archiveAndClearChatBetween } from './consultArchives';
 import { isConsultNotifyWorthy } from './storeNotifications';
+import { ensureConsultTrackingRecord } from './consultTracking';
+
+let appointmentSchemaReady = false;
+
+async function ensureAppointmentColumns(sql: ReturnType<typeof useDb>) {
+    if (appointmentSchemaReady) return;
+    appointmentSchemaReady = true;
+    const alters = [
+        `ALTER TABLE consult_requests ADD COLUMN IF NOT EXISTS appointment_date DATE NULL`,
+        `ALTER TABLE consult_requests ADD COLUMN IF NOT EXISTS appointment_time VARCHAR(64) NULL`,
+    ];
+    for (const stmt of alters) {
+        try {
+            await sql.unsafe(stmt);
+        } catch {
+            /* column may already exist */
+        }
+    }
+}
 
 async function resolveServiceCode(
     sql: ReturnType<typeof useDb>,
@@ -57,13 +76,22 @@ async function enrichUserConsultStatus(
 
     data.tracking_active = 0;
     data.tracking_base = null;
+    data.tracking_status = '';
+    data.tracking_ended = 0;
+
+    const rxConsultId = reqCid > 0 ? reqCid : reqId;
     if (targetPId > 0) {
+        // หลังจบ consult ให้มีใบสั่งยา auto สำหรับติดตาม 3 วัน (กัน race ฝั่ง client)
+        if (String(data.status || '') === 'completed' && rxConsultId > 0) {
+            await ensureConsultTrackingRecord(sql, targetPId, uId, rxConsultId);
+        }
+
         let presRows;
-        if (reqCid > 0) {
+        if (rxConsultId > 0) {
             presRows = await sql`
                 SELECT tracking_status, last_followup_at, created_at
                 FROM prescriptions
-                WHERE id_account = ${uId} AND id_consult_request = ${reqCid}
+                WHERE id_account = ${uId} AND id_consult_request = ${rxConsultId}
                 ORDER BY id DESC
                 LIMIT 1
             `;
@@ -80,11 +108,14 @@ async function enrichUserConsultStatus(
             const pr = presRows[0];
             const base = pr.last_followup_at || pr.created_at || null;
             data.tracking_base = base;
-            const isDone = String(pr.tracking_status || '') === 'completed';
+            data.tracking_status = String(pr.tracking_status || '');
+            const isDone = data.tracking_status === 'completed';
             const within = base
                 ? Date.now() < new Date(String(base)).getTime() + 3 * 24 * 60 * 60 * 1000
                 : false;
             data.tracking_active = !isDone && within ? 1 : 0;
+            // จบการติดตามจริง ๆ เท่านั้น — ไม่ใช่แค่ "มี tracking_base"
+            data.tracking_ended = (isDone || !within) && !!base ? 1 : 0;
         }
     }
 
@@ -257,8 +288,15 @@ export async function handleCreateConsultRequest(event: H3Event) {
     const bookingType = fields.booking_type || 'now';
     const deliveryPrepaid = fields.delivery_prepaid === '1' || fields.delivery_prepaid === 'true' ? 1 : 0;
     const botSessionId = String(fields.bot_session_id || '').trim() || null;
+    const appointmentDate = bookingType === 'appointment'
+        ? (String(fields.appointment_date || fields.date || '').trim() || null)
+        : null;
+    const appointmentTime = bookingType === 'appointment'
+        ? (String(fields.appointment_time || fields.time || '').trim() || null)
+        : null;
 
     const ok = await dbQuery(async (sql) => {
+        await ensureAppointmentColumns(sql);
         await sql`
             UPDATE consult_requests
             SET status = 'cancelled',
@@ -281,16 +319,26 @@ export async function handleCreateConsultRequest(event: H3Event) {
         await sql`
             INSERT INTO consult_requests (
                 id_account, id_pharma, status, created_at,
-                privilege, consult_method, booking_type, delivery_prepaid, bot_session_id
+                privilege, consult_method, booking_type, delivery_prepaid, bot_session_id,
+                appointment_date, appointment_time
             ) VALUES (
                 ${uId}, ${pId}, 'waiting', NOW(),
-                ${privilege}, ${method}, ${bookingType}, ${deliveryPrepaid}, ${botSessionId}
+                ${privilege}, ${method}, ${bookingType}, ${deliveryPrepaid}, ${botSessionId},
+                ${appointmentDate}, ${appointmentTime}
             )
         `;
         return true;
     });
 
-    return ok ? { status: 'success' } : { status: 'error', message: 'ไม่สามารถบันทึกคำขอได้' };
+    return ok
+        ? {
+            status: 'success',
+            consult_method: method,
+            booking_type: bookingType,
+            appointment_date: appointmentDate,
+            appointment_time: appointmentTime,
+        }
+        : { status: 'error', message: 'ไม่สามารถบันทึกคำขอได้' };
 }
 
 export async function handleUpdateConsultStatus(event: H3Event) {
@@ -330,6 +378,12 @@ export async function handleUpdateConsultStatus(event: H3Event) {
                     SET service_status = 'completed', completed_at = NOW()
                     WHERE id_consult_request = ${consultId}
                 `;
+                await ensureConsultTrackingRecord(
+                    sql,
+                    Number(pair.id_pharma),
+                    Number(pair.id_account),
+                    consultId,
+                );
             }
         }
 

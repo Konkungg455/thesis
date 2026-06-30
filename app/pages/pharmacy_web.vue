@@ -626,7 +626,26 @@ const fetchActiveConsultInfo = async () => {
             apiUrl(`consult-handler.php?action=get_active_consult&patient_id=${activePatientId.value}&consult_id=${routeCidForStatus}&t=${Date.now()}`),
             { credentials: 'include' }
         );
-        if (!data || data.status === 'none' || !data.id) {
+        if (!data || data.status === 'none') {
+            isTrackingMode.value = false;
+            isTrackingEnded.value = false;
+            trackingStartedAt.value = null;
+            return;
+        }
+        // โหมดติดตาม 3 วัน (consult จบแล้ว แต่ยังติดตามอยู่)
+        if (String(data.status) === 'tracking' || (Number(data.tracking_active) === 1 && String(data.status) !== 'accepted')) {
+            const trackId = Number(data.id) || Number(route.query.consult_id) || 0;
+            if (trackId > 0 && !(Number(route.query.consult_id) > 0)) {
+                activeRequestId.value = trackId;
+            }
+            isTrackingMode.value = true;
+            isTrackingEnded.value = false;
+            trackingStartedAt.value = data.tracking_base || data.last_followup_at || null;
+            showEndConsultFab.value = false;
+            tickConsultCountdown();
+            return;
+        }
+        if (!data.id) {
             isTrackingMode.value = false;
             isTrackingEnded.value = false;
             trackingStartedAt.value = null;

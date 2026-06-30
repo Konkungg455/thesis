@@ -12,8 +12,8 @@
 
 const BOOT_KEY = 'srv_boot_id';
 const POLL_INTERVAL_MS = 2_000;
-const PING_TIMEOUT_MS = 1_800;
-const MAX_FAIL = 1;
+const PING_TIMEOUT_MS = 4_000;
+const MAX_FAIL = 4;
 const LOG = '[heartbeat]';
 
 const LOGIN_PATH_BY_ROLE: Record<string, string> = {
@@ -149,9 +149,8 @@ export default defineNuxtPlugin(() => {
         const hmr = (import.meta as any).hot;
         if (hmr && typeof hmr.on === 'function') {
             hmr.on('vite:ws:disconnect', () => {
-                log('vite:ws:disconnect — ping immediately');
-                failCount = Math.max(failCount, MAX_FAIL - 1);
-                pingHeartbeat();
+                // HMR rebuild ชั่วคราว — ไม่ force logout ทันที
+                log('vite:ws:disconnect — will retry on reconnect');
             });
             hmr.on('vite:ws:connect', () => {
                 log('vite:ws:connect — ping immediately');

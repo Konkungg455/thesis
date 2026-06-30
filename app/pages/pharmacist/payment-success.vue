@@ -28,6 +28,10 @@ const createRequestAndGoHome = async () => {
     body.append('consult_method', route.query.method || 'chat');
     body.append('booking_type', route.query.type || 'now');
     body.append('delivery_prepaid', route.query.delivery_prepaid === 'true' ? '1' : '0');
+    if (route.query.date) body.append('appointment_date', String(route.query.date));
+    if (route.query.time) body.append('appointment_time', String(route.query.time));
+    const botSid = String(route.query.bot_session_id || '').trim();
+    if (botSid) body.append('bot_session_id', botSid);
     
     try {
         const res = await $fetch(apiUrl('consult-handler.php?action=create_request'), {
@@ -42,8 +46,6 @@ const createRequestAndGoHome = async () => {
     } catch (err) {
         console.error("เกิดข้อผิดพลาด:", err);
     } finally {
-        // 🚩 แก้จาก router.push('/') เป็นทางไปหน้า "รอเภสัช"
-        // พร้อมส่ง ID หมอไปด้วยเพื่อให้หน้านั้นใช้เช็คสถานะต่อได้
         router.push({
             path: '/pharmacist/pharma_waiting',
             query: {
@@ -52,6 +54,9 @@ const createRequestAndGoHome = async () => {
                 method: route.query.method || 'chat',
                 type: route.query.type || 'now',
                 delivery_prepaid: route.query.delivery_prepaid || 'false',
+                date: route.query.date || '',
+                time: route.query.time || '',
+                bot_session_id: route.query.bot_session_id || '',
                 from_payment: '1',
             }
         });

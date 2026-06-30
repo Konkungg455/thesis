@@ -110,6 +110,15 @@
                                             <i class="fa-solid fa-stethoscope"></i> อาการ: {{ incomingRequest.symptom_name }}
                                         </span>
                                         <span v-else class="symptom-empty">ยังไม่ระบุอาการ</span>
+                                        <span v-if="incomingRequest.consult_method" class="method-line">
+                                            <i :class="incomingRequest.consult_method === 'video' ? 'fa-solid fa-video' : (incomingRequest.consult_method === 'voice' ? 'fa-solid fa-phone' : 'fa-solid fa-comments')"></i>
+                                            {{ incomingRequest.consult_method === 'video' ? 'โทรวิดีโอ' : (incomingRequest.consult_method === 'voice' ? 'โทรเสียง' : 'แชท') }}
+                                        </span>
+                                        <span v-if="incomingRequest.booking_type === 'appointment' && incomingRequest.appointment_date" class="appt-line">
+                                            <i class="fa-solid fa-calendar-check"></i>
+                                            นัด {{ incomingRequest.appointment_date }}
+                                            <template v-if="incomingRequest.appointment_time"> • {{ incomingRequest.appointment_time }}</template>
+                                        </span>
                                         <span class="wait-text">รอการตอบรับจากคุณ</span>
                                     </div>
                                 </div>
@@ -819,6 +828,18 @@ watch(theme, (val) => { applyTheme(val) })
     font-size: 11px;
     color: #94a3b8;
     font-style: italic;
+}
+.user-text .method-line,
+.user-text .appt-line {
+    font-size: 11px;
+    color: #0369a1;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 600;
+}
+.user-text .appt-line {
+    color: #7c3aed;
 }
 .user-text .wait-text {
     font-size: 11px;

@@ -26,6 +26,14 @@ export function clearBffCache(key: string) {
     cache.delete(key);
 }
 
+export function clearBffCachePrefix(prefix: string) {
+    for (const key of cache.keys()) {
+        if (key.startsWith(prefix)) {
+            cache.delete(key);
+        }
+    }
+}
+
 let lastArchiveMaintenanceAt = 0;
 const ARCHIVE_MAINT_INTERVAL_MS = 5 * 60 * 1000;
 

@@ -83,6 +83,10 @@ export async function dispatchBff(event: H3Event, pathname: string) {
         return handleSendPrescriptionEmail(event);
     }
 
+    if (pathLower === 'complete-tracking.php' && method === 'POST') {
+        return handleCompleteTracking(event);
+    }
+
     if (pathLower === 'admin-list-admins.php') {
         return handleAdminListAdmins(event);
     }

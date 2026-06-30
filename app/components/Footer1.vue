@@ -43,7 +43,7 @@
                             <NuxtLink to="/">หน้าแรก</NuxtLink>
                         </li>
                         <li>
-                            <NuxtLink to="/consult">ปรึกษาอาการ</NuxtLink>
+                            <NuxtLink to="/pharmacist/consult-selection">ปรึกษาอาการ</NuxtLink>
                         </li>
                         <li>
                             <NuxtLink to="/review">รีวิว</NuxtLink>
@@ -58,13 +58,13 @@
                     <h3 class="footer-wave__heading">Resources</h3>
                     <ul>
                         <li>
-                            <NuxtLink to="/blog">Blog</NuxtLink>
+                            <NuxtLink to="/contact">Blog</NuxtLink>
                         </li>
                         <li>
-                            <NuxtLink to="/faq">FAQ</NuxtLink>
+                            <NuxtLink to="/contact">FAQ</NuxtLink>
                         </li>
                         <li>
-                            <NuxtLink to="/support">Support</NuxtLink>
+                            <NuxtLink to="/contact">Support</NuxtLink>
                         </li>
                     </ul>
                 </div>
@@ -73,10 +73,10 @@
                     <h3 class="footer-wave__heading">Legal</h3>
                     <ul>
                         <li>
-                            <NuxtLink to="/privacy">Privacy Policy</NuxtLink>
+                            <NuxtLink to="/contact">Privacy Policy</NuxtLink>
                         </li>
                         <li>
-                            <NuxtLink to="/terms">Terms of Service</NuxtLink>
+                            <NuxtLink to="/contact">Terms of Service</NuxtLink>
                         </li>
                     </ul>
                 </div>

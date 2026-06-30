@@ -5,24 +5,6 @@ export default defineNuxtConfig({
 
   devtools: { enabled: true },
 
-  imports: {
-    imports: [
-      { name: 'useApiBase', from: '~/composables/useApiBase' },
-      { name: 'useAuthUser', from: '~/composables/useAuthUser' },
-      { name: 'useAuthLogin', from: '~/composables/useAuthLogin' },
-      { name: 'useAuthConfig', from: '~/composables/useAuthConfig' },
-      { name: 'useApiBaseRef', from: '~/composables/useAuthConfig' },
-      { name: 'AUTH_ROLES', from: '~/composables/useAuthConfig' },
-      { name: 'buildLoginConfigs', from: '~/composables/useAuthConfig' },
-      { name: 'useAiChatRules', from: '~/composables/useAiChatRules' },
-      { name: 'useWebRTCCall', from: '~/composables/useWebRTCCall' },
-      { name: 'useTablePagination', from: '~/composables/useTablePagination' },
-      { name: 'useAppLocale', from: '~/composables/useAppLocale' },
-      { name: 'useChatApi', from: '~/composables/useChatApi' },
-      { name: 'useHomeSummaryData', from: '~/composables/useHomeSummary' },
-    ],
-  },
-
   css: [
     '@/assets/dark-mode.css',
     '@/assets/review.css',

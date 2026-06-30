@@ -31,19 +31,29 @@ export async function fetchHomeSummary(event?: H3Event) {
     const cached = getBffCache(SUMMARY_CACHE_KEY);
     if (cached && isValidHomeSummary(cached)) return cached;
 
+    const stale = getBffCacheStale(SUMMARY_CACHE_KEY);
     const onServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
 
     let pharmacists: PharmacistPayload;
     let reviews: unknown[];
 
-    if (onServerless) {
-        pharmacists = await fetchPharmacistsPayload(event);
-        reviews = await fetchReviewsPayload();
-    } else {
-        [pharmacists, reviews] = await Promise.all([
-            fetchPharmacistsPayload(event),
-            fetchReviewsPayload(),
-        ]);
+    try {
+        if (onServerless) {
+            pharmacists = await fetchPharmacistsPayload(event);
+            reviews = await fetchReviewsPayload();
+        } else {
+            [pharmacists, reviews] = await Promise.all([
+                fetchPharmacistsPayload(event),
+                fetchReviewsPayload(),
+            ]);
+        }
+    } catch (err) {
+        console.warn('[home/summary] fetch failed:', err);
+        if (stale && isValidHomeSummary(stale)) return stale;
+        return {
+            pharmacists: { status: 'error', message: dbUnavailableMessage(), data: [] },
+            reviews: [],
+        };
     }
 
     const payload = { pharmacists, reviews };
@@ -73,30 +83,41 @@ async function fetchPharmacistsPayload(event?: H3Event): Promise<PharmacistPaylo
     const hasGps = userLat != null && userLng != null
         && Number.isFinite(userLat) && Number.isFinite(userLng);
 
-    const rows = await dbQuery(async (sql) => {
-        if (hasGps) {
+    const onServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    const timeoutMs = onServerless ? 14_000 : 28_000;
+
+    let rows;
+    try {
+        rows = await dbQuery(async (sql) => {
+            if (hasGps) {
+                return sql`
+                    SELECT p.id_pharma, p.firstname_pharma, p.lastname_pharma,
+                           p.images_pharma, p.work_time, p.status_verify, p.id_store,
+                           d.store_name, d.latitude, d.longitude,
+                           d.house_no, d.road, d.sub_district, d.district, d.province
+                    FROM pharmacist_account p
+                    LEFT JOIN phamacy_store_accounts a ON a.id_store_accounts = p.id_store
+                          AND a.status = 1
+                          AND (a.admin_status IS NULL OR a.admin_status = 'approved')
+                    LEFT JOIN phamacy_store_details d ON d.id_store_accounts = p.id_store
+                    WHERE p.status_verify = 1
+                `;
+            }
             return sql`
                 SELECT p.id_pharma, p.firstname_pharma, p.lastname_pharma,
-                       p.images_pharma, p.work_time, p.status_verify, p.id_store,
-                       d.store_name, d.latitude, d.longitude,
-                       d.house_no, d.road, d.sub_district, d.district, d.province
+                       p.images_pharma, p.work_time, p.id_store,
+                       d.store_name
                 FROM pharmacist_account p
-                LEFT JOIN phamacy_store_accounts a ON a.id_store_accounts = p.id_store
-                      AND a.status = 1
-                      AND (a.admin_status IS NULL OR a.admin_status = 'approved')
                 LEFT JOIN phamacy_store_details d ON d.id_store_accounts = p.id_store
                 WHERE p.status_verify = 1
             `;
-        }
-        return sql`
-            SELECT p.id_pharma, p.firstname_pharma, p.lastname_pharma,
-                   p.images_pharma, p.work_time, p.id_store,
-                   d.store_name
-            FROM pharmacist_account p
-            LEFT JOIN phamacy_store_details d ON d.id_store_accounts = p.id_store
-            WHERE p.status_verify = 1
-        `;
-    }, { timeoutMs: 14_000 });
+        }, { timeoutMs });
+    } catch (err) {
+        console.warn('[home/summary] pharmacists query failed:', err);
+        const stale = getBffCacheStale(PHARMA_CACHE_KEY);
+        if (stale) return stale as PharmacistPayload;
+        return { status: 'error', message: dbUnavailableMessage(), data: [] };
+    }
 
     if (rows === null) {
         const stale = getBffCacheStale(PHARMA_CACHE_KEY);
@@ -155,19 +176,29 @@ async function fetchReviewsPayload() {
         return [];
     }
 
-    const rows = await dbQuery(async (sql) => sql`
-        SELECT r.id, r.user_id, r.rating, r.comment, r.created_at,
-               a.firstname, a.lastname, a.images_account
-        FROM reviews r
-        INNER JOIN (
-            SELECT user_id, MAX(id) AS latest_id
-            FROM reviews
-            GROUP BY user_id
-        ) latest ON latest.user_id = r.user_id AND latest.latest_id = r.id
-        JOIN account a ON r.user_id = a.id_account
-        ORDER BY r.rating DESC, r.created_at DESC
-        LIMIT 30
-    `, { timeoutMs: 10_000 });
+    const onServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+    const timeoutMs = onServerless ? 10_000 : 20_000;
+
+    let rows;
+    try {
+        rows = await dbQuery(async (sql) => sql`
+            SELECT r.id, r.user_id, r.rating, r.comment, r.created_at,
+                   a.firstname, a.lastname, a.images_account
+            FROM reviews r
+            INNER JOIN (
+                SELECT user_id, MAX(id) AS latest_id
+                FROM reviews
+                GROUP BY user_id
+            ) latest ON latest.user_id = r.user_id AND latest.latest_id = r.id
+            JOIN account a ON r.user_id = a.id_account
+            ORDER BY r.rating DESC, r.created_at DESC
+            LIMIT 30
+        `, { timeoutMs });
+    } catch (err) {
+        console.warn('[home/summary] reviews query failed:', err);
+        const stale = getBffCacheStale(REVIEWS_CACHE_KEY);
+        return (stale as unknown[]) ?? [];
+    }
 
     if (rows === null) {
         const stale = getBffCacheStale(REVIEWS_CACHE_KEY);
