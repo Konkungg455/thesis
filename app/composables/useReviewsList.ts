@@ -13,19 +13,42 @@ export type ReviewItem = {
     text: string;
 };
 
-/** รีวิวหน้าแรก — SSR + แชร์ cache ระหว่าง component */
+/** รีวิวหน้าแรก — ใช้ /api/home/summary ร่วมกับเภสัช (request เดียว) */
 export function useReviewsList() {
+    const route = useRoute();
     const { imagesAccount } = useApiBase();
+    const isHome = computed(() => route.path === '/');
 
-    const { data, pending, refresh } = useAsyncData<ReviewRow[]>(
+    const home = useHomeSummaryData();
+
+    const standalone = useAsyncData<ReviewRow[]>(
         'reviews-list',
         () => $fetch<ReviewRow[]>('/api/bff/review-get.php', { timeout: 15_000 }),
-        { default: () => [] },
+        {
+            default: () => [],
+            immediate: route.path !== '/',
+        },
     );
 
+    const rawRows = computed(() => (
+        isHome.value ? (home.data.value?.reviews ?? []) : (standalone.data.value ?? [])
+    ));
+
+    const pending = computed(() => (
+        isHome.value ? home.pending.value : standalone.pending.value
+    ));
+
+    const refresh = async () => {
+        if (isHome.value) {
+            await home.refresh();
+        } else {
+            await standalone.refresh();
+        }
+    };
+
     const reviews = computed<ReviewItem[]>(() => {
-        if (!Array.isArray(data.value)) return [];
-        return data.value.map((item) => ({
+        if (!Array.isArray(rawRows.value)) return [];
+        return rawRows.value.map((item) => ({
             name: `${item.firstname || ''} ${item.lastname || ''}`.trim(),
             rating: parseInt(String(item.rating), 10) || 0,
             image: imagesAccount(item.images_account || 'default.png'),

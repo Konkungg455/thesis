@@ -1,6 +1,4 @@
 <template>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-  
   <section class="review-section">
     <h2 class="section-title">รีวิวจากผู้ใช้บริการ</h2>
     

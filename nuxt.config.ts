@@ -19,6 +19,7 @@ export default defineNuxtConfig({
       { name: 'useTablePagination', from: '~/composables/useTablePagination' },
       { name: 'useAppLocale', from: '~/composables/useAppLocale' },
       { name: 'useChatApi', from: '~/composables/useChatApi' },
+      { name: 'useHomeSummaryData', from: '~/composables/useHomeSummary' },
     ],
   },
 
@@ -50,13 +51,6 @@ export default defineNuxtConfig({
         {
           rel: 'stylesheet',
           href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css'
-        }
-      ],
-      script: [
-        {
-          src: 'https://maps.googleapis.com/maps/api/js?key=AIzaSyCxhub76nika5eL95vmihYBl8mczVclBrA&libraries=places,geometry',
-          async: true,
-          defer: true
         }
       ]
     }
@@ -92,7 +86,8 @@ export default defineNuxtConfig({
   nitro: {
     routeRules: {
       '/api/**': { cors: true },
-      // ห้าม cache ที่ routeRules — ให้ handler ตั้ง Cache-Control ตามผลลัพธ์จริง
+      '/': { isr: 120 },
+      '/api/home/summary': { headers: { 'cache-control': 'public, s-maxage=60, stale-while-revalidate=120' } },
       '/api/deploy/health': { headers: { 'cache-control': 'no-store' } },
       '/api/supabase/health': { headers: { 'cache-control': 'no-store' } },
     },

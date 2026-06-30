@@ -109,6 +109,7 @@
 
 <script setup>
 import { ref, onUnmounted } from 'vue'
+import { loadGoogleMaps } from '~/composables/useGoogleMaps'
 
 const { apiUrl } = useApiBase()
 
@@ -209,12 +210,21 @@ const runGooglePlacesSearch = (userPos) => {
   }
 }
 
-const handleSearch = () => {
+const handleSearch = async () => {
   loading.value = true
   pharmacies.value = []
   partners.value = []
   searchStatus.value = { text: 'กำลังยืนยันตำแหน่งที่แม่นยำของคุณ...', type: 'info' }
   startTimer()
+
+  try {
+    await loadGoogleMaps()
+  } catch {
+    searchStatus.value = { text: 'โหลด Google Maps ไม่สำเร็จ — ลองใหม่อีกครั้ง', type: 'error' }
+    stopTimer()
+    loadPartners(null)
+    return
+  }
 
   const geoOptions = {
     enableHighAccuracy: true,

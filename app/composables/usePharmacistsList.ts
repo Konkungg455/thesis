@@ -18,21 +18,45 @@ type PharmacistsResponse = {
     message?: string;
 };
 
-/** รายชื่อเภสัช — ใช้ useAsyncData ร่วมกันทุก component (ยิง API ครั้งเดียว + SSR ได้) */
+/** รายชื่อเภสัช — หน้าแรกใช้ /api/home/summary (request เดียวกับรีวิว) */
 export function usePharmacistsList() {
+    const route = useRoute();
+    const isHome = computed(() => route.path === '/');
     const gpsList = useState<PharmacistRow[] | null>('pharmacists-gps-list', () => null);
 
-    const { data, pending, refresh, status, error } = useAsyncData<PharmacistsResponse>(
+    const home = useHomeSummaryData();
+
+    const standalone = useAsyncData<PharmacistsResponse>(
         'pharmacists-list',
         () => $fetch('/api/bff/get_pharmacists.php', { timeout: 25_000 }),
-        { default: () => ({ status: 'success', data: [] }) },
+        {
+            default: () => ({ status: 'success', data: [] }),
+            immediate: route.path !== '/',
+        },
     );
 
-    const pharmacists = computed(() => gpsList.value ?? data.value?.data ?? []);
-    const total = computed(() => data.value?.total ?? data.value?.data?.length ?? 0);
+    const pharmaPayload = computed(() => (
+        isHome.value ? home.data.value?.pharmacists : standalone.data.value
+    ));
+
+    const pending = computed(() => (
+        isHome.value ? home.pending.value : standalone.pending.value
+    ));
+
+    const refresh = async () => {
+        if (isHome.value) {
+            await home.refresh();
+        } else {
+            await standalone.refresh();
+        }
+    };
+
+    const pharmacists = computed(() => gpsList.value ?? pharmaPayload.value?.data ?? []);
+    const total = computed(() => pharmaPayload.value?.total ?? pharmaPayload.value?.data?.length ?? 0);
     const loadError = computed(() => {
-        if (data.value?.status === 'error') return data.value.message || 'โหลดข้อมูลเภสัชไม่สำเร็จ';
-        if (error.value) return 'เชื่อมต่อ Supabase ไม่สำเร็จ — ลองรีเฟรช';
+        if (pharmaPayload.value?.status === 'error') {
+            return pharmaPayload.value.message || 'โหลดข้อมูลเภสัชไม่สำเร็จ';
+        }
         return '';
     });
     const isLoading = computed(() => pending.value && pharmacists.value.length === 0 && !loadError.value);
@@ -59,7 +83,7 @@ export function usePharmacistsList() {
         isLoading,
         isRefreshing,
         pending,
-        status,
+        status: computed(() => (isHome.value ? home.status.value : standalone.status.value)),
         refresh,
         refreshWithGps,
     };

@@ -13,9 +13,8 @@ import Tele_tutorial from '~/components/tele_tutorial.vue';
 
 definePageMeta({ middleware: 'smart-home' });
 
-// โหลดเภสัช + รีวิวพร้อม SSR (ยิง API ครั้งเดียว ไม่รอ onMounted)
-usePharmacistsList();
-useReviewsList();
+// โหลดเภสัช + รีวิว — API เดียว /api/home/summary (SSR เร็วขึ้นบน Vercel)
+await useHomeSummaryData();
 </script>
 
 <template>
