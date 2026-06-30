@@ -1,11 +1,14 @@
 import postgres from 'postgres';
 
 let sql: ReturnType<typeof postgres> | null = null;
+let lastDbError: string | null = null;
 
 const TRANSIENT_DB_CODES = new Set([
     'ECONNRESET',
     'ECONNREFUSED',
     'ETIMEDOUT',
+    'ENOTFOUND',
+    'EAI_AGAIN',
     '53300',
     '57P01',
     '08006',
@@ -15,7 +18,7 @@ const TRANSIENT_DB_CODES = new Set([
     'CONNECTION_ENDED',
 ]);
 
-/** จำกัด concurrent query — ไม่ serialize ทั้งก้อน (กัน timeout รอคิว) */
+/** จำกัด concurrent query — ไม่ serialize ทั้งก้อน */
 let activeQueries = 0;
 const waitQueue: Array<() => void> = [];
 
@@ -24,12 +27,11 @@ function isServerlessRuntime(): boolean {
 }
 
 function maxConcurrentQueries(): number {
-    if (isServerlessRuntime()) return 4;
+    if (isServerlessRuntime()) return 3;
     return usesSupabasePooler() ? 4 : 8;
 }
 
 function defaultQueryTimeoutMs(): number {
-    // Vercel: ให้เวลา pooler cold start + retry; local ใช้ได้นานกว่า
     return isServerlessRuntime() ? 28_000 : 35_000;
 }
 
@@ -52,28 +54,116 @@ function releaseDbSlot(): void {
     if (next) next();
 }
 
-function usesSupabasePooler(url?: string): boolean {
-    return /pooler\.supabase\.com:6543/i.test(String(url || process.env.DATABASE_URL || ''));
+function rememberDbError(err: unknown): void {
+    const e = err as { code?: string; message?: string };
+    const message = e.message || String(err);
+    lastDbError = e.code ? `${e.code}: ${message}` : message;
+}
+
+export function getLastDbError(): string | null {
+    return lastDbError;
+}
+
+/** อ่าน URL จาก env หลายชื่อ (Vercel / Supabase integration) */
+export function resolveDatabaseUrlRaw(): string {
+    const candidates = [
+        process.env.DATABASE_URL,
+        process.env.DATABASE_POOLER_URL,
+        process.env.POSTGRES_URL,
+        process.env.POSTGRES_PRISMA_URL,
+    ];
+    for (const c of candidates) {
+        const v = String(c || '').trim();
+        if (v) return v;
+    }
+    return '';
+}
+
+function supabaseProjectRef(): string {
+    const url = String(
+        process.env.SUPABASE_URL
+        || process.env.NUXT_PUBLIC_SUPABASE_URL
+        || '',
+    ).trim();
+    const m = url.match(/https?:\/\/([^.]+)\.supabase\.co/i);
+    return m?.[1] || '';
+}
+
+function poolerHost(): string {
+    return String(
+        process.env.SUPABASE_POOLER_HOST
+        || process.env.SUPABASE_DB_POOLER_HOST
+        || 'aws-1-ap-southeast-1.pooler.supabase.com',
+    ).trim();
+}
+
+/**
+ * บน Vercel/serverless: ถ้าใส่ direct db.xxx.supabase.co:5432 ให้สลับเป็น pooler 6543 อัตโนมัติ
+ * (direct connection มักล้มบน serverless / IPv6)
+ */
+export function autoFixSupabaseUrlForRuntime(raw: string): string {
+    let url = String(raw || '').trim();
+    if (!url) return url;
+
+    const isDirectDbHost = /@db\.[^/]+\.supabase\.co:5432/i.test(url)
+        || (/\.supabase\.co:5432/i.test(url) && !/pooler\.supabase\.com/i.test(url));
+
+    if (isServerlessRuntime() && isDirectDbHost) {
+        try {
+            const normalized = url.replace(/^postgresql:/i, 'postgres:');
+            const u = new URL(normalized);
+            const ref = supabaseProjectRef() || u.hostname.replace(/^db\./, '').replace(/\.supabase\.co$/, '');
+            const password = u.password ? decodeURIComponent(u.password) : '';
+            const user = u.username?.includes('.') ? u.username : `postgres.${ref}`;
+            if (ref && password) {
+                const host = poolerHost();
+                url = `postgresql://${user}:${encodeURIComponent(password)}@${host}:6543/postgres`;
+            }
+        } catch {
+            /* keep original */
+        }
+    }
+
+    return url;
+}
+
+export function usesSupabasePooler(url?: string): boolean {
+    return /pooler\.supabase\.com:6543/i.test(String(url || resolveDatabaseUrl() || ''));
 }
 
 function isTransientDbError(err: unknown): boolean {
     const code = (err as { code?: string })?.code;
     const message = String((err as Error)?.message || err);
     if (code && TRANSIENT_DB_CODES.has(code)) return true;
-    return /timeout|connection|terminated|closed|pool|destroyed|ended|broken/i.test(message);
+    return /timeout|connection|terminated|closed|pool|destroyed|ended|broken|ENOTFOUND|EAI_AGAIN/i.test(message);
 }
 
 export function isDbConfigured(): boolean {
-    return Boolean(String(process.env.DATABASE_URL || '').trim());
+    return Boolean(resolveDatabaseUrlRaw());
 }
 
-/** Supabase pooler 6543 — ใส่ pgbouncer=true อัตโนมัติถ้ายังไม่มี */
+/** Supabase pooler 6543 — ใส่ pgbouncer=true + sslmode=require อัตโนมัติ */
 export function normalizeDatabaseUrl(raw?: string): string {
-    const url = String(raw || process.env.DATABASE_URL || '').trim();
+    let url = String(raw || resolveDatabaseUrlRaw() || '').trim();
     if (!url) return url;
-    if (!/pooler\.supabase\.com:6543/.test(url)) return url;
-    if (/[?&]pgbouncer=true/i.test(url)) return url;
-    return url.includes('?') ? `${url}&pgbouncer=true` : `${url}?pgbouncer=true`;
+
+    url = autoFixSupabaseUrlForRuntime(url);
+
+    if (/pooler\.supabase\.com:6543/.test(url)) {
+        if (!/[?&]pgbouncer=true/i.test(url)) {
+            url = url.includes('?') ? `${url}&pgbouncer=true` : `${url}?pgbouncer=true`;
+        }
+    }
+
+    if (/supabase\.(co|com)/i.test(url) && !/[?&]sslmode=/i.test(url)) {
+        url = url.includes('?') ? `${url}&sslmode=require` : `${url}?sslmode=require`;
+    }
+
+    return url;
+}
+
+export function resolveDatabaseUrl(): string {
+    return normalizeDatabaseUrl(resolveDatabaseUrlRaw());
 }
 
 export async function resetDbConnection(): Promise<void> {
@@ -98,16 +188,16 @@ export function useDb() {
     if (!sql) {
         const isServerless = isServerlessRuntime();
         const isLocalDev = !isServerless;
-        const dbUrl = normalizeDatabaseUrl();
+        const dbUrl = resolveDatabaseUrl();
         const pooler = usesSupabasePooler(dbUrl);
         sql = postgres(dbUrl, {
             ssl: 'require',
             prepare: false,
             fetch_types: false,
-            max: isServerless ? 3 : (pooler ? 4 : 6),
-            connect_timeout: isServerless ? 20 : 15,
-            idle_timeout: pooler ? (isLocalDev ? 20 : 15) : 20,
-            max_lifetime: pooler ? (isLocalDev ? 120 : 90) : 60 * 10,
+            max: isServerless ? 2 : (pooler ? 4 : 6),
+            connect_timeout: isServerless ? 25 : 20,
+            idle_timeout: pooler ? (isLocalDev ? 25 : 20) : 25,
+            max_lifetime: pooler ? (isLocalDev ? 120 : 120) : 60 * 10,
         });
     }
 
@@ -125,19 +215,22 @@ export async function dbQuery<T>(
     await acquireDbSlot();
     try {
         const timeoutMs = options?.timeoutMs ?? defaultQueryTimeoutMs();
-        const maxAttempts = usesSupabasePooler() ? 4 : 3;
+        const maxAttempts = usesSupabasePooler() ? 5 : 4;
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             try {
-                return await withTimeout(fn(useDb()), timeoutMs, 'DB query');
+                const result = await withTimeout(fn(useDb()), timeoutMs, 'DB query');
+                lastDbError = null;
+                return result;
             } catch (err: unknown) {
+                rememberDbError(err);
                 const code = (err as { code?: string })?.code;
                 if (code === '42P01' || code === '42703') {
                     return null;
                 }
                 if (attempt < maxAttempts - 1 && isTransientDbError(err)) {
                     await resetDbConnection();
-                    await new Promise((r) => setTimeout(r, 120 * (attempt + 1)));
+                    await new Promise((r) => setTimeout(r, 150 * (attempt + 1)));
                     continue;
                 }
                 throw err;
@@ -165,29 +258,50 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): 
 }
 
 /** ทดสอบ connection จริง — ใช้ใน /api/deploy/health */
-export async function pingDb(timeoutMs = 15000): Promise<{ ok: boolean; error?: string; pharmacists_verified?: number }> {
+export async function pingDb(timeoutMs = 18000): Promise<{ ok: boolean; error?: string; pharmacists_verified?: number; url_mode?: string }> {
     if (!isDbConfigured()) {
         return { ok: false, error: 'DATABASE_URL missing' };
     }
+
+    const urlMode = usesSupabasePooler() ? 'pooler:6543' : 'direct/other';
 
     try {
         const rows = await dbQuery(async (sql) => sql`
             SELECT COUNT(*)::int AS n FROM pharmacist_account WHERE status_verify = 1
         `, { timeoutMs });
         if (!rows) {
-            return { ok: false, error: 'DB query returned no rows' };
+            return { ok: false, error: lastDbError || 'DB query returned no rows', url_mode: urlMode };
         }
-        return { ok: true, pharmacists_verified: Number(rows[0]?.n ?? 0) };
+        return { ok: true, pharmacists_verified: Number(rows[0]?.n ?? 0), url_mode: urlMode };
     } catch (err: unknown) {
-        const e = err as { message?: string; code?: string };
-        const message = e.message || String(err);
-        return { ok: false, error: e.code ? `${e.code}: ${message}` : message };
+        rememberDbError(err);
+        return { ok: false, error: lastDbError || String(err), url_mode: urlMode };
     }
 }
 
 export function dbUnavailableMessage(): string {
     if (!isDbConfigured()) {
-        return 'DATABASE_URL ยังไม่ได้ตั้งค่า — คัด import.env เป็น .env แล้ว restart (local) หรือ Import env บน Vercel แล้ว Redeploy';
+        return 'DATABASE_URL ยังไม่ได้ตั้งค่า — คัด import.env เป็น .env (local) หรือ Import env บน Vercel แล้ว Redeploy';
     }
+
+    const raw = resolveDatabaseUrlRaw();
+    const isDirectOnServerless = isServerlessRuntime()
+        && /\.supabase\.co:5432/i.test(raw)
+        && !/pooler\.supabase\.com:6543/i.test(raw);
+
+    if (isDirectOnServerless) {
+        return 'DATABASE_URL ใช้ direct port 5432 — บน Vercel ต้องใช้ pooler port 6543 (Supabase → Database → Connection pooling → Transaction)';
+    }
+
+    if (lastDbError) {
+        if (/timeout/i.test(lastDbError)) {
+            return `เชื่อมต่อ Supabase ช้าเกินไป (${lastDbError}) — ตรวจ pooler 6543 และ redeploy`;
+        }
+        if (/ENOTFOUND|EAI_AGAIN|ECONNREFUSED/i.test(lastDbError)) {
+            return `เชื่อมต่อ Supabase ไม่ได้ (${lastDbError}) — ตรวจ DATABASE_URL ว่าเป็น pooler port 6543`;
+        }
+        return `เชื่อมต่อ Supabase PostgreSQL ไม่สำเร็จ (${lastDbError})`;
+    }
+
     return 'เชื่อมต่อ Supabase PostgreSQL ไม่สำเร็จ — ใช้ pooler port 6543 ใน DATABASE_URL';
 }

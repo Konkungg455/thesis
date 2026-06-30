@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
     const n8nUrl = String(process.env.NUXT_N8N_INTERNAL_URL || config.n8nInternalUrl || '').trim();
     const siteOrigin = resolveRequestOrigin(event) || '(from request headers at runtime)';
 
-    const dbPing = dbOk ? await pingDb(12000) : { ok: false as const, error: 'DATABASE_URL missing' };
+    const dbPing = dbOk ? await pingDb(18000) : { ok: false as const, error: 'DATABASE_URL missing' };
 
     let supabasePing: { ok: boolean; error?: string } = { ok: false, error: 'not configured' };
     if (supabaseOk) {
@@ -40,6 +40,7 @@ export default defineEventHandler(async (event) => {
         database_url: dbOk ? 'configured' : 'missing',
         db_ping: dbPing.ok ? 'ok' : 'fail',
         db_error: dbPing.error || null,
+        db_url_mode: dbPing.url_mode || null,
         pharmacists_verified: dbPing.pharmacists_verified ?? null,
         supabase: supabaseOk ? 'configured' : 'missing',
         supabase_ping: supabasePing.ok ? 'ok' : 'fail',

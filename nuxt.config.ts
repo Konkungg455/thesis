@@ -66,6 +66,20 @@ export default defineNuxtConfig({
 
   // Nitro — API route /api/ai-chat + proxy /n8n บน production
   nitro: {
+    // ให้ Nitro/Vercel อ่าน env สำหรับ Supabase Postgres ได้แน่นอน
+    env: [
+      'DATABASE_URL',
+      'DATABASE_POOLER_URL',
+      'POSTGRES_URL',
+      'POSTGRES_PRISMA_URL',
+      'SUPABASE_URL',
+      'SUPABASE_POOLER_HOST',
+      'SUPABASE_DB_POOLER_HOST',
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'SUPABASE_KEY',
+      'NUXT_PUBLIC_SUPABASE_URL',
+      'NUXT_PUBLIC_SUPABASE_KEY',
+    ],
     routeRules: {
       '/api/**': { cors: true },
       '/api/home/summary': { headers: { 'cache-control': 'public, s-maxage=120, stale-while-revalidate=300' } },
