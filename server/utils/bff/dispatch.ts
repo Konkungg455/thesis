@@ -231,6 +231,14 @@ export async function dispatchBff(event: H3Event, pathname: string) {
         return handleDeleteChatMessage(event);
     }
 
+    if (pathLower === 'call-handler.php') {
+        return handleCallHandler(event, String(query.action || ''));
+    }
+
+    if (pathLower === 'call-check.php') {
+        return handleCallCheck(event);
+    }
+
     return handleFallback(pathLower, method);
 }
 
