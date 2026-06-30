@@ -3,6 +3,7 @@ import { basename, extname, join } from 'node:path';
 import { sendRichEmail, type EmailAttachment } from '../mail';
 import { buildPrescriptionPdfBinary } from './pdf';
 import { getPrescriptionBillNo, type PrescriptionRow } from './receiptHtml';
+import { resolveAccountPatientName } from '../bff/patientInfo';
 
 export interface StorePaymentInfo {
     bank_name: string;
@@ -138,22 +139,24 @@ export async function sendPrescriptionEmailInternal(
     }
 
     const billNo = getPrescriptionBillNo(row);
-    let pdfBin: Buffer;
+    let pdfBin: Buffer | null = null;
+    let pdfError = '';
     try {
         pdfBin = await buildPrescriptionPdfBinary(row);
     } catch (e) {
-        return {
-            ...empty,
-            message: `สร้าง PDF ไม่สำเร็จ: ${e instanceof Error ? e.message : String(e)}`,
-            sent_to: to,
-        };
+        pdfError = e instanceof Error ? e.message : String(e);
     }
 
-    const patientName = String(row.patient_name ?? '');
+    let patientName = String(row.patient_name ?? '').trim();
+    if (row.id_account) {
+        const synced = await resolveAccountPatientName(sql, Number(row.id_account), patientName);
+        if (synced) patientName = synced;
+    }
     const doctor = String(row.doctor_name ?? '');
     const clinic = String(row.clinic_name ?? 'ร้านยา');
     const total = String(row.total_amount ?? '');
     const pDate = String(row.prescription_date ?? new Date().toISOString().slice(0, 10));
+    const medDetails = String(row.med_details ?? '').trim();
 
     const payment = await fetchStorePaymentInfo(sql, Number(row.id_pharma ?? 0));
     const paymentQrAttached = payment.qr_path !== '';
@@ -172,7 +175,16 @@ export async function sendPrescriptionEmailInternal(
     const doctorRow = doctor
         ? `<tr><td style='padding:6px 10px;color:#475569;'>เภสัชผู้ออก</td><td style='padding:6px 10px;'>${rxEsc(doctor)}</td></tr>`
         : '';
+    const medRow = medDetails
+        ? `<tr><td style='padding:6px 10px;color:#475569;vertical-align:top;'>รายการยา</td>`
+            + `<td style='padding:6px 10px;white-space:pre-wrap;'>${rxEsc(medDetails)}</td></tr>`
+        : '';
     const bankRows = buildPrescriptionPaymentHtml(payment);
+    const pdfNote = pdfBin
+        ? ''
+        : `<p style='margin:10px 0 0;font-size:12px;color:#b45309;'>`
+            + `ไม่สามารถแนบไฟล์ PDF ได้ (${rxEsc(pdfError || 'PDF engine unavailable')}) `
+            + '— รายละเอียดด้านล่างครบถ้วน</p>';
 
     const html = "<!doctype html><html><body style='font-family:Tahoma,\"Sarabun\",sans-serif;color:#0f172a;background:#f1f5f9;padding:20px;margin:0;'>"
         + "<div style='max-width:560px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 14px rgba(15,23,42,0.08);'>"
@@ -185,14 +197,16 @@ export async function sendPrescriptionEmailInternal(
         + (patientName ? ` คุณ${rxEsc(patientName)}` : '')
         + '</p>'
         + `<p style='margin:6px 0 14px;'>ทางเรา <b>${rxEsc(clinic)}</b> `
-        + 'ได้จัดทำใบสั่งยา/ใบสรุปรายการยาให้ท่านเรียบร้อยแล้ว ดังรายละเอียดด้านล่าง '
-        + 'และได้แนบไฟล์ <b>PDF</b> มากับอีเมลฉบับนี้</p>'
+        + 'ได้จัดทำใบสั่งยา/ใบสรุปรายการยาให้ท่านเรียบร้อยแล้ว ดังรายละเอียดด้านล่าง'
+        + (pdfBin ? ' และได้แนบไฟล์ <b>PDF</b> มากับอีเมลฉบับนี้' : '')
+        + '</p>'
+        + pdfNote
         + "<table style='width:100%;border:1px solid #e2e8f0;border-radius:8px;border-collapse:separate;border-spacing:0;'>"
         + "<tr><td style='padding:6px 10px;color:#475569;'>เลขที่บิล</td>"
         + `<td style='padding:6px 10px;font-weight:bold;color:#00469c;'>${rxEsc(billNo)}</td></tr>`
         + "<tr><td style='padding:6px 10px;color:#475569;'>วันที่</td>"
         + `<td style='padding:6px 10px;'>${rxEsc(pDate)}</td></tr>`
-        + patientRow + doctorRow + totalRow
+        + patientRow + doctorRow + medRow + totalRow
         + '</table>'
         + bankRows
         + "<p style='margin-top:18px;font-size:12px;color:#64748b;'>หากมีคำถามเกี่ยวกับใบสั่งยานี้ ท่านสามารถติดต่อผ่านช่องทางแชทของระบบหรือสอบถามเภสัชกรผู้ออกได้โดยตรง</p>"
@@ -205,9 +219,11 @@ export async function sendPrescriptionEmailInternal(
 
     const altLines = [
         `ใบสั่งยาเลขที่ ${billNo} วันที่ ${pDate}`,
-        `ยอดสุทธิ: ${total} บาท`,
-        'แนบ PDF มาในอีเมลฉบับนี้',
-    ];
+        patientName ? `ผู้รับ: ${patientName}` : '',
+        medDetails ? `รายการยา:\n${medDetails}` : '',
+        total ? `ยอดสุทธิ: ${total} บาท` : '',
+        pdfBin ? 'แนบ PDF มาในอีเมลฉบับนี้' : 'รายละเอียดอยู่ในเนื้อหาอีเมล (ไม่มีไฟล์ PDF แนบ)',
+    ].filter(Boolean);
     if (paymentBankIncluded) {
         if (payment.bank_name) altLines.push(`ธนาคาร: ${payment.bank_name}`);
         if (payment.bank_account_name) altLines.push(`ชื่อบัญชี: ${payment.bank_account_name}`);
@@ -215,13 +231,14 @@ export async function sendPrescriptionEmailInternal(
     }
     if (paymentQrAttached) altLines.push('มีรูป QR Payment แนบมาในอีเมลฉบับนี้');
 
-    const attachments: EmailAttachment[] = [
-        {
+    const attachments: EmailAttachment[] = [];
+    if (pdfBin) {
+        attachments.push({
             filename: `prescription-${billNo}.pdf`,
             content: pdfBin,
             contentType: 'application/pdf',
-        },
-    ];
+        });
+    }
 
     if (paymentQrAttached) {
         const qrExt = extname(payment.qr_path).slice(1).toLowerCase() || 'jpg';

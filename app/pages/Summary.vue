@@ -271,7 +271,7 @@ const loadPatientAndPharma = async () => {
   if (!pid) return
   form.value.customer_code = `CT-${String(pid).padStart(7, '0')}`
   try {
-    const res = await $fetch(apiUrl(`get-patient-info.php?id=${pid}`), { credentials: 'include' })
+    const res = await $fetch(apiUrl(`get-patient-info.php?id=${pid}&lookup=user`), { credentials: 'include' })
     if (res?.status === 'success' && res.data) {
       form.value.patient_name = res.data.patient_name || form.value.patient_name
     }
@@ -326,7 +326,7 @@ const validateForm = () => {
  * คืน { ok, insertedId } เพื่อให้ saveAndPrint นำ id ไปเปิดหน้า prescription-view
  */
 const savePrescription = async ({ redirectAfterSave = true, silent = false } = {}) => {
-  if (!validateForm()) return { ok: false, insertedId: 0 }
+  if (!validateForm()) return { ok: false, insertedId: 0, emailSent: false, emailTo: '', emailError: '' }
 
   syncItemsToForm()
   form.value.df_value = form.value.doc_no
@@ -375,10 +375,10 @@ const savePrescription = async ({ redirectAfterSave = true, silent = false } = {
               },
         })
       }
-      return { ok: true, insertedId }
+      return { ok: true, insertedId, emailSent: !!res.email_sent, emailTo: res.email_to || '', emailError: res.email_error || '' }
     }
     alert('❌ บันทึกไม่สำเร็จ: ' + (res.message || 'ไม่ทราบสาเหตุ'))
-    return { ok: false, insertedId: 0 }
+    return { ok: false, insertedId: 0, emailSent: false, emailTo: '', emailError: '' }
   } catch (err) {
     console.error('Save error:', err)
     const status = err?.response?.status
@@ -388,7 +388,7 @@ const savePrescription = async ({ redirectAfterSave = true, silent = false } = {
     } else {
       alert('❌ ไม่สามารถเชื่อมต่อกับ Server ได้')
     }
-    return { ok: false, insertedId: 0 }
+    return { ok: false, insertedId: 0, emailSent: false, emailTo: '', emailError: '' }
   } finally {
     isSaving.value = false
   }
@@ -401,7 +401,7 @@ const savePrescription = async ({ redirectAfterSave = true, silent = false } = {
  *  - เด้งกลับหน้า pharmacy_web พร้อม flag consult_done=1
  */
 const saveAndPrint = async () => {
-  const { ok, insertedId } = await savePrescription({
+  const { ok, insertedId, emailSent, emailTo, emailError } = await savePrescription({
     redirectAfterSave: false,
     silent: true
   })
@@ -409,6 +409,11 @@ const saveAndPrint = async () => {
 
   if (import.meta.client) {
     window.open(`/prescription-view?id=${insertedId}`, '_blank', 'noopener,noreferrer')
+    if (emailSent) {
+      alert(`📧 ส่งใบสั่งยา (PDF) ทางอีเมลให้ลูกค้าแล้ว (${emailTo})`)
+    } else if (emailError) {
+      alert(`⚠️ บันทึกและพิมพ์แล้ว แต่ส่งอีเมลไม่สำเร็จ: ${emailError}`)
+    }
   }
 
   router.push({

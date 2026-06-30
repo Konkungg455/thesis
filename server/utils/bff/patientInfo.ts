@@ -1,5 +1,26 @@
 import type { H3Event } from 'h3';
 
+export async function resolveAccountPatientName(
+    sql: ReturnType<typeof useDb>,
+    idAccount: number,
+    fallback = '',
+): Promise<string> {
+    if (idAccount <= 0) return fallback.trim();
+
+    const rows = await sql`
+        SELECT firstname, lastname, username_account
+        FROM account
+        WHERE id_account = ${idAccount}
+        LIMIT 1
+    `;
+    const row = rows[0];
+    if (!row) return fallback.trim();
+
+    const fullName = `${String(row.firstname || '').trim()} ${String(row.lastname || '').trim()}`.trim();
+    if (fullName) return fullName;
+    return String(row.username_account || '').trim() || fallback.trim();
+}
+
 async function fetchSymptomForConsult(
     sql: ReturnType<typeof useDb>,
     consultId: number,

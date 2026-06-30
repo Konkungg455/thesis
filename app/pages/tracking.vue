@@ -15,6 +15,9 @@ const patientAvatarUrl = (item) => {
     return imagesAccount(file)
 }
 
+const displayPatientName = (item) =>
+    String(item?.patient_full_name || item?.patient_name || '').trim() || '-'
+
 // จัดที่อยู่ให้คำสุดท้าย (เลขไปรษณีย์) ไม่ตกบรรทัดเดี่ยว — ผูกกับคำก่อนหน้าด้วย non-breaking space
 const formatAddress = (addr) => {
     const text = (addr || '').trim()
@@ -160,7 +163,7 @@ const viewChat = (item) => {
         consult_id: item?.id_consult_request,
         service_code: item?.service_code
     }
-    openPharmaChatForRound(accountId, item?.patient_name || '', session)
+    openPharmaChatForRound(accountId, displayPatientName(item), session)
 }
 
 const viewPDF = (id) => {
@@ -249,7 +252,7 @@ const confirmCompleteTracking = async () => {
                     tracking_completed_at: res.completed_at
                 }
             }
-            showFollowupToast(`บันทึกเสร็จสิ้นการติดตามคนไข้ ${item.patient_name || ''} แล้ว`, 'success')
+            showFollowupToast(`บันทึกเสร็จสิ้นการติดตามคนไข้ ${displayPatientName(item)} แล้ว`, 'success')
         } else {
             showFollowupToast(res?.message || 'บันทึกไม่สำเร็จ', 'warn')
         }
@@ -371,7 +374,7 @@ const findMatchingArchiveSession = (sessions, item) => {
 /** กด「ประวัติแชท」→ เปิดป๊อปอัพประวัติบทสนทนา (modal) */
 const openHistoryChat = async (item) => {
     const pid = Number(item?.id_account || item?.id) || 0;
-    const name = item?.patient_name || '';
+    const name = displayPatientName(item);
     await openArchiveModal(pid, name, item);
 };
 
@@ -647,11 +650,11 @@ const formatArchiveExpiry = (expiresAt) => {
                                     <div class="patient-cell">
                                         <img class="avatar avatar-img"
                                              :src="patientAvatarUrl(item)"
-                                             :alt="item.patient_name || 'patient'"
+                                             :alt="displayPatientName(item)"
                                              @error="onAvatarError" />
                                         <div class="patient-cell__body">
                                             <div class="patient-line patient-line--name">
-                                                <span class="patient-name-strong">{{ item.patient_name || '-' }}</span>
+                                                <span class="patient-name-strong">{{ displayPatientName(item) }}</span>
                                             </div>
                                             <div v-if="item.patient_phone" class="patient-line patient-line--phone">
                                                 <i class="fa-solid fa-phone"></i>
@@ -745,11 +748,11 @@ const formatArchiveExpiry = (expiresAt) => {
                                 <div class="card-top-left">
                                     <img class="avatar avatar-lg avatar-img"
                                          :src="patientAvatarUrl(item)"
-                                         :alt="item.patient_name || 'patient'"
+                                         :alt="displayPatientName(item)"
                                          @error="onAvatarError" />
                                     <div class="patient-cell__body">
                                         <div class="patient-line patient-line--name">
-                                            <span class="patient-name">{{ item.patient_name }}</span>
+                                            <span class="patient-name">{{ displayPatientName(item) }}</span>
                                         </div>
                                         <div v-if="item.patient_phone" class="patient-line patient-line--phone">
                                             <i class="fa-solid fa-phone"></i>
@@ -857,7 +860,7 @@ const formatArchiveExpiry = (expiresAt) => {
                     <h3>ยืนยันการปิดเคสนี้</h3>
                     <p>
                         คุณกำลังจะปิดการติดตามอาการของ<br>
-                        <strong>{{ completingItem?.patient_name || 'ผู้ป่วยรายนี้' }}</strong>
+                        <strong>{{ completingItem ? displayPatientName(completingItem) : 'ผู้ป่วยรายนี้' }}</strong>
                     </p>
                     <ul class="confirm-list">
                         <li><i class="fa-solid fa-check"></i> สถานะจะเปลี่ยนเป็น <b>"เสร็จสิ้นแล้ว"</b></li>

@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3';
 import { getAuthContext } from './sessionContext';
 import { sendPrescriptionEmailInternal } from '../../utils/prescription/email';
+import { resolveAccountPatientName } from './patientInfo';
 
 type RxPayload = Record<string, unknown>;
 
@@ -82,6 +83,11 @@ export async function handleSavePrescription(event: H3Event) {
         const doctorFromDb = await fetchDoctorName(sql, idPharma);
         if (doctorFromDb) doctor = doctorFromDb;
 
+        let resolvedPatient = patient;
+        if (idAccount > 0) {
+            resolvedPatient = await resolveAccountPatientName(sql, idAccount, patient);
+        }
+
         const placeholderRows = idAccount > 0
             ? await sql`
                 SELECT id FROM prescriptions
@@ -104,7 +110,7 @@ export async function handleSavePrescription(event: H3Event) {
                     clinic_name = ${clinicName || null},
                     clinic_website = ${clinicWebsite || null},
                     doc_no = ${docNo || null},
-                    patient_name = ${patient || null},
+                    patient_name = ${resolvedPatient || null},
                     prescription_date = ${pDate || null},
                     hn_no = ${hn || null},
                     df_value = ${df || null},
@@ -127,7 +133,7 @@ export async function handleSavePrescription(event: H3Event) {
                 ) VALUES (
                     ${customerCode || null}, ${idAccount || null}, ${idPharma},
                     ${clinicName || null}, ${clinicWebsite || null},
-                    ${docNo || null}, ${patient || null}, ${pDate || null},
+                    ${docNo || null}, ${resolvedPatient || null}, ${pDate || null},
                     ${hn || null}, ${df || null}, ${details || null},
                     ${qty || null}, ${price || null}, ${total || null},
                     ${doctor || null}, NOW()

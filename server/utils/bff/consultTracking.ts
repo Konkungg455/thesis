@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3';
 import { getAuthContext } from './sessionContext';
 import { readMultipartRequest } from './formData';
+import { resolveAccountPatientName } from './patientInfo';
 
 const TRACKING_PLACEHOLDER_MED = 'รอเภสัชกรบันทึกรายการยา — อยู่ในกรอบติดตามอาการ 3 วัน';
 
@@ -53,11 +54,16 @@ export async function ensureConsultTrackingRecord(
 
     if (existing[0]) {
         const rxId = Number(existing[0].id);
+        const syncedName = await resolveAccountPatientName(sql, idAccount, '');
         if (String(existing[0].tracking_status || '') !== 'completed') {
             await sql`
                 UPDATE prescriptions SET
                     tracking_status = 'active',
                     last_followup_at = COALESCE(last_followup_at, NOW()),
+                    patient_name = CASE
+                        WHEN ${syncedName} <> '' THEN ${syncedName}
+                        ELSE patient_name
+                    END,
                     med_details = CASE
                         WHEN COALESCE(med_details, '') = '' THEN ${TRACKING_PLACEHOLDER_MED}
                         ELSE med_details
@@ -79,11 +85,8 @@ export async function ensureConsultTrackingRecord(
         WHERE id_account = ${idAccount}
         LIMIT 1
     `;
-    const acc = accRows[0];
-    let patientName = `${acc?.firstname || ''} ${acc?.lastname || ''}`.trim();
-    if (!patientName) {
-        patientName = String(acc?.username_account || '').trim() || `ผู้ป่วย #${idAccount}`;
-    }
+    const patientName = await resolveAccountPatientName(sql, idAccount, '')
+        || `ผู้ป่วย #${idAccount}`;
 
     const phRows = await sql`
         SELECT firstname_pharma, lastname_pharma

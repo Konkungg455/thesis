@@ -1232,6 +1232,7 @@ function mapPrescriptionRow(r: Record<string, unknown>) {
     if (!accountFullName && r.patient_name) {
         accountFullName = String(r.patient_name).trim();
     }
+    const displayPatientName = accountFullName || String(r.patient_name || '').trim();
 
     const cid = Number(r.id_consult_request || 0);
     let serviceCode = String(r.linked_service_code || '').trim();
@@ -1269,7 +1270,8 @@ function mapPrescriptionRow(r: Record<string, unknown>) {
         symptom_name: 'ทั่วไป',
         service_code: serviceCode,
         patient_phone: String(r.account_phone || '').trim(),
-        patient_full_name: accountFullName,
+        patient_name: displayPatientName,
+        patient_full_name: accountFullName || displayPatientName,
         patient_email: String(r.account_email || '').trim(),
         patient_image: String(r.account_image || '').trim(),
         patient_address: patientAddress,
