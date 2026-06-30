@@ -1,10 +1,26 @@
 
-
-* {
-    margin: 0;
-    padding: 0;
+.review-section,
+.review-section *:not(i[class*="fa-"]) {
     box-sizing: border-box;
+}
+
+.review-section {
     font-family: 'Kanit', sans-serif;
+}
+
+.review-section .fa-solid,
+.review-section .fa-regular,
+.review-section .fa-brands {
+    font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", sans-serif !important;
+}
+.review-section .fa-regular {
+    font-weight: 400 !important;
+}
+.review-section .fa-solid {
+    font-weight: 900 !important;
+}
+.review-section .fa-brands {
+    font-weight: 400 !important;
 }
 
 /* --- 2. Main Section --- */

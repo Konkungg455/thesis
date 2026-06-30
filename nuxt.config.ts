@@ -86,8 +86,8 @@ export default defineNuxtConfig({
   nitro: {
     routeRules: {
       '/api/**': { cors: true },
-      '/': { isr: 120 },
-      '/api/home/summary': { headers: { 'cache-control': 'public, s-maxage=60, stale-while-revalidate=120' } },
+      // ไม่ใช้ ISR หน้าแรก — DB บน Vercel cold start แล้ว cache HTML ว่าง (รีวิว/เภสัชหาย)
+      '/api/home/summary': { headers: { 'cache-control': 'public, s-maxage=30, stale-while-revalidate=60' } },
       '/api/deploy/health': { headers: { 'cache-control': 'no-store' } },
       '/api/supabase/health': { headers: { 'cache-control': 'no-store' } },
     },

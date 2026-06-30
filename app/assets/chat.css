@@ -951,14 +951,44 @@ html.dark .mobile-title {
     position: fixed;
     top: 0; left: 0; width: 100vw; height: 100vh;
     background: #000;
-    z-index: 10000; /* ทับทุกส่วนของเว็บ */
+    z-index: 100000;
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
+.remote-video-waiting {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    color: #e2e8f0;
+    pointer-events: none;
+}
+.remote-video-waiting-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(255, 255, 255, 0.35);
+}
+.remote-video-waiting-text {
+    font-size: 0.95rem;
+    opacity: 0.85;
+}
+
 .remote-video-bg {
-    width: 100%; height: 100%; object-fit: cover;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    background: #000;
 }
 
 /* จอตัวเองเล็กๆ มุมซ้ายบน */
@@ -970,6 +1000,7 @@ html.dark .mobile-title {
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.4);
     background: #222;
+    z-index: 5;
 }
 
 .local-video-stream { width: 100%; height: 100%; object-fit: cover; }
@@ -981,6 +1012,7 @@ html.dark .mobile-title {
     display: flex;
     align-items: center;
     gap: 40px; /* ระยะห่างระหว่างปุ่ม */
+    z-index: 5;
 }
 
 /* ปุ่มวงกลมทั่วไป */

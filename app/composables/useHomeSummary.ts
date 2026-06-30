@@ -36,11 +36,17 @@ const emptyHome = (): HomeSummary => ({
     reviews: [],
 });
 
+function isHomeEmpty(data: HomeSummary | null | undefined) {
+    const reviews = data?.reviews?.length ?? 0;
+    const pharma = data?.pharmacists?.data?.length ?? 0;
+    return reviews === 0 && pharma === 0;
+}
+
 /** หน้าแรก — ใช้ key เดียวกันเพื่อ dedupe SSR (1 request แทน 2) */
 export function useHomeSummaryData() {
     const route = useRoute();
 
-    return useAsyncData<HomeSummary>(
+    const result = useAsyncData<HomeSummary>(
         'home-summary',
         () => {
             if (route.path !== '/') {
@@ -50,6 +56,18 @@ export function useHomeSummaryData() {
         },
         { default: emptyHome },
     );
+
+    // SSR/ISR อาจได้ข้อมูลว่างเมื่อ DB cold — โหลดซ้ำฝั่ง client
+    onMounted(async () => {
+        if (route.path !== '/' || !isHomeEmpty(result.data.value)) return;
+        try {
+            await result.refresh();
+        } catch {
+            /* ignore */
+        }
+    });
+
+    return result;
 }
 
 export type { PharmacistRow, PharmacistsResponse, ReviewRow };

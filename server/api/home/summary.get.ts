@@ -4,12 +4,13 @@ export default defineEventHandler(async (event) => {
 
     const payload = await fetchHomeSummary(event);
     const total = Number(payload?.pharmacists?.total ?? payload?.pharmacists?.data?.length ?? 0);
+    const reviewCount = Array.isArray(payload?.reviews) ? payload.reviews.length : 0;
 
     setResponseHeader(
         event,
         'Cache-Control',
-        payload?.pharmacists?.status === 'success' && total > 0
-            ? 'public, s-maxage=60, stale-while-revalidate=120'
+        total > 0 || reviewCount > 0
+            ? 'public, s-maxage=30, stale-while-revalidate=60'
             : 'no-store, max-age=0',
     );
 

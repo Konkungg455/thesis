@@ -4,9 +4,14 @@ function applyPublicBffCache(event: H3Event, pathLower: string, result: unknown)
         return;
     }
 
-    const payload = result as { status?: string; data?: unknown[]; total?: number } | null;
-    const count = payload?.total ?? payload?.data?.length ?? 0;
-    const ok = payload?.status === 'success' && count > 0;
+    const isArray = Array.isArray(result);
+    const payload = isArray ? null : result as { status?: string; data?: unknown[]; total?: number } | null;
+    const count = isArray
+        ? result.length
+        : (payload?.total ?? payload?.data?.length ?? 0);
+    const ok = isArray
+        ? count > 0
+        : (payload?.status === 'success' && count > 0);
 
     // อย่า cache ค่าว่าง/error — กัน CDN แสดง "ไม่มีเภสัช" ตลอด
     setResponseHeader(

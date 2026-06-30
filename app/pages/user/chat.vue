@@ -28,13 +28,16 @@ const {
     isMicOn,
     isCamOn,
     peerInfo,
+    hasRemoteVideo,
     localVideo,
     remoteVideo,
+    remoteAudioSink,
     makeCall: makeCallRTC,
     acceptCall,
     endCall,
     toggleMic,
     toggleCamera,
+    retryRemoteVideo,
     startPolling: startCallPolling,
     stopPolling: stopCallPolling
 } = useWebRTCCall({
@@ -1160,6 +1163,42 @@ const closePreview = () => {
             </div>
         </transition>
 
+        <Teleport to="body">
+            <transition name="video-pop">
+                <div v-if="isInCall && callType === 'video'" class="video-call-full-overlay" @click="retryRemoteVideo">
+                    <video ref="remoteVideo" autoplay playsinline muted class="remote-video-bg"></video>
+                    <video ref="remoteAudioSink" autoplay playsinline style="position:absolute;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:1;"></video>
+                    <div v-if="!hasRemoteVideo" class="remote-video-waiting">
+                        <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=334155&color=fff&size=200'"
+                             class="remote-video-waiting-avatar" alt="waiting" />
+                        <p class="remote-video-waiting-text">กำลังเชื่อมต่อภาพจากอีกฝ่าย... แตะหน้าจอเพื่อลองใหม่</p>
+                    </div>
+                    <div class="video-caller-banner">
+                        <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=00a86b&color=fff&size=80'"
+                             class="banner-avatar" alt="caller" />
+                        <div>
+                            <div class="banner-name">{{ callerDisplayName }}</div>
+                            <div class="banner-timer">🎥 {{ callTimerText }}</div>
+                        </div>
+                    </div>
+                    <div class="local-video-pip">
+                        <video ref="localVideo" autoplay playsinline muted class="local-video-stream"></video>
+                    </div>
+                    <div class="video-call-controls">
+                        <button @click="toggleCamera" :class="{ 'btn-device-off': !isCamOn }" class="video-control-btn">
+                            <i :class="isCamOn ? 'fa-solid fa-video' : 'fa-solid fa-video-slash'"></i>
+                        </button>
+                        <button @click="endCall" class="btn-hangup-main">
+                            <i class="fa-solid fa-phone-slash"></i>
+                        </button>
+                        <button @click="toggleMic" :class="{ 'btn-device-off': !isMicOn }" class="video-control-btn">
+                            <i :class="isMicOn ? 'fa-solid fa-microphone' : 'fa-solid fa-microphone-slash'"></i>
+                        </button>
+                    </div>
+                </div>
+            </transition>
+        </Teleport>
+
         <!-- Mobile topbar — hamburger + ชื่อเภสัช -->
         <div class="mobile-topbar">
             <button class="hamburger" @click="openSidebar" aria-label="เปิดเมนู">
@@ -1340,34 +1379,6 @@ const closePreview = () => {
                             </button>
                         </div>
                     </div>
-
-                    <transition name="video-pop">
-                        <div v-if="isInCall && callType === 'video'" class="video-call-full-overlay">
-                            <video ref="remoteVideo" autoplay playsinline class="remote-video-bg"></video>
-                            <div class="video-caller-banner">
-                                <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=00a86b&color=fff&size=80'"
-                                     class="banner-avatar" alt="caller" />
-                                <div>
-                                    <div class="banner-name">{{ callerDisplayName }}</div>
-                                    <div class="banner-timer">🎥 {{ callTimerText }}</div>
-                                </div>
-                            </div>
-                            <div class="local-video-pip">
-                                <video ref="localVideo" autoplay playsinline muted class="local-video-stream"></video>
-                            </div>
-                            <div class="video-call-controls">
-                                <button @click="toggleCamera" :class="{ 'btn-device-off': !isCamOn }" class="video-control-btn">
-                                    <i :class="isCamOn ? 'fa-solid fa-video' : 'fa-solid fa-video-slash'"></i>
-                                </button>
-                                <button @click="endCall" class="btn-hangup-main">
-                                    <i class="fa-solid fa-phone-slash"></i>
-                                </button>
-                                <button @click="toggleMic" :class="{ 'btn-device-off': !isMicOn }" class="video-control-btn">
-                                    <i :class="isMicOn ? 'fa-solid fa-microphone' : 'fa-solid fa-microphone-slash'"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </transition>
 
                     <div class="chat-messages" ref="chatScroll" @scroll.passive="onChatScroll">
                         <div v-if="!chatMessages.length" class="chat-welcome">

@@ -1,9 +1,31 @@
-* {
-    margin: 0;
-    padding: 0;
+.review-section,
+.review-section *:not(i[class*="fa-"]) {
     box-sizing: border-box;
-    font-family: "Inter", sans-serif;
-    text-decoration: none; /* เอาเส้นใต้ทั้งหมดออก */
+}
+
+.review-section {
+    font-family: "Inter", "Sarabun", sans-serif;
+    text-decoration: none;
+}
+
+.review-section a {
+    text-decoration: none;
+}
+
+/* Font Awesome ต้องใช้ font ของ icon — ห้ามถูก Inter ทับ */
+.review-section .fa-solid,
+.review-section .fa-regular,
+.review-section .fa-brands {
+    font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", sans-serif !important;
+}
+.review-section .fa-regular {
+    font-weight: 400 !important;
+}
+.review-section .fa-solid {
+    font-weight: 900 !important;
+}
+.review-section .fa-brands {
+    font-weight: 400 !important;
 }
 
 /* Section */

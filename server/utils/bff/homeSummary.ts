@@ -20,7 +20,9 @@ export async function fetchHomeSummary(event?: H3Event) {
     const payload = { pharmacists, reviews };
 
     const total = Number((pharmacists as PharmacistPayload)?.total ?? (pharmacists as PharmacistPayload)?.data?.length ?? 0);
-    if ((pharmacists as PharmacistPayload)?.status === 'success' && total > 0) {
+    const reviewCount = Array.isArray(reviews) ? reviews.length : 0;
+    const pharmaOk = (pharmacists as PharmacistPayload)?.status === 'success' && total > 0;
+    if (pharmaOk || reviewCount > 0) {
         setBffCache('home:summary', payload, 90_000);
     }
 

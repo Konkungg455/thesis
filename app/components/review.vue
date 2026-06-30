@@ -26,10 +26,11 @@
         </div>
 
         <div class="stars">
-          <i v-for="star in 5" :key="star" :class="[
-            'fa-star',
-            star <= review.rating ? 'fa-solid' : 'fa-regular'
-          ]" class="fa"></i>
+          <i
+            v-for="star in 5"
+            :key="star"
+            :class="star <= review.rating ? 'fa-solid fa-star' : 'fa-regular fa-star'"
+          ></i>
         </div>
 
         <p class="review-text">{{ review.text }}</p>

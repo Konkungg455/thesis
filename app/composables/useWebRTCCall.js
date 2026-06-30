@@ -39,7 +39,10 @@ const ICE_SERVERS = [
 
 const buildPeerOptions = () => ({
     debug: 1,
-    config: { iceServers: ICE_SERVERS }
+    config: {
+        iceServers: ICE_SERVERS,
+        iceCandidatePoolSize: 10
+    }
 });
 
 export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharma, apiBase }) {
@@ -57,31 +60,142 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
     const peerInfo = ref({ id: null, name: '', image: '', role: '' });
 
     // template refs สำหรับ <video>
-    const localVideo  = ref(null);
-    const remoteVideo = ref(null);
+    const localVideo       = ref(null);
+    const remoteVideo      = ref(null);   // voice overlay (1px) หรือ fullscreen .remote-video-bg
+    const remoteAudioSink  = ref(null);   // element ซ่อนสำหรับเสียงฝั่งตรงข้าม (วิดีโอคอลบนมือถือ)
 
     // เก็บ stream ไว้เอง — เพื่อให้ assign กลับเข้า element ได้แม้ component re-mount
     const localStreamRef  = ref(null);
     const remoteStreamRef = ref(null);
+    const hasRemoteVideo  = ref(false);
+
+    let remoteDisplayStream = null;
+    let remoteAudioStream   = null;
+    let remotePlayLoopTimer = null;
+
+    const normalizeCallType = (type) => String(type || 'voice').trim().toLowerCase();
+
+    const isVideoCallUI = () => isInCall.value && normalizeCallType(callType.value) === 'video';
+
+    const stopRemotePlayLoop = () => {
+        if (remotePlayLoopTimer) {
+            clearInterval(remotePlayLoopTimer);
+            remotePlayLoopTimer = null;
+        }
+    };
+
+    const startRemotePlayLoop = () => {
+        stopRemotePlayLoop();
+        let attempts = 0;
+        remotePlayLoopTimer = setInterval(() => {
+            if (!isInCall.value) {
+                stopRemotePlayLoop();
+                return;
+            }
+            playRemote();
+            attempts += 1;
+            const el = remoteVideo.value;
+            const stream = remoteStreamRef.value;
+            const hasVideoTrack = !!stream?.getVideoTracks?.().length;
+            hasRemoteVideo.value = hasVideoTrack && !!el && el.videoWidth > 0;
+            if (hasRemoteVideo.value || attempts >= 24) stopRemotePlayLoop();
+        }, 500);
+    };
+
+    const rebuildRemoteStreams = (sourceStream) => {
+        if (!sourceStream) return { display: null, audio: null };
+
+        if (!remoteDisplayStream) remoteDisplayStream = new MediaStream();
+        if (!remoteAudioStream) remoteAudioStream = new MediaStream();
+
+        remoteDisplayStream.getTracks().forEach((t) => remoteDisplayStream.removeTrack(t));
+        remoteAudioStream.getTracks().forEach((t) => remoteAudioStream.removeTrack(t));
+
+        sourceStream.getVideoTracks().forEach((t) => {
+            t.enabled = true;
+            remoteDisplayStream.addTrack(t);
+        });
+        sourceStream.getAudioTracks().forEach((t) => {
+            t.enabled = true;
+            remoteAudioStream.addTrack(t);
+        });
+
+        return { display: remoteDisplayStream, audio: remoteAudioStream };
+    };
+
+    const tryPlayElement = (el, { muted = false } = {}) => {
+        if (!el) return;
+        try {
+            el.muted = muted;
+            el.volume = 1;
+            el.playsInline = true;
+            el.setAttribute('playsinline', '');
+            el.setAttribute('webkit-playsinline', '');
+            const p = el.play?.();
+            if (p && typeof p.catch === 'function') {
+                p.catch(() => {
+                    setTimeout(() => { el.play?.().catch(() => {}); }, 300);
+                });
+            }
+        } catch (e) {}
+    };
+
+    const bindStreamToElement = (el, stream, { muted = false } = {}) => {
+        if (!el || !stream) return;
+        try {
+            if (el.srcObject !== stream) el.srcObject = stream;
+            el.onloadedmetadata = () => tryPlayElement(el, { muted });
+            tryPlayElement(el, { muted });
+        } catch (e) {}
+    };
+
+    const clearRemoteStreamElements = () => {
+        if (remoteVideo.value) remoteVideo.value.srcObject = null;
+        if (remoteAudioSink.value) remoteAudioSink.value.srcObject = null;
+    };
+
+    const resetRemoteStreams = () => {
+        remoteStreamRef.value = null;
+        hasRemoteVideo.value = false;
+        remoteDisplayStream = null;
+        remoteAudioStream = null;
+        clearRemoteStreamElements();
+    };
 
     // Watch — เมื่อ element หรือ stream เปลี่ยน → assign srcObject อัตโนมัติ
     watch([localVideo, localStreamRef], async ([el, stream]) => {
         await nextTick();
-        if (el && stream) {
-            try { el.srcObject = stream; el.play?.().catch(() => {}); } catch (e) {}
-        }
+        bindStreamToElement(el, stream, { muted: true });
     });
-    watch([remoteVideo, remoteStreamRef], async ([el, stream]) => {
-        await nextTick();
-        if (el && stream) {
-            try {
-                el.srcObject = stream;
-                el.muted = false;   // เสียงฝั่งตรงข้ามต้องดังเสมอ
-                el.volume = 1;
-                el.play?.().catch(() => { setTimeout(() => el.play?.().catch(() => {}), 300); });
-            } catch (e) {}
+
+    /**
+     * ฝั่งตรงข้าม:
+     * - โทรเสียง: ใช้ remoteVideo (1px, unmuted) เล่นทั้งเสียง+วิดีโอ
+     * - วิดีโอคอล: remoteVideo (fullscreen, muted) แสดงภาพ + remoteAudioSink (1px, unmuted) เล่นเสียง
+     *   มือถือ Safari/Chrome บล็อก autoplay ถ้า video ไม่ mute — จึงแยก element
+     */
+    const playRemote = () => {
+        const stream = remoteStreamRef.value;
+        if (!stream) return;
+
+        if (isVideoCallUI()) {
+            const { display, audio } = rebuildRemoteStreams(stream);
+            bindStreamToElement(remoteVideo.value, display || stream, { muted: true });
+            bindStreamToElement(remoteAudioSink.value, audio || stream, { muted: false });
+            hasRemoteVideo.value = !!display?.getVideoTracks?.().length && remoteVideo.value?.videoWidth > 0;
+        } else {
+            bindStreamToElement(remoteVideo.value, stream, { muted: false });
         }
-    });
+    };
+
+    watch(
+        [remoteVideo, remoteAudioSink, remoteStreamRef, isInCall, callType],
+        async () => {
+            await nextTick();
+            playRemote();
+        },
+        { flush: 'post' }
+    );
 
     // ===== Internal =====
     let peer            = null;
@@ -175,8 +289,17 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             }
             if (localStream) stopMedia();
             localStream = await navigator.mediaDevices.getUserMedia({
-                video: withVideo,
-                audio: true
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true
+                },
+                video: withVideo
+                    ? {
+                        facingMode: 'user',
+                        width: { ideal: 640, max: 1280 },
+                        height: { ideal: 480, max: 720 }
+                    }
+                    : false
             });
             localStreamRef.value = localStream;
             await nextTick();
@@ -197,9 +320,8 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             localStream = null;
         }
         localStreamRef.value = null;
-        remoteStreamRef.value = null;
+        resetRemoteStreams();
         if (localVideo.value) localVideo.value.srcObject = null;
-        if (remoteVideo.value) remoteVideo.value.srcObject = null;
     };
 
     /**
@@ -229,28 +351,6 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
     };
 
     /**
-     * บังคับให้ <video>/<audio> ฝั่งตรงข้ามเล่น (เสียง+ภาพ) — เรียกซ้ำได้
-     * กันปัญหา autoplay ถูกบล็อก และ element เพิ่ง mount หลัง stream มาถึง
-     */
-    const playRemote = () => {
-        const el = remoteVideo.value;
-        const stream = remoteStreamRef.value;
-        if (!el || !stream) return;
-        try {
-            if (el.srcObject !== stream) el.srcObject = stream;
-            el.muted = false;          // ฝั่งตรงข้ามต้องได้ยินเสียง (ไม่ mute)
-            el.volume = 1;
-            const p = el.play?.();
-            if (p && typeof p.catch === 'function') {
-                p.catch(() => {
-                    // บาง browser บล็อก autoplay — ลองอีกครั้งสั้น ๆ
-                    setTimeout(() => { el.play?.().catch(() => {}); }, 300);
-                });
-            }
-        } catch (e) {}
-    };
-
-    /**
      * ฝั่งโทร — เรียกไปหา peer พร้อมส่ง stream (+ retry ถ้าไม่ได้ภาพ/เสียงใน 5 วิ)
      */
     let lastRemotePeerId = null;
@@ -265,8 +365,11 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
             // กันสายแรกหลุด/ฝั่งรับยังไม่พร้อม — ถ้ายังไม่ได้ remote stream ใน 5 วิ ลองโทรใหม่
             if (dialRetryTimer) clearTimeout(dialRetryTimer);
             dialRetryTimer = setTimeout(() => {
-                if (isInCall.value && !remoteStreamRef.value && lastRemotePeerId && peer && !peer.destroyed && localStream) {
-                    console.warn('[PeerJS] no remote stream yet — re-dialing', lastRemotePeerId);
+                const stream = remoteStreamRef.value;
+                const missingStream = isInCall.value && !stream;
+                const missingVideo = isInCall.value && isVideoCallUI() && stream && !stream.getVideoTracks?.().length;
+                if ((missingStream || missingVideo) && lastRemotePeerId && peer && !peer.destroyed && localStream) {
+                    console.warn('[PeerJS] remote video missing — re-dialing', lastRemotePeerId);
                     try { activeCall?.close?.(); } catch (e) {}
                     activeCall = peer.call(lastRemotePeerId, localStream);
                     attachRemoteStream(activeCall);
@@ -279,12 +382,31 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
 
     const attachRemoteStream = (call) => {
         if (!call) return;
-        call.on('stream', async (remoteStream) => {
+
+        const handleRemoteStream = (remoteStream) => {
+            if (!remoteStream) return;
+            remoteStream.getTracks().forEach((t) => { t.enabled = true; });
             remoteStreamRef.value = remoteStream;
             if (dialRetryTimer) { clearTimeout(dialRetryTimer); dialRetryTimer = null; }
-            await nextTick();
-            playRemote();
-        });
+            nextTick().then(() => {
+                playRemote();
+                startRemotePlayLoop();
+            });
+            setTimeout(playRemote, 150);
+            setTimeout(playRemote, 600);
+            setTimeout(playRemote, 1500);
+        };
+
+        call.on('stream', handleRemoteStream);
+
+        const pc = call.peerConnection;
+        if (pc) {
+            pc.ontrack = (event) => {
+                const stream = event.streams?.[0] || new MediaStream([event.track]);
+                handleRemoteStream(stream);
+            };
+        }
+
         call.on('close', () => stopCallUI());
         call.on('error', (err) => console.warn('[PeerJS] call error:', err));
     };
@@ -344,7 +466,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
                 image: buildPeerImage(data.peer_image, data.peer_role),
                 role: data.peer_role || ''
             };
-            callType.value = data.call_type || 'voice';
+            callType.value = normalizeCallType(data.call_type);
 
             // เรา = ผู้รับ + ยังไม่ได้รับสาย
             if (data.call_status === 'calling' && !data.is_caller && !isReceivingCall.value && !isInCall.value) {
@@ -360,6 +482,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
                 // ดึง peer ปลายทาง + เรียก
                 const remotePeerId = data.receiver_peer_id || buildPeerId(data.peer_role, data.peer_id);
                 if (remotePeerId) dialPeer(remotePeerId);
+                startRemotePlayLoop();
             }
         } catch (err) {
             console.warn('[Call] check error:', err);
@@ -401,10 +524,10 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
      */
     const makeCall = async (receiverId, type = 'voice') => {
         if (!receiverId) return;
-        callType.value = type;
+        callType.value = normalizeCallType(type);
         try {
             await initPeer();
-            await startMedia(type === 'video');
+            await startMedia(normalizeCallType(type) === 'video');
             const res = await apiCallStart(receiverId, type, peer.id);
             if (res?.status !== 'success') {
                 throw new Error(res?.message || 'ไม่สามารถเริ่มสายได้');
@@ -421,12 +544,20 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         try {
             await initPeer();
             isReceivingCall.value = false;
-            await startMedia(callType.value === 'video');
+            // ดึง call_type ล่าสุดจาก backend ก่อนเปิดกล้อง (กันฝั่งรับเปิดแค่ไมค์ตอนสายวิดีโอ)
+            try {
+                const latest = await apiCallCheck();
+                if (latest?.call_type) callType.value = normalizeCallType(latest.call_type);
+            } catch (e) {}
+            await startMedia(normalizeCallType(callType.value) === 'video');
             await apiCallAccept(peer.id);
             isInCall.value = true;
             startCallTimer();
             // ถ้า caller ส่ง peer.call() มาก่อนหน้านี้ (เร็วมาก) → answer ทันที
             if (pendingIncoming) answerPendingIncoming();
+            await nextTick();
+            playRemote();
+            startRemotePlayLoop();
         } catch (err) {
             console.error('[Call] acceptCall error:', err);
             stopCallUI();
@@ -447,6 +578,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         callTimerText.value = '00:00';
         peerInfo.value = { id: null, name: '', image: '', role: '' };
 
+        stopRemotePlayLoop();
         if (callInterval) clearInterval(callInterval);
         callInterval = null;
         if (dialRetryTimer) { clearTimeout(dialRetryTimer); dialRetryTimer = null; }
@@ -500,9 +632,11 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         isMicOn,
         isCamOn,
         peerInfo,
+        hasRemoteVideo,
         // refs
         localVideo,
         remoteVideo,
+        remoteAudioSink,
         // actions
         makeCall,
         acceptCall,
@@ -512,6 +646,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         startPolling,
         stopPolling,
         initPeer,
+        retryRemoteVideo: playRemote,
         destroy
     };
 }
