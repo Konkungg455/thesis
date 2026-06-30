@@ -502,7 +502,7 @@ async function handleProcessLogin(event: H3Event, path: string) {
         if (!isDbConfigured()) {
             return {
                 status: 'error',
-                message: 'ยังไม่ได้ตั้งค่า DATABASE_URL — import ฐานข้อมูลไป Supabase ก่อน login',
+                message: dbUnavailableMessage(),
             };
         }
         return { status: 'error', message: 'ไม่พบอีเมลนี้ในระบบ' };
@@ -600,8 +600,12 @@ async function handleGetPharmacists(event: H3Event) {
         WHERE p.status_verify = 1
     `);
 
-    if (!rows) {
-        return { status: 'success', data: [] };
+    if (!isDbConfigured()) {
+        return { status: 'error', message: dbUnavailableMessage() };
+    }
+
+    if (rows === null) {
+        return { status: 'error', message: dbUnavailableMessage() };
     }
 
     const pharmacists = rows.map((row) => {

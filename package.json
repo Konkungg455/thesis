@@ -16,7 +16,8 @@
     "ai:check": "powershell -ExecutionPolicy Bypass -File ./scripts/check-ai-local.ps1",
     "ngrok:check": "powershell -ExecutionPolicy Bypass -File ./scripts/check-ngrok-n8n.ps1",
     "media:seed": "node scripts/seed-supabase-media.mjs",
-    "media:migrate": "node scripts/migrate-media-to-supabase.mjs"
+    "media:migrate": "node scripts/migrate-media-to-supabase.mjs",
+    "db:check": "node scripts/test-db.mjs"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
