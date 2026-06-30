@@ -104,7 +104,6 @@ export default defineNuxtConfig({
   runtimeConfig: {
     /** URL หลักของเว็บ — ใช้ในลิงก์ reset password ในอีเมล */
     siteOrigin: process.env.NUXT_PUBLIC_SITE_ORIGIN
-      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
       || 'https://thesis-telebot-pharmacy.vercel.app',
     /** service role — ใช้ฝั่ง server เท่านั้น (optional) */
     supabaseServiceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',

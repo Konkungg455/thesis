@@ -74,13 +74,13 @@ function resolveSiteOrigin(event?: H3Event): string {
         }
     }
 
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+        return PRODUCTION_ORIGIN;
+    }
+
     const vercelUrl = String(process.env.VERCEL_URL || '').trim();
     if (vercelUrl) {
         return `https://${vercelUrl.replace(/^https?:\/\//, '')}`;
-    }
-
-    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
-        return PRODUCTION_ORIGIN;
     }
 
     return fromEnv || 'http://localhost:3001';
