@@ -586,11 +586,11 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
      */
     const makeCall = async (receiverId, type = 'voice') => {
         if (!receiverId) return;
-        callType.value = normalizeCallType(type);
+        callType.value = normalizeCallType(typeof type === 'string' ? type : 'voice');
         try {
             await initPeer();
-            await startMedia(normalizeCallType(type) === 'video');
-            const res = await apiCallStart(receiverId, type, peer.id);
+            await startMedia(callType.value === 'video');
+            const res = await apiCallStart(receiverId, callType.value, peer.id);
             if (res?.status !== 'success') {
                 throw new Error(res?.message || 'ไม่สามารถเริ่มสายได้');
             }

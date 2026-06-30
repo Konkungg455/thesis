@@ -52,8 +52,14 @@ const {
 // wrapper สำหรับ user "โทรหาเภสัชกร"
 const makeCall = (type = 'voice') => {
     if (!activePatientId.value) return;
-    return makeCallRTC(activePatientId.value, type);
+    const safeType = typeof type === 'string' ? type : 'voice';
+    return makeCallRTC(activePatientId.value, safeType);
 };
+
+const videoCallAvatar = computed(() =>
+    callerDisplayImage.value
+    || `https://ui-avatars.com/api/?name=${encodeURIComponent(callerDisplayName.value)}&background=0288d1&color=fff&size=200`
+);
 
 const callerDisplayName = computed(() => peerInfo.value.name || 'เภสัชกร');
 const callerDisplayImage = computed(() => peerInfo.value.image || '');
@@ -1163,41 +1169,22 @@ const closePreview = () => {
             </div>
         </transition>
 
-        <Teleport to="body">
-            <transition name="video-pop">
-                <div v-if="isInCall && callType === 'video'" class="video-call-full-overlay" @click="retryRemoteVideo">
-                    <video ref="remoteVideo" autoplay playsinline muted class="remote-video-bg"></video>
-                    <video ref="remoteAudioSink" autoplay playsinline style="position:absolute;width:1px;height:1px;opacity:0.01;pointer-events:none;z-index:1;"></video>
-                    <div v-if="!hasRemoteVideo" class="remote-video-waiting">
-                        <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=334155&color=fff&size=200'"
-                             class="remote-video-waiting-avatar" alt="waiting" />
-                        <p class="remote-video-waiting-text">กำลังเชื่อมต่อภาพจากอีกฝ่าย... แตะหน้าจอเพื่อลองใหม่</p>
-                    </div>
-                    <div class="video-caller-banner">
-                        <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=00a86b&color=fff&size=80'"
-                             class="banner-avatar" alt="caller" />
-                        <div>
-                            <div class="banner-name">{{ callerDisplayName }}</div>
-                            <div class="banner-timer">🎥 {{ callTimerText }}</div>
-                        </div>
-                    </div>
-                    <div class="local-video-pip">
-                        <video ref="localVideo" autoplay playsinline muted class="local-video-stream"></video>
-                    </div>
-                    <div class="video-call-controls">
-                        <button @click="toggleCamera" :class="{ 'btn-device-off': !isCamOn }" class="video-control-btn">
-                            <i :class="isCamOn ? 'fa-solid fa-video' : 'fa-solid fa-video-slash'"></i>
-                        </button>
-                        <button @click="endCall" class="btn-hangup-main">
-                            <i class="fa-solid fa-phone-slash"></i>
-                        </button>
-                        <button @click="toggleMic" :class="{ 'btn-device-off': !isMicOn }" class="video-control-btn">
-                            <i :class="isMicOn ? 'fa-solid fa-microphone' : 'fa-solid fa-microphone-slash'"></i>
-                        </button>
-                    </div>
-                </div>
-            </transition>
-        </Teleport>
+        <VideoCallOverlay
+            :visible="isInCall && callType === 'video'"
+            :peer-name="callerDisplayName"
+            :peer-avatar="videoCallAvatar"
+            :timer-text="callTimerText"
+            :has-remote-video="hasRemoteVideo"
+            :is-cam-on="isCamOn"
+            :is-mic-on="isMicOn"
+            :local-video="localVideo"
+            :remote-video="remoteVideo"
+            :remote-audio-sink="remoteAudioSink"
+            @retry="retryRemoteVideo"
+            @end="endCall"
+            @toggle-cam="toggleCamera"
+            @toggle-mic="toggleMic"
+        />
 
         <!-- Mobile topbar — hamburger + ชื่อเภสัช -->
         <div class="mobile-topbar">
@@ -1361,7 +1348,7 @@ const closePreview = () => {
                                     </span>
                                     {{ consultTimeLeftText }}
                                 </div>
-                            <button v-if="!isInCall" class="line-call-btn" @click="makeCall" title="โทรเสียง">
+                            <button v-if="!isInCall" class="line-call-btn" @click="makeCall('voice')" title="โทรเสียง">
                                 <i class="fa-solid fa-phone"></i>
                                 <span class="btn-label">โทร</span>
                             </button>

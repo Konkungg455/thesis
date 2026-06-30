@@ -4,6 +4,11 @@ import { readRequestFields } from './formData';
 
 let schemaReady = false;
 
+function normalizeCallType(raw: unknown): 'voice' | 'video' {
+    const t = String(raw || 'voice').trim().toLowerCase();
+    return t === 'video' ? 'video' : 'voice';
+}
+
 async function ensureVideoCallsSchema(sql: ReturnType<typeof useDb>) {
     if (schemaReady) return;
     await sql`
@@ -93,7 +98,7 @@ export async function handleCallHandler(event: H3Event, action: string) {
         if (action === 'start') {
             const fields = await readRequestFields(event);
             const receiverId = Number(fields.receiver_id || 0);
-            const callType = String(fields.call_type || 'voice').trim() || 'voice';
+            const callType = normalizeCallType(String(fields.call_type || 'voice'));
             const callerPeerId = String(fields.caller_peer_id || '').trim();
 
             if (receiverId <= 0) {
