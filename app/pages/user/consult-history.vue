@@ -8,6 +8,7 @@ const { apiUrl } = useApiBase();
 const router = useRouter();
 
 const isLoading = ref(false);
+const loadingMessages = ref(false);
 const errorMessage = ref('');
 const sessions = ref([]);
 const selectedSession = ref(null);
@@ -21,13 +22,14 @@ const loadSessions = async () => {
     try {
         const res = await $fetch(
             apiUrl('consult-handler.php?action=list_consult_archives'),
-            { credentials: 'include' }
+            { credentials: 'include', timeout: 15_000 }
         );
         if (res?.status === 'success') {
             sessions.value = res.data || [];
             meta.value.retentionDays = res.retention_days || 365;
+            isLoading.value = false;
             if (sessions.value.length > 0) {
-                await selectSession(sessions.value[0]);
+                selectSession(sessions.value[0]);
             }
         } else {
             errorMessage.value = res?.message || 'ดึงประวัติไม่สำเร็จ';
@@ -44,14 +46,14 @@ const selectSession = async (session) => {
     if (!session) return;
     selectedSession.value = session;
     messages.value = [];
-    isLoading.value = true;
+    loadingMessages.value = true;
     errorMessage.value = '';
 
     try {
         const url = session.consult_id
             ? `consult-handler.php?action=get_chat_archive&consult_id=${session.consult_id}`
             : `consult-handler.php?action=get_chat_archive&peer_id=${session.other_id}`;
-        const res = await $fetch(apiUrl(url), { credentials: 'include' });
+        const res = await $fetch(apiUrl(url), { credentials: 'include', timeout: 12_000 });
         if (res?.status === 'success') {
             messages.value = res.data || [];
             meta.value.archivedAt = res.archived_at || '';
@@ -63,7 +65,7 @@ const selectSession = async (session) => {
         console.error('get_chat_archive error', err);
         errorMessage.value = 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้';
     } finally {
-        isLoading.value = false;
+        loadingMessages.value = false;
     }
 };
 
@@ -262,7 +264,7 @@ onMounted(loadSessions);
 
                 <!-- กล่องข้อความ -->
                 <main class="messages-panel">
-                    <div v-if="isLoading && messages.length === 0 && selectedSession" class="loading">
+                    <div v-if="loadingMessages && messages.length === 0 && selectedSession" class="loading">
                         <div class="spinner"></div>
                         <p>กำลังโหลดข้อความ...</p>
                     </div>

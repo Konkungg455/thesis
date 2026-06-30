@@ -108,7 +108,7 @@ if (Test-PortOpen 5678) {
     if (-not $Quiet) { Write-Host " starting..." -ForegroundColor Yellow }
     $nodeTools = & (Join-Path $PSScriptRoot "ensure-node22-for-n8n.ps1")
     Start-N8nBackground -NodeTools $nodeTools
-    $waitSec = if ($Quiet) { 45 } else { 90 }
+    $waitSec = if ($Quiet) { 12 } else { 45 }
     $deadline = (Get-Date).AddSeconds($waitSec)
     while (-not (Test-PortOpen 5678) -and (Get-Date) -lt $deadline) {
         Start-Sleep -Seconds 3

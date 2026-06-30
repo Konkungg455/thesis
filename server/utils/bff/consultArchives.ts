@@ -212,9 +212,15 @@ export async function handleListConsultArchives(event: H3Event) {
 
     const patientFilter = Number(query.patient_id || 0);
     const pharmaFilter = Number(query.pharma_id || 0);
+    const cacheKey = `archives:${pId || 0}:${uId || 0}:${patientFilter}:${pharmaFilter}`;
+    const cached = getBffCache(cacheKey);
+    if (cached) return cached;
 
     const result = await dbQuery(async (sql) => {
-        await purgeExpiredArchives(sql);
+        const runMaint = shouldRunArchiveMaintenance();
+        if (runMaint) {
+            await purgeExpiredArchives(sql);
+        }
 
         let ownerSql: string;
         let ownerParams: number[];
@@ -228,7 +234,13 @@ export async function handleListConsultArchives(event: H3Event) {
                 ownerSql += ' AND id_account = $2';
                 ownerParams.push(patientFilter);
             }
-            await autoArchivePending(sql, 'r.id_pharma = $1' + (patientFilter > 0 ? ' AND r.id_account = $2' : ''), ownerParams);
+            if (runMaint) {
+                await autoArchivePending(
+                    sql,
+                    'r.id_pharma = $1' + (patientFilter > 0 ? ' AND r.id_account = $2' : ''),
+                    ownerParams,
+                );
+            }
         } else {
             viewerRole = 'user';
             ownerSql = 'id_account = $1';
@@ -237,7 +249,13 @@ export async function handleListConsultArchives(event: H3Event) {
                 ownerSql += ' AND id_pharma = $2';
                 ownerParams.push(pharmaFilter);
             }
-            await autoArchivePending(sql, 'r.id_account = $1' + (pharmaFilter > 0 ? ' AND r.id_pharma = $2' : ''), ownerParams);
+            if (runMaint) {
+                await autoArchivePending(
+                    sql,
+                    'r.id_account = $1' + (pharmaFilter > 0 ? ' AND r.id_pharma = $2' : ''),
+                    ownerParams,
+                );
+            }
         }
 
         const hiddenFilter = hiddenFilterSql(viewerRole);
@@ -261,6 +279,44 @@ export async function handleListConsultArchives(event: H3Event) {
         );
 
         const list = [];
+        const accountIds = [...new Set(rows.map((r) => Number(r.id_account || 0)).filter((id) => id > 0))];
+        const pharmaIds = [...new Set(rows.map((r) => Number(r.id_pharma || 0)).filter((id) => id > 0))];
+
+        const accountNameMap = new Map<number, string>();
+        const pharmaNameMap = new Map<number, string>();
+
+        if (accountIds.length > 0) {
+            const accRows = await sql`
+                SELECT id_account, firstname, lastname, username_account
+                FROM account
+                WHERE id_account IN ${sql(accountIds)}
+            `;
+            for (const row of accRows) {
+                const id = Number(row.id_account);
+                const name = `${row.firstname || ''} ${row.lastname || ''}`.trim()
+                    || String(row.username_account || '').trim();
+                accountNameMap.set(id, name || `ผู้ป่วย #${id}`);
+            }
+        }
+
+        if (pharmaIds.length > 0) {
+            const phRows = await sql`
+                SELECT id_pharma, firstname_pharma, lastname_pharma, username_pharma
+                FROM pharmacist_account
+                WHERE id_pharma IN ${sql(pharmaIds)}
+            `;
+            for (const row of phRows) {
+                const id = Number(row.id_pharma);
+                const first = String(row.firstname_pharma || '').trim();
+                const last = String(row.lastname_pharma || '').trim();
+                let name = `${first} ${last}`.trim();
+                if (!name) name = String(row.username_pharma || '').trim();
+                if (!name) name = `เภสัชกร #${id}`;
+                else if (!name.startsWith('ภก.')) name = `ภก. ${name}`;
+                pharmaNameMap.set(id, name);
+            }
+        }
+
         for (const row of rows) {
             const consultId = Number(row.id_consult_request || 0);
             const idAccount = Number(row.id_account || 0);
@@ -281,11 +337,11 @@ export async function handleListConsultArchives(event: H3Event) {
             let otherRole: string;
             if (viewerRole === 'user') {
                 otherId = idPharma;
-                otherName = (await fetchPharmaName(sql, idPharma)) || `เภสัชกร #${idPharma}`;
+                otherName = pharmaNameMap.get(idPharma) || `เภสัชกร #${idPharma}`;
                 otherRole = 'pharma';
             } else {
                 otherId = idAccount;
-                otherName = (await fetchAccountName(sql, idAccount)) || `ผู้ป่วย #${idAccount}`;
+                otherName = accountNameMap.get(idAccount) || `ผู้ป่วย #${idAccount}`;
                 otherRole = 'user';
             }
 
@@ -302,7 +358,7 @@ export async function handleListConsultArchives(event: H3Event) {
                 last_message_at: row.last_message_at,
                 message_count: Number(row.message_count || 0),
                 days_left: daysLeft,
-                symptom_name: await fetchSymptomForConsult(sql, consultId, idAccount),
+                symptom_name: '',
             });
         }
 
@@ -313,12 +369,14 @@ export async function handleListConsultArchives(event: H3Event) {
         return { status: 'error', message: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้', data: [] };
     }
 
-    return {
+    const payload = {
         status: 'success',
         data: result.list,
         retention_days: RETENTION_DAYS,
         viewer_role: result.viewerRole,
     };
+    setBffCache(cacheKey, payload, 30_000);
+    return payload;
 }
 
 export async function handleGetChatArchive(event: H3Event) {
@@ -336,7 +394,10 @@ export async function handleGetChatArchive(event: H3Event) {
     }
 
     const result = await dbQuery(async (sql) => {
-        await purgeExpiredArchives(sql);
+        const runMaint = shouldRunArchiveMaintenance();
+        if (runMaint) {
+            await purgeExpiredArchives(sql);
+        }
 
         const viewerRole: 'user' | 'pharma' = pId > 0 ? 'pharma' : 'user';
         const hiddenFilter = hiddenFilterSql(viewerRole);

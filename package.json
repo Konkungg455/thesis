@@ -6,6 +6,7 @@
     "build": "nuxt build",
     "dev": "powershell -ExecutionPolicy Bypass -File ./scripts/dev.ps1",
     "dev:nuxt": "nuxt dev",
+    "dev:web": "powershell -Command \"$env:SKIP_AI='1'; npm run dev\"",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",

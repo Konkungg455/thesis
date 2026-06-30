@@ -50,7 +50,8 @@ export function useAuthLogin(roleKey) {
             const data = await $fetch(config.value.endpoint, {
                 method: 'POST',
                 body,
-                credentials: 'include'
+                credentials: 'include',
+                timeout: 12_000,
             });
 
             if (data.status === 'success') {
@@ -58,7 +59,9 @@ export function useAuthLogin(roleKey) {
                 if (import.meta.client && remember.value) {
                     localStorage.setItem(`remember_email_${roleKey}`, email.value.trim());
                 }
-                await router.push(resolveRedirect(data));
+                // ปล่อยปุ่มทันที — ไม่รอหน้าใหม่โหลดเสร็จ (กัน "กำลังตรวจสอบ" ค้างนาน)
+                isLoading.value = false;
+                router.push(resolveRedirect(data));
                 return;
             }
 
@@ -70,7 +73,10 @@ export function useAuthLogin(roleKey) {
             errorMessage.value = data.message || 'เข้าสู่ระบบไม่สำเร็จ';
         } catch (err) {
             console.error('Login error:', err);
-            errorMessage.value = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่';
+            const timedOut = err?.name === 'FetchError' && /timeout|aborted/i.test(String(err?.message || ''));
+            errorMessage.value = timedOut
+                ? 'เซิร์ฟเวอร์ตอบช้าเกินไป — รอ Nuxt เปิดเสร็จแล้วลองใหม่ (หรือใช้ npm run dev:nuxt)'
+                : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่';
         } finally {
             isLoading.value = false;
         }
