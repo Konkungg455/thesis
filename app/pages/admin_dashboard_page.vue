@@ -181,6 +181,9 @@ onMounted(() => {
         <div class="overview-hero-badge">
           <i class="fa-solid fa-calendar-days"></i>
           <span>7 วันล่าสุด</span>
+          <button type="button" class="overview-refresh" :disabled="isLoading" @click="fetchOverview" title="รีเฟรชข้อมูล">
+            <i class="fa-solid fa-rotate-right" :class="{ 'fa-spin': isLoading }"></i>
+          </button>
         </div>
       </header>
 
@@ -200,6 +203,14 @@ onMounted(() => {
           </div>
           <span class="stat-value text-white">{{ totalPharmaCount.toLocaleString('th-TH') }}</span>
           <span class="stat-footnote light">พร้อมให้บริการในแพลตฟอร์ม</span>
+        </div>
+        <div class="stat-card accent-stat">
+          <div class="stat-card-top">
+            <span class="stat-icon stat-icon-rx"><i class="fa-solid fa-file-prescription"></i></span>
+            <span class="stat-label">ใบสั่งยา 7 วันล่าสุด</span>
+          </div>
+          <span class="stat-value">{{ totalWeeklyCount.toLocaleString('th-TH') }}</span>
+          <span class="stat-footnote">บันทึกจากระบบ Telepharmacy</span>
         </div>
       </div>
 

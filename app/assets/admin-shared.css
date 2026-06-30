@@ -688,8 +688,12 @@
 }
 
 /* ===================== Bar Chart (Overview) ===================== */
-.chart-header { margin-bottom: 16px; }
-.chart-header h3 { color: #2B3674; font-size: 1.1rem; margin: 0 0 4px 0; font-weight: 700; }
+.chart-header {
+  margin-bottom: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.chart-header h3 { color: #2B3674; font-size: 1rem; margin: 0 0 4px 0; font-weight: 700; }
 .chart-header p { color: #707EAE; font-size: 0.85rem; margin: 0; }
 .chart-header p strong { color: #4318FF; font-weight: 700; }
 
@@ -703,8 +707,9 @@
 
 .bar-chart {
   position: relative;
-  height: 280px;
-  margin-top: 20px;
+  flex: 1;
+  min-height: 260px;
+  margin-top: 8px;
   padding: 0 4px;
   display: flex;
   flex-direction: column;
@@ -752,10 +757,10 @@
 .bar {
   position: relative;
   width: 100%;
-  max-width: 44px;
-  min-height: 4px;
+  max-width: 40px;
+  min-height: 6px;
   height: 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 12px 12px 4px 4px;
   background: transparent;
   overflow: visible;
   transition: height 0.6s cubic-bezier(.2,.8,.2,1);
