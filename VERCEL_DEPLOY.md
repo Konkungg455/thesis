@@ -68,21 +68,33 @@ SMTP_FROM=your@gmail.com
 SMTP_FROM_NAME=Telebot Pharmacy
 ```
 
-### AI บน Vercel (แบบ 26 มิ.ย. — n8n + Ollama)
+### AI บน Vercel (แนะนำ — Groq)
 
-1. เปิด n8n + Ollama บน PC (`npm run dev`)
-2. เปิด ngrok ชี้ n8n: `ngrok http 5678` → ได้ URL เช่น `https://xxxx.ngrok-free.dev`
+ไม่ต้องเปิด n8n บน PC — ใส่ใน Vercel:
+
+```
+NUXT_AI_MODE=cloud
+NUXT_AI_API_KEY=gsk_xxx
+NUXT_AI_PROVIDER=groq
+NUXT_AI_MODEL=llama-3.3-70b-versatile
+```
+
+> สมัคร key ฟรี: https://console.groq.com
+
+**ทางเลือก (n8n + Ollama แบบ 26 มิ.ย.):**
+
+1. เปิด n8n + Ollama บน PC (`npm run ai:start`)
+2. เปิด ngrok ชี้ n8n: `ngrok http 5678`
 3. ใส่ใน Vercel:
 
 ```
 NUXT_AI_MODE=n8n
 NUXT_N8N_INTERNAL_URL=https://xxxx.ngrok-free.dev
 NUXT_PUBLIC_N8N_CHAT_WEBHOOK_ID=1f5ea30f-2ff0-4d32-b211-eccb342ee0df
+NUXT_AI_API_KEY=gsk_xxx
 ```
 
-> Client เรียก `/api/ai-chat` → server proxy ไป n8n — **PC ต้องเปิด n8n อยู่ตอนใช้ AI**
-
-**ทางเลือก (ไม่ต้อง n8n):** ตั้ง `NUXT_AI_MODE=cloud` + `NUXT_AI_API_KEY` (Groq ฟรี)
+> `NUXT_AI_API_KEY` ใช้เป็น fallback อัตโนมัติเมื่อ n8n ล้ม (แม้ `NUXT_AI_MODE=n8n`)
 
 ### รูปภาพไม่ขึ้น
 
