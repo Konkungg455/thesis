@@ -191,10 +191,21 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         }
     };
 
+    watch([isInCall, callType], async () => {
+        if (isInCall.value && normalizeCallType(callType.value) === 'video') {
+            await nextTick();
+            if (localStreamRef.value) bindStreamToElement(localVideo.value, localStreamRef.value, { muted: true });
+            playRemote();
+        }
+    });
+
     watch(
-        [remoteVideo, remoteAudioSink, remoteStreamRef, isInCall, callType],
+        [remoteVideo, remoteAudioSink, remoteStreamRef, localVideo, localStreamRef],
         async () => {
             await nextTick();
+            if (localStreamRef.value && localVideo.value) {
+                bindStreamToElement(localVideo.value, localStreamRef.value, { muted: true });
+            }
             playRemote();
         },
         { flush: 'post' }

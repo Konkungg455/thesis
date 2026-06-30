@@ -1037,6 +1037,14 @@
     z-index: 0;
     background: #000;
 }
+.remote-audio-sink {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0.01;
+    pointer-events: none;
+    z-index: 1;
+}
 .local-video-pip {
     position: absolute;
     top: 50px;
