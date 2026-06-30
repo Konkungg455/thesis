@@ -51,7 +51,6 @@ export function useAuthLogin(roleKey) {
                 method: 'POST',
                 body,
                 credentials: 'include',
-                timeout: 12_000,
             });
 
             if (data.status === 'success') {
@@ -73,10 +72,9 @@ export function useAuthLogin(roleKey) {
             errorMessage.value = data.message || 'เข้าสู่ระบบไม่สำเร็จ';
         } catch (err) {
             console.error('Login error:', err);
-            const timedOut = err?.name === 'FetchError' && /timeout|aborted/i.test(String(err?.message || ''));
-            errorMessage.value = timedOut
-                ? 'เซิร์ฟเวอร์ตอบช้าเกินไป — รอ Nuxt เปิดเสร็จแล้วลองใหม่ (หรือใช้ npm run dev:nuxt)'
-                : 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่';
+            errorMessage.value = err?.data?.message
+                || err?.response?._data?.message
+                || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่';
         } finally {
             isLoading.value = false;
         }

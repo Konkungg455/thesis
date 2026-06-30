@@ -119,10 +119,7 @@ export function useAuthUser() {
                     query.image = u.image;
                 }
 
-                const response = await $fetch(apiUrl('get-user-session.php'), {
-                    query,
-                    timeout: 8_000,
-                });
+                const response = await $fetch(apiUrl('get-user-session.php'), { query });
                 if (response.authenticated && response.user) {
                     const parsed = { ...response.user };
                     if (parsed.role === 'member') parsed.role = 'user';
@@ -143,7 +140,6 @@ export function useAuthUser() {
         try {
             const response = await $fetch(apiUrl('get-user-session.php'), {
                 credentials: 'include',
-                timeout: 8_000,
             });
             if (response.authenticated && response.user) {
                 const u = { ...response.user };

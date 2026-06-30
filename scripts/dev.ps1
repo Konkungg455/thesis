@@ -1,20 +1,21 @@
-# npm run dev — start Ollama + n8n (if needed) then Nuxt
-# ข้าม AI: $env:SKIP_AI='1'; npm run dev   หรือใช้ npm run dev:nuxt
+# npm run dev — เปิด Nuxt ทันที, AI (Ollama + n8n) รันเบื้องหลัง
 $ErrorActionPreference = "Continue"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 
-if ($env:SKIP_AI -eq '1') {
-    Write-Host "SKIP_AI=1 — starting Nuxt only (no Ollama/n8n wait)" -ForegroundColor Yellow
+if ($env:SKIP_AI -ne '1') {
+    Write-Host "Starting AI services in background (Ollama + n8n)..." -ForegroundColor Cyan
+    $aiScript = Join-Path $PSScriptRoot "ensure-ai-local.ps1"
+    Start-Process powershell -ArgumentList @(
+        "-NoProfile",
+        "-ExecutionPolicy", "Bypass",
+        "-WindowStyle", "Minimized",
+        "-File", $aiScript,
+        "-Quiet"
+    ) | Out-Null
 } else {
-    Write-Host "Starting AI services (Ollama + n8n)..." -ForegroundColor Cyan
-    $status = & (Join-Path $PSScriptRoot "ensure-ai-local.ps1") -Quiet
-    if (-not $status.Ollama) {
-        Write-Host "WARN: Ollama not running — install from https://ollama.com/download/windows" -ForegroundColor Yellow
-    }
-    if (-not $status.N8n) {
-        Write-Host "WARN: n8n still starting — use npm run dev:nuxt for faster web-only dev" -ForegroundColor Yellow
-    }
+    Write-Host "SKIP_AI=1 — Nuxt only" -ForegroundColor Yellow
 }
 
 Set-Location $ProjectRoot
+Write-Host "Starting Nuxt..." -ForegroundColor Green
 npm exec nuxt dev
