@@ -583,6 +583,9 @@ async function handleGetPharmacists(event: H3Event) {
     const q = getQuery(event);
     const userLat = q.lat ? Number(q.lat) : null;
     const userLng = q.lng ? Number(q.lng) : null;
+    const cacheKey = `pharmacists:${userLat ?? 'x'}:${userLng ?? 'x'}`;
+    const cached = getBffCache(cacheKey);
+    if (cached) return cached;
 
     const rows = await dbQuery(async (sql) => sql`
         SELECT p.id_pharma, p.firstname_pharma, p.lastname_pharma,
@@ -605,6 +608,14 @@ async function handleGetPharmacists(event: H3Event) {
         const address = [row.house_no, row.road, row.sub_district, row.district, row.province]
             .filter(Boolean)
             .join(' ');
+        let distance_km: number | null = null;
+        const storeLat = row.latitude != null ? Number(row.latitude) : null;
+        const storeLng = row.longitude != null ? Number(row.longitude) : null;
+        if (userLat != null && userLng != null && storeLat != null && storeLng != null
+            && Number.isFinite(userLat) && Number.isFinite(userLng)
+            && Number.isFinite(storeLat) && Number.isFinite(storeLng)) {
+            distance_km = Math.round(haversineKm(userLat, userLng, storeLat, storeLng) * 100) / 100;
+        }
         return {
             id: Number(row.id_pharma),
             name: `${row.firstname_pharma || ''} ${row.lastname_pharma || ''}`.trim(),
@@ -613,13 +624,24 @@ async function handleGetPharmacists(event: H3Event) {
             store_id: row.id_store != null ? Number(row.id_store) : null,
             store_name: row.store_name || '',
             store_address: address,
-            store_lat: row.latitude != null ? Number(row.latitude) : null,
-            store_lng: row.longitude != null ? Number(row.longitude) : null,
-            distance_km: null,
+            store_lat: storeLat,
+            store_lng: storeLng,
+            distance_km,
         };
     });
 
-    return { status: 'success', data: pharmacists };
+    if (userLat != null && userLng != null) {
+        pharmacists.sort((a, b) => {
+            if (a.distance_km == null && b.distance_km == null) return 0;
+            if (a.distance_km == null) return 1;
+            if (b.distance_km == null) return -1;
+            return a.distance_km - b.distance_km;
+        });
+    }
+
+    const payload = { status: 'success', data: pharmacists };
+    setBffCache(cacheKey, payload, 45_000);
+    return payload;
 }
 
 async function handleGetNearbyPharmacies(event: H3Event) {
@@ -707,6 +729,9 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 }
 
 async function handleGetReviews() {
+    const cached = getBffCache('reviews:all');
+    if (cached) return cached;
+
     const rows = await dbQuery(async (sql) => sql`
         SELECT r.*, a.firstname, a.lastname, a.images_account
         FROM reviews r
@@ -719,7 +744,9 @@ async function handleGetReviews() {
         ORDER BY r.rating DESC, r.created_at DESC
     `);
 
-    return rows || [];
+    const payload = rows || [];
+    setBffCache('reviews:all', payload, 60_000);
+    return payload;
 }
 
 async function handleConsult(event: H3Event, action: string) {

@@ -37,35 +37,44 @@ const getUserPosition = () =>
                 locationStatus.value = 'denied';
                 resolve(null);
             },
-            { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+            { enableHighAccuracy: false, timeout: 3000, maximumAge: 120000 }
         );
     });
 
 /* ================= 3. ดึงข้อมูลจาก API (PHP) ================= */
-const fetchPharmacists = async () => {
-    isLoading.value = true;
+const fetchPharmacists = async (options = {}) => {
+    const showLoading = options.showLoading !== false;
+    if (showLoading) isLoading.value = true;
     try {
         let url = apiUrl('get_pharmacists.php');
         if (userPos.value) {
             url += `?lat=${userPos.value.lat}&lng=${userPos.value.lng}`;
         }
-        const response = await $fetch(url, { credentials: 'include' });
+        const response = await $fetch(url, {
+            credentials: 'include',
+            timeout: 10_000,
+        });
 
         if (response.status === 'success' && Array.isArray(response.data)) {
-            // เก็บทุกคนไว้ก่อน เพื่อ sort ตามสถานะแล้วค่อย slice 3 คน
             pharmacists.value = response.data;
         }
     } catch (err) {
         console.error("Fetch Error:", err);
     } finally {
-        isLoading.value = false;
+        if (showLoading) isLoading.value = false;
     }
 };
 
-onMounted(async () => {
-    userPos.value = await getUserPosition();
-    await fetchPharmacists();
-    // ทริกเกอร์ recompute สถานะทุก 30 วินาที เพื่ออัปเดต online/offline แบบ real-time
+onMounted(() => {
+    fetchPharmacists({ showLoading: true });
+
+    getUserPosition().then((pos) => {
+        if (pos) {
+            userPos.value = pos;
+            fetchPharmacists({ showLoading: false });
+        }
+    });
+
     statusTimer = setInterval(() => {
         nowTick.value = Date.now();
     }, 30 * 1000);
