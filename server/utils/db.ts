@@ -19,6 +19,8 @@ export function useDb() {
             ssl: 'require',
             prepare: false,
             max: 3,
+            connect_timeout: 8,
+            idle_timeout: 20,
         });
     }
 

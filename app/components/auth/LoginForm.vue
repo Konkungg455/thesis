@@ -100,7 +100,7 @@ const onSubmit = (e) => {
                 </div>
 
                 <button type="submit" class="auth-submit" :disabled="isLoading">
-                    {{ isLoading ? 'กำลังตรวจสอบ...' : 'เข้าสู่ระบบ' }}
+                    {{ isLoading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ' }}
                 </button>
             </form>
 

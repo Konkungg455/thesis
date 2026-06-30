@@ -467,11 +467,28 @@ async function handleProcessLogin(event: H3Event, path: string) {
         return { status: 'error', message: 'ไม่รองรับ endpoint นี้' };
     }
 
+    const selectByPath: Record<string, string> = {
+        'process-login.php': `SELECT id_account, password_account, salt_account, is_deleted,
+            username_account, images_account, role_account
+            FROM account WHERE email_account = $1 LIMIT 1`,
+        'process-login-phamacy.php': `SELECT id_pharma, password_pharma, salt_pharma, is_deleted,
+            username_pharma, images_pharma, status_verify
+            FROM pharmacist_account WHERE email_pharma = $1 LIMIT 1`,
+        'process-login-store.php': `SELECT id_store_accounts, password, salt_store, is_deleted,
+            username, firstname, profile_store_account
+            FROM phamacy_store_accounts WHERE personal_email = $1 LIMIT 1`,
+        'process-login-admin.php': `SELECT id_account_admin, password_account, salt_account, is_deleted,
+            username_account, images_account, firstname, role_account
+            FROM account_admin WHERE email_account = $1 LIMIT 1`,
+    };
+
+    const selectSql = selectByPath[path];
+    if (!selectSql) {
+        return { status: 'error', message: 'ไม่รองรับ endpoint นี้' };
+    }
+
     const result = await dbQuery(async (sql) => {
-        const rows = await sql.unsafe(
-            `SELECT * FROM ${cfg.table} WHERE ${cfg.emailCol} = $1 LIMIT 1`,
-            [email],
-        );
+        const rows = await sql.unsafe(selectSql, [email]);
         return rows[0] as Record<string, unknown> | undefined;
     });
 
@@ -491,10 +508,28 @@ async function handleProcessLogin(event: H3Event, path: string) {
 
     const hash = String(result[cfg.passCol] || '');
     const salt = String(result[cfg.saltCol] || '');
-    const ok = await verifyPassword(password, salt, hash);
+    const ok = await verifyPassword(password, salt, hash, {
+        allowPlainPassword: cfg.table === 'phamacy_store_accounts',
+    });
 
     if (!ok) {
         return { status: 'error', message: 'รหัสผ่านไม่ถูกต้อง' };
+    }
+
+    if (cfg.table === 'pharmacist_account') {
+        const verifyStatus = Number(result.status_verify ?? 1);
+        if (verifyStatus === 0) {
+            return {
+                status: 'pending',
+                message: 'บัญชีของคุณอยู่ระหว่างรอการตรวจสอบใบวิชาชีพจาก Admin',
+            };
+        }
+        if (verifyStatus === 2) {
+            return {
+                status: 'rejected',
+                message: 'บัญชีของคุณไม่ได้รับการอนุมัติ กรุณาติดต่อผู้ดูแลระบบ',
+            };
+        }
     }
 
     const id = Number(result[cfg.idCol]);
