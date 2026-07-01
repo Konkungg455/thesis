@@ -294,6 +294,87 @@
     gap: 10px;
 }
 
+.chart-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.chart-header-text {
+    flex: 1;
+    min-width: 200px;
+}
+
+.chart-period-tools {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.chart-period-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px 10px 14px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #0b1437 0%, #1e3a8a 100%);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(11, 20, 55, 0.18);
+}
+
+.chart-period-badge > i {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.chart-period-select {
+    appearance: none;
+    border: none;
+    background: transparent;
+    color: #fff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0 18px 0 0;
+    min-width: 88px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right center;
+}
+
+.chart-period-select option {
+    color: #0f172a;
+    background: #fff;
+}
+
+.chart-period-refresh {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #0b1437 0%, #1e3a8a 100%);
+    color: #fff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(11, 20, 55, 0.18);
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+.chart-period-refresh:hover:not(:disabled) {
+    transform: scale(1.05);
+}
+
+.chart-period-refresh:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
 .chart-header h3 i,
 .top-list-header h3 i {
     color: #4318FF;

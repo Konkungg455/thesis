@@ -106,9 +106,11 @@ export default defineNuxtConfig({
     aiModel: process.env.NUXT_AI_MODEL || '',
     aiBaseUrl: process.env.NUXT_AI_BASE_URL || '',
     aiMode: process.env.NUXT_AI_MODE || 'n8n',
-    /** Metered.ca TURN — server only (วิดีโอคอลมือถือ↔iPad) */
+    /** Metered.ca TURN — server only (วิดีโอคอลมือถือ↔iPad) — ใช้เมื่อไม่เปิด Agora */
     meteredApiKey: process.env.NUXT_METERED_API_KEY || '',
     meteredAppName: process.env.NUXT_METERED_APP_NAME || 'telebotpharmacy',
+    /** Agora.io — server only (สร้าง RTC token) */
+    agoraAppCertificate: process.env.NUXT_AGORA_APP_CERTIFICATE || '',
     public: {
       /** legacy PHP เท่านั้น — ค่าเริ่มต้นใช้ /api/bff */
       apiBase: process.env.NUXT_PUBLIC_API_BASE || '',
@@ -127,6 +129,9 @@ export default defineNuxtConfig({
       turnUrls: process.env.NUXT_PUBLIC_TURN_URLS || '',
       turnUsername: process.env.NUXT_PUBLIC_TURN_USERNAME || '',
       turnCredential: process.env.NUXT_PUBLIC_TURN_CREDENTIAL || '',
+      /** Agora.io RTC — 10,000 นาทีฟรี/เดือน (แนะนำแทน TURN เอง) */
+      useAgoraRtc: process.env.NUXT_PUBLIC_USE_AGORA_RTC === 'true',
+      agoraAppId: process.env.NUXT_PUBLIC_AGORA_APP_ID || '',
     }
   }
 })

@@ -65,11 +65,13 @@ const relayEscalationMs = () => {
     return 4000;
 };
 
-const buildPeerOptions = (iceServers) => ({
+const buildPeerOptions = (iceServers, { forceRelay = false, hasTurn = false } = {}) => ({
     debug: 2,
     config: {
         iceServers,
         iceCandidatePoolSize: 10,
+        /** ngrok / คนละเครือข่าย — บังคับ relay ผ่าน TURN เมื่อมี credentials จริง */
+        iceTransportPolicy: forceRelay || (needsTurnRelay() && hasTurn) ? 'relay' : 'all',
     },
 });
 
@@ -78,15 +80,21 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
     let iceServersCache = null;
     const hasCustomTurn = ref(false);
 
-    const loadIceServers = async () => {
-        if (iceServersCache) return iceServersCache;
+    const loadIceServers = async ({ bustCache = false } = {}) => {
+        if (iceServersCache && !bustCache) return iceServersCache;
+
+        const mergeStun = (servers) => {
+            const list = Array.isArray(servers) ? [...servers] : [];
+            const hasStun = list.some((s) => String(s?.urls || '').includes('stun:'));
+            return hasStun ? list : [...STUN_SERVERS, ...list];
+        };
 
         try {
             const res = await $fetch('/api/webrtc/turn');
             if (Array.isArray(res?.iceServers) && res.iceServers.length) {
-                iceServersCache = res.iceServers;
-                hasCustomTurn.value = true;
-                console.log('[WebRTC] ICE servers:', res.source);
+                iceServersCache = mergeStun(res.iceServers);
+                hasCustomTurn.value = Boolean(res.hasTurn ?? res.iceServers.some((s) => String(s?.urls || '').includes('turn')));
+                console.log('[WebRTC] ICE servers:', res.source, hasCustomTurn.value ? '(TURN ok)' : '(STUN only)');
                 return iceServersCache;
             }
         } catch (e) {
@@ -115,7 +123,8 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         return iceServersCache;
     };
 
-    const getPeerOptions = async () => buildPeerOptions(await loadIceServers());
+    const getPeerOptions = async ({ forceRelay = false } = {}) =>
+        buildPeerOptions(await loadIceServers(), { forceRelay, hasTurn: hasCustomTurn.value });
     // ===== Reactive state =====
     const isCalling       = ref(false);
     const isReceivingCall = ref(false);
@@ -399,6 +408,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
     let peerReadyPromise = null;
     let inCallConnectTimer = null;
     let relayEscalated = false;
+    let forceRelayIce = false;
     let relayAutoTimer = null;
     let relayStuckTimer = null;
     let acceptInProgress = false;
@@ -454,10 +464,38 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         } catch (e) { /* ignore */ }
     };
 
+    /** สร้าง Peer ใหม่ด้วย iceTransportPolicy=relay (แก้จอดำเมื่อ NAT/ngrok) */
+    const recreatePeerWithRelay = async () => {
+        if (!needsTurnRelay() || !hasCustomTurn.value) return false;
+        forceRelayIce = true;
+        iceServersCache = null;
+        const savedRemote = lastRemotePeerId;
+        try { activeCall?.close?.(); } catch (e) { /* ignore */ }
+        try { pendingIncoming?.close?.(); } catch (e) { /* ignore */ }
+        activeCall = null;
+        pendingIncoming = null;
+        try { peer?.destroy?.(); } catch (e) { /* ignore */ }
+        peer = null;
+        peerReadyPromise = null;
+        regeneratePeerSession();
+        await loadIceServers({ bustCache: true });
+        await initPeer();
+        if (savedRemote && localStream) {
+            lastRemotePeerId = savedRemote;
+            await dialPeer(savedRemote, { force: true });
+        }
+        return true;
+    };
+
     const escalateToRelayIce = async () => {
         if (!isInCall.value || !needsRemoteMedia()) return;
         callConnectStatus.value = 'relay';
-        console.warn('[WebRTC] retry media connection');
+        console.warn('[WebRTC] retry media connection (TURN relay)');
+        if (!relayEscalated && hasCustomTurn.value) {
+            relayEscalated = true;
+            const recreated = await recreatePeerWithRelay();
+            if (recreated) return;
+        }
         await forceMediaReconnect();
         if (relayEscalated) return;
         relayEscalated = true;
@@ -528,7 +566,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
                 if (!myPeerId) throw new Error('Peer id not ready');
 
                 console.log('[PeerJS] connecting as', myPeerId);
-                const peerOpts = await getPeerOptions();
+                const peerOpts = await getPeerOptions({ forceRelay: forceRelayIce });
                 const instance = new Peer(myPeerId, peerOpts);
                 peer = instance;
 
@@ -1212,6 +1250,7 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
         lastDialAt = 0;
         dialAttempts = 0;
         relayEscalated = false;
+        forceRelayIce = false;
         iceServersCache = null;
 
         try { activeCall?.close?.(); } catch (e) {}
@@ -1262,6 +1301,10 @@ export function useWebRTCCall({ myRole, myId, apiUrl, imagesAccount, imagesPharm
     };
 
     onBeforeUnmount(destroy);
+
+    if (import.meta.client) {
+        loadIceServers().catch(() => {});
+    }
 
     return {
         // states

@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3';
+import { issueAgoraRtcToken } from '../agora/issueToken';
 import {
     handleGetPrescriptionDetail,
     handleSavePrescription,
@@ -245,6 +246,10 @@ export async function dispatchBff(event: H3Event, pathname: string) {
 
     if (pathLower === 'call-check.php') {
         return handleCallCheck(event);
+    }
+
+    if (pathLower === 'agora-token.php') {
+        return issueAgoraRtcToken(event);
     }
 
     return handleFallback(pathLower, method);

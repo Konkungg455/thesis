@@ -9,7 +9,7 @@ const { user } = useAuthUser();
 
 const myPharmaId = computed(() => Number(user.value?.id_pharma || user.value?.id || 0));
 
-// ===== ระบบโทร / วิดีโอคอล (WebRTC ผ่าน PeerJS) =====
+// ===== ระบบโทร / วิดีโอคอล (Agora.io หรือ WebRTC) =====
 const {
     isCalling,
     isReceivingCall,
@@ -18,17 +18,25 @@ const {
     callTimerText,
     isMicOn,
     isCamOn,
+    isSpeakerOn,
     peerInfo,
     localVideo,
     remoteVideo,
+    remoteVideoLive,
+    remoteAudioSink,
+    showRemoteVideoBg,
+    callConnectHint,
+    retryRemoteVideo,
+    unlockCallAudio,
     makeCall: makeCallRTC,
     acceptCall,
     endCall,
     toggleMic,
     toggleCamera,
+    toggleSpeaker,
     startPolling: startCallPolling,
     stopPolling: stopCallPolling
-} = useWebRTCCall({
+} = useCall({
     myRole: 'pharma',
     myId: myPharmaId,
     apiUrl,
@@ -1217,6 +1225,7 @@ const closePreview = () => { isShowPreview.value = false; };
 <template>
     <div class="admin-layout pharmacy-web-page">
         <Pharmacy_header />
+        <audio ref="remoteAudioSink" autoplay playsinline webkit-playsinline style="position:fixed;width:0;height:0;opacity:0;pointer-events:none;z-index:-1"></audio>
 
         <transition name="fade">
             <div v-if="isShowPreview" class="image-preview-overlay" @click.self="closePreview">
@@ -1275,7 +1284,7 @@ const closePreview = () => { isShowPreview.value = false; };
         </transition>
 
         <transition name="fade">
-            <div v-if="isInCall && callType === 'voice'" class="voice-call-overlay">
+            <div v-if="isInCall && callType === 'voice'" class="voice-call-overlay" @click="unlockCallAudio">
                 <div class="voice-call-card">
                     <div class="avatar-ring big">
                         <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=00469c&color=fff&size=200'"
@@ -1291,12 +1300,11 @@ const closePreview = () => { isShowPreview.value = false; };
                         <button @click="endCall" class="btn-hangup-main">
                             <i class="fa-solid fa-phone-slash"></i>
                         </button>
-                        <button class="video-control-btn" disabled style="opacity:0.5;cursor:default" title="ปิดเสียง">
-                            <i class="fa-solid fa-volume-high"></i>
+                        <button @click.stop="toggleSpeaker" :class="{ 'btn-device-off': !isSpeakerOn }" class="video-control-btn" :title="isSpeakerOn ? 'ปิดลำโพง' : 'เปิดลำโพง'">
+                            <i :class="isSpeakerOn ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark'"></i>
                         </button>
                     </div>
-                    <!-- audio element ซ่อนไว้ — ใช้รับ remote stream -->
-                    <!-- ซ่อนแบบยัง render อยู่ (ไม่ใช้ display:none) เพื่อให้เสียงฝั่งตรงข้ามเล่นได้ทุกเบราว์เซอร์ -->
+                    <!-- ซ่อนแบบยัง render อยู่ (ไม่ใช้ display:none) -->
                     <video ref="remoteVideo" autoplay playsinline style="position:absolute;width:1px;height:1px;opacity:0.01;pointer-events:none;"></video>
                     <video ref="localVideo" autoplay playsinline muted style="display:none"></video>
                 </div>
@@ -1476,8 +1484,18 @@ const closePreview = () => { isShowPreview.value = false; };
                         </div>
 
                         <transition name="video-pop">
-                            <div v-if="isInCall && callType === 'video'" class="video-call-full-overlay">
-                                <video ref="remoteVideo" autoplay playsinline class="remote-video-bg"></video>
+                            <div v-if="isInCall && callType === 'video'" class="video-call-full-overlay" @click="retryRemoteVideo">
+                                <video
+                                    ref="remoteVideoLive"
+                                    autoplay
+                                    playsinline
+                                    muted
+                                    :class="['remote-video-bg', { 'has-stream': showRemoteVideoBg }]"
+                                ></video>
+                                <div v-if="callConnectHint && !showRemoteVideoBg" class="video-connect-hint">
+                                    <i class="fa-solid fa-circle-notch fa-spin"></i>
+                                    {{ callConnectHint }}
+                                </div>
                                 <div class="video-caller-banner">
                                     <img :src="callerDisplayImage || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(callerDisplayName) + '&background=00469c&color=fff&size=80'"
                                          class="banner-avatar" alt="caller" />
@@ -1490,14 +1508,17 @@ const closePreview = () => { isShowPreview.value = false; };
                                     <video ref="localVideo" autoplay playsinline muted class="local-video-stream"></video>
                                 </div>
                                 <div class="video-call-controls">
-                                    <button @click="toggleCamera" :class="{ 'btn-device-off': !isCamOn }" class="video-control-btn">
+                                    <button @click.stop="toggleCamera" :class="{ 'btn-device-off': !isCamOn }" class="video-control-btn">
                                         <i :class="isCamOn ? 'fa-solid fa-video' : 'fa-solid fa-video-slash'"></i>
                                     </button>
-                                    <button @click="endCall" class="btn-hangup-main">
+                                    <button @click.stop="endCall" class="btn-hangup-main">
                                         <i class="fa-solid fa-phone-slash"></i>
                                     </button>
-                                    <button @click="toggleMic" :class="{ 'btn-device-off': !isMicOn }" class="video-control-btn">
+                                    <button @click.stop="toggleMic" :class="{ 'btn-device-off': !isMicOn }" class="video-control-btn">
                                         <i :class="isMicOn ? 'fa-solid fa-microphone' : 'fa-solid fa-microphone-slash'"></i>
+                                    </button>
+                                    <button @click.stop="toggleSpeaker" :class="{ 'btn-device-off': !isSpeakerOn }" class="video-control-btn" :title="isSpeakerOn ? 'ปิดลำโพง' : 'เปิดลำโพง'">
+                                        <i :class="isSpeakerOn ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark'"></i>
                                     </button>
                                 </div>
                             </div>

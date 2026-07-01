@@ -738,6 +738,32 @@
   gap: 8px;
   border-bottom: 2px solid #CBD5E1;
   padding-bottom: 0;
+  overflow-x: auto;
+}
+.bar-chart--compact .bar-chart-bars {
+  gap: 4px;
+  justify-content: flex-start;
+  padding-bottom: 4px;
+}
+.bar-chart-bars--day .bar-column,
+.bar-chart-bars--month .bar-column {
+  max-width: 36px;
+  min-width: 22px;
+  flex: 0 0 auto;
+}
+.bar-chart-bars--year .bar-column {
+  max-width: 52px;
+}
+.bar-chart-bars--day .bar,
+.bar-chart-bars--month .bar {
+  max-width: 28px;
+}
+.bar-chart-bars--day .bar-label,
+.bar-chart-bars--month .bar-label {
+  font-size: 0.68rem;
+}
+.bar-chart-bars--day .bar-day {
+  font-size: 0.72rem;
 }
 .bar-column {
   flex: 1;

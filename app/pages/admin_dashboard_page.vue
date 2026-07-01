@@ -12,6 +12,54 @@ const isLoading = ref(false)
 const historyData = ref([])       // ใบสั่งยา (สำหรับกราฟ + อันดับเภสัชกร)
 const overviewUsers = ref([])     // ผู้ใช้บริการ (ตัด role admin ออก)
 const overviewPharmas = ref([])   // เภสัชกรทั้งหมด
+const chartPeriod = ref('week')   // day | week | month | year
+
+const CHART_PERIOD_OPTIONS = [
+  { value: 'day', label: 'วัน', statLabel: 'ใบสั่งยาวันนี้', title: 'วันนี้ (รายชั่วโมง)', empty: 'ยังไม่มีการบันทึกใบสั่งยาวันนี้' },
+  { value: 'week', label: 'สัปดาห์', statLabel: 'ใบสั่งยา 7 วันล่าสุด', title: '7 วันล่าสุด', empty: 'ยังไม่มีการบันทึกใบสั่งยาในช่วง 7 วันที่ผ่านมา' },
+  { value: 'month', label: 'เดือน', statLabel: 'ใบสั่งยา 30 วันล่าสุด', title: '30 วันล่าสุด', empty: 'ยังไม่มีการบันทึกใบสั่งยาในช่วง 30 วันที่ผ่านมา' },
+  { value: 'year', label: 'ปี', statLabel: 'ใบสั่งยา 12 เดือนล่าสุด', title: '12 เดือนล่าสุด', empty: 'ยังไม่มีการบันทึกใบสั่งยาในช่วง 12 เดือนที่ผ่านมา' },
+]
+
+const TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
+
+const parseCreatedAt = (item) => {
+  if (!item?.created_at) return null
+  const d = new Date(item.created_at)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+const activePeriodMeta = computed(() =>
+  CHART_PERIOD_OPTIONS.find(o => o.value === chartPeriod.value) || CHART_PERIOD_OPTIONS[1]
+)
+
+const getPeriodRange = (period) => {
+  const now = new Date()
+  const end = new Date(now)
+  end.setHours(23, 59, 59, 999)
+  const start = new Date(now)
+  start.setHours(0, 0, 0, 0)
+
+  if (period === 'week') {
+    start.setDate(start.getDate() - 6)
+  } else if (period === 'month') {
+    start.setDate(start.getDate() - 29)
+  } else if (period === 'year') {
+    start.setFullYear(start.getFullYear(), start.getMonth() - 11, 1)
+    start.setHours(0, 0, 0, 0)
+  }
+
+  return { start, end }
+}
+
+const periodFilteredData = computed(() => {
+  const { start, end } = getPeriodRange(chartPeriod.value)
+  return historyData.value.filter((item) => {
+    const created = parseCreatedAt(item)
+    if (!created) return false
+    return created >= start && created <= end
+  })
+})
 
 // ดึงข้อมูล Overview จาก 3 endpoint พร้อมกัน
 const fetchOverview = async () => {
@@ -61,47 +109,91 @@ const fetchOverview = async () => {
 const totalUserCount = computed(() => overviewUsers.value.length)
 const totalPharmaCount = computed(() => overviewPharmas.value.filter(p => p.status_verify == 1).length)
 
-// 🚩 [Overview] ข้อมูลกราฟแท่งจำนวนใบสั่งยา 7 วันล่าสุด
-const weeklyChartData = computed(() => {
-  const dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']
+// 🚩 [Overview] ข้อมูลกราฟแท่งจำนวนใบสั่งยา — เลือกช่วง วัน / สัปดาห์ / เดือน / ปี
+const chartPeriodData = computed(() => {
+  const period = chartPeriod.value
   const today = new Date()
   today.setHours(0, 0, 0, 0)
+  const dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']
 
-  const days = []
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(today)
-    d.setDate(today.getDate() - i)
-    days.push({
-      key: d.toDateString(),
-      label: dayNames[d.getDay()],
-      dateLabel: `${d.getDate()}/${d.getMonth() + 1}`,
+  if (period === 'day') {
+    const buckets = Array.from({ length: 24 }, (_, hour) => ({
+      key: `h-${hour}`,
+      label: `${hour}`,
+      dateLabel: 'น.',
       count: 0,
+    }))
+    periodFilteredData.value.forEach((item) => {
+      const created = parseCreatedAt(item)
+      if (!created) return
+      const h = created.getHours()
+      if (buckets[h]) buckets[h].count += 1
     })
+    return buckets
   }
 
-  historyData.value.forEach(item => {
-    if (!item.created_at) return
-    const created = new Date(item.created_at)
-    if (isNaN(created.getTime())) return
-    created.setHours(0, 0, 0, 0)
-    const bucket = days.find(d => d.key === created.toDateString())
+  if (period === 'week' || period === 'month') {
+    const span = period === 'week' ? 7 : 30
+    const days = []
+    for (let i = span - 1; i >= 0; i--) {
+      const d = new Date(today)
+      d.setDate(today.getDate() - i)
+      days.push({
+        key: d.toDateString(),
+        label: dayNames[d.getDay()],
+        dateLabel: `${d.getDate()}/${d.getMonth() + 1}`,
+        count: 0,
+      })
+    }
+    periodFilteredData.value.forEach((item) => {
+      const created = parseCreatedAt(item)
+      if (!created) return
+      created.setHours(0, 0, 0, 0)
+      const bucket = days.find(d => d.key === created.toDateString())
+      if (bucket) bucket.count += 1
+    })
+    return days
+  }
+
+  // year — 12 เดือนล่าสุด
+  const months = []
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1)
+    months.push({
+      key: `${d.getFullYear()}-${d.getMonth()}`,
+      label: TH_MONTHS[d.getMonth()],
+      dateLabel: String(d.getFullYear() + 543).slice(-2),
+      count: 0,
+      year: d.getFullYear(),
+      month: d.getMonth(),
+    })
+  }
+  periodFilteredData.value.forEach((item) => {
+    const created = parseCreatedAt(item)
+    if (!created) return
+    const bucket = months.find(m => m.year === created.getFullYear() && m.month === created.getMonth())
     if (bucket) bucket.count += 1
   })
-
-  return days
+  return months
 })
 
 const maxChartCount = computed(() => {
-  const max = Math.max(...weeklyChartData.value.map(d => d.count))
+  const max = Math.max(...chartPeriodData.value.map(d => d.count), 0)
   return max > 0 ? max : 1
 })
 
-const totalWeeklyCount = computed(() => weeklyChartData.value.reduce((s, d) => s + d.count, 0))
+const totalChartCount = computed(() => chartPeriodData.value.reduce((s, d) => s + d.count, 0))
 
-// 🚩 [Overview] อันดับเภสัชกรที่บันทึกใบสั่งยามากที่สุด (Top 5)
+const chartColumnClass = computed(() => ({
+  'bar-chart-bars--day': chartPeriod.value === 'day',
+  'bar-chart-bars--month': chartPeriod.value === 'month',
+  'bar-chart-bars--year': chartPeriod.value === 'year',
+}))
+
+// 🚩 [Overview] อันดับเภสัชกรที่บันทึกใบสั่งยามากที่สุด (Top 5) — ตามช่วงเวลาที่เลือก
 const topPharmacists = computed(() => {
   const map = new Map()
-  historyData.value.forEach(item => {
+  periodFilteredData.value.forEach(item => {
     const key = String(
       item.id_pharma || item.pharmacist_username || item.pharmacist_name || item.doctor_name || ''
     ).trim()
@@ -178,13 +270,6 @@ onMounted(() => {
           <h2 class="overview-title">ภาพรวมระบบ Telepharmacy</h2>
           <p class="overview-subtitle">สถิติผู้ใช้ เภสัชกร และใบสั่งยาจากฐานข้อมูลจริง</p>
         </div>
-        <div class="overview-hero-badge">
-          <i class="fa-solid fa-calendar-days"></i>
-          <span>7 วันล่าสุด</span>
-          <button type="button" class="overview-refresh" :disabled="isLoading" @click="fetchOverview" title="รีเฟรชข้อมูล">
-            <i class="fa-solid fa-rotate-right" :class="{ 'fa-spin': isLoading }"></i>
-          </button>
-        </div>
       </header>
 
       <div class="stat-grid">
@@ -207,9 +292,9 @@ onMounted(() => {
         <div class="stat-card accent-stat">
           <div class="stat-card-top">
             <span class="stat-icon stat-icon-rx"><i class="fa-solid fa-file-prescription"></i></span>
-            <span class="stat-label">ใบสั่งยา 7 วันล่าสุด</span>
+            <span class="stat-label">{{ activePeriodMeta.statLabel }}</span>
           </div>
-          <span class="stat-value">{{ totalWeeklyCount.toLocaleString('th-TH') }}</span>
+          <span class="stat-value">{{ totalChartCount.toLocaleString('th-TH') }}</span>
           <span class="stat-footnote">บันทึกจากระบบ Telepharmacy</span>
         </div>
       </div>
@@ -217,9 +302,22 @@ onMounted(() => {
       <div class="dashboard-content">
         <div class="chart-card shadow-sm">
           <div class="chart-header">
-            <div>
-              <h3><i class="fa-solid fa-chart-column"></i> จำนวนใบสั่งยาที่บันทึก (7 วันล่าสุด)</h3>
-              <p>ข้อมูลจริงจากระบบ • รวมทั้งหมด <strong>{{ totalWeeklyCount }}</strong> ใบ</p>
+            <div class="chart-header-text">
+              <h3><i class="fa-solid fa-chart-column"></i> จำนวนใบสั่งยาที่บันทึก ({{ activePeriodMeta.title }})</h3>
+              <p>ข้อมูลจริงจากระบบ • รวมทั้งหมด <strong>{{ totalChartCount }}</strong> ใบ</p>
+            </div>
+            <div class="chart-period-tools">
+              <div class="chart-period-badge">
+                <i class="fa-solid fa-calendar-days"></i>
+                <select v-model="chartPeriod" class="chart-period-select" aria-label="เลือกช่วงเวลา">
+                  <option v-for="opt in CHART_PERIOD_OPTIONS" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
+                </select>
+              </div>
+              <button type="button" class="chart-period-refresh" :disabled="isLoading" @click="fetchOverview" title="รีเฟรชข้อมูล">
+                <i class="fa-solid fa-rotate-right" :class="{ 'fa-spin': isLoading }"></i>
+              </button>
             </div>
           </div>
 
@@ -227,33 +325,33 @@ onMounted(() => {
             <div class="loading-ring"></div>
             <span>กำลังโหลดข้อมูล...</span>
           </div>
-          <div v-else-if="totalWeeklyCount === 0" class="chart-empty">
+          <div v-else-if="totalChartCount === 0" class="chart-empty">
             <i class="fa-regular fa-folder-open"></i>
-            <span>ยังไม่มีการบันทึกใบสั่งยาในช่วง 7 วันที่ผ่านมา</span>
+            <span>{{ activePeriodMeta.empty }}</span>
           </div>
-          <div v-else class="bar-chart">
+          <div v-else class="bar-chart" :class="{ 'bar-chart--compact': chartPeriod === 'month' || chartPeriod === 'day' }">
             <div class="bar-chart-grid">
               <div class="bar-chart-line" v-for="n in 4" :key="n"></div>
             </div>
-            <div class="bar-chart-bars">
+            <div class="bar-chart-bars" :class="chartColumnClass">
               <div
-                v-for="day in weeklyChartData"
-                :key="day.key"
+                v-for="bucket in chartPeriodData"
+                :key="bucket.key"
                 class="bar-column"
               >
                 <div class="bar-track">
                   <div
                     class="bar"
-                    :class="{ 'bar-zero': day.count === 0 }"
-                    :style="{ height: ((day.count / maxChartCount) * 100) + '%' }"
+                    :class="{ 'bar-zero': bucket.count === 0 }"
+                    :style="{ height: ((bucket.count / maxChartCount) * 100) + '%' }"
                   >
-                    <span class="bar-value">{{ day.count }}</span>
+                    <span class="bar-value">{{ bucket.count }}</span>
                     <div class="bar-fill"></div>
                   </div>
                 </div>
                 <div class="bar-label">
-                  <span class="bar-day">{{ day.label }}</span>
-                  <span class="bar-date">{{ day.dateLabel }}</span>
+                  <span class="bar-day">{{ bucket.label }}</span>
+                  <span v-if="bucket.dateLabel" class="bar-date">{{ bucket.dateLabel }}</span>
                 </div>
               </div>
             </div>
