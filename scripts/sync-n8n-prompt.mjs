@@ -19,4 +19,9 @@ if (!agent?.parameters?.options) {
 
 agent.parameters.options.systemMessage = prompt;
 writeFileSync(wfPath, `${JSON.stringify(wf, null, 2)}\n`, 'utf-8');
-console.log('Synced prompt → n8n_workflow_telebot_chat.json');
+
+const embeddedPath = join(root, 'server/utils/telebotPromptEmbedded.ts');
+const embedded = `// Auto-synced from n8n_system_prompt.txt\nexport const TELEBOT_SYSTEM_PROMPT = ${JSON.stringify(prompt)};\n`;
+writeFileSync(embeddedPath, embedded, 'utf-8');
+
+console.log('Synced prompt → n8n_workflow_telebot_chat.json + telebotPromptEmbedded.ts');

@@ -1,18 +1,22 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { TELEBOT_SYSTEM_PROMPT } from './telebotPromptEmbedded';
 
 let cached: string | null = null;
 
-/** โหลด system prompt จาก n8n_system_prompt.txt (5 ข้อ flat — ตรงกับ useAiChatRules) */
+const FALLBACK = `คุณคือ telebot ผู้ช่วยซักประวัติอาการ 32 อาการบัตรทอง ตอบภาษาไทยเท่านั้น
+
+รูปแบบคำถามบังคับ (ห้ามเปลี่ยน):
+🩺 ข้อ N: <หัวข้อรวม>?
+
+* <คำถามย่อย 1 ข้อ>? (เช่น ตัวเลือก1, ตัวเลือก2, ตัวเลือก3, ตัวเลือก4)
+
+รบกวนตอบคำถามเหล่านี้ให้ผมทราบนะครับ
+
+กฎ: 1 message = 1 ข้อใหญ่ + คำถามย่อย 1 บรรทัดขึ้นต้นด้วย "* " เท่านั้น ห้ามรวมหลายคำถามในบรรทัดหัวข้อ ถามทีละข้อ 1-5 แล้วสรุป 📋`;
+
+/** โหลด system prompt สำหรับ cloud AI (Groq บน Vercel) */
 export function getTelebotSystemPrompt(): string {
     if (cached) return cached;
-
-    try {
-        const path = join(process.cwd(), 'n8n_system_prompt.txt');
-        cached = readFileSync(path, 'utf-8');
-        return cached;
-    } catch {
-        cached = 'คุณคือ telebot ผู้ช่วยซักประวัติอาการ 32 อาการบัตรทอง ตอบภาษาไทย ถามทีละข้อ format 🩺 ข้อ N: คำถามย่อย 1 ข้อเท่านั้น หลังครบ 5 ข้อให้สรุป 📋';
-        return cached;
-    }
+    const embedded = String(TELEBOT_SYSTEM_PROMPT || '').trim();
+    cached = embedded.length > 500 ? embedded : FALLBACK;
+    return cached;
 }

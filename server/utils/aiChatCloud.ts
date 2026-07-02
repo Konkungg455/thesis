@@ -1,4 +1,5 @@
 import { getTelebotSystemPrompt } from './telebotSystemPrompt';
+import { repairScreeningFormat } from '../../utils/repairScreeningFormat';
 
 type CloudProvider = 'groq' | 'openai' | 'gemini';
 
@@ -57,7 +58,7 @@ async function callOpenAiCompatible(
 
     const text = res?.choices?.[0]?.message?.content?.trim();
     if (!text) throw new Error('empty AI response');
-    return text;
+    return repairScreeningFormat(text, chatInput);
 }
 
 async function callGemini(apiKey: string, model: string, chatInput: string): Promise<string> {
@@ -76,7 +77,7 @@ async function callGemini(apiKey: string, model: string, chatInput: string): Pro
 
     const text = res?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!text) throw new Error('empty Gemini response');
-    return text;
+    return repairScreeningFormat(text, chatInput);
 }
 
 export async function callCloudAi(

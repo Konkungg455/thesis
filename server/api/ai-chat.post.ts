@@ -1,6 +1,8 @@
 /**
  * Proxy AI — n8n+Ollama เป็นหลัก, fallback Groq ถ้า n8n ล้ม
  */
+import { repairScreeningFormat } from '../../utils/repairScreeningFormat';
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function looksLikeErrorOutput(text: string): boolean {
@@ -88,8 +90,9 @@ export default defineEventHandler(async (event) => {
             }
 
             if (output && !looksLikeErrorOutput(output)) {
+                output = repairScreeningFormat(output, chatInput);
                 if (typeof data === 'object' && data && 'output' in data) {
-                    return data;
+                    return { ...data, output };
                 }
                 return { output };
             }

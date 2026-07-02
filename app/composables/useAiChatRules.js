@@ -8,6 +8,8 @@
  *  - ถ้าเป็นคำขอบคุณ → ตอบรับ + ลิงก์รีวิว
  *  - กรณีปกติ → ส่งให้ n8n วินิจฉัย (n8n จะถามทีละข้อ 5 section ข้อละ 1 คำถามย่อย)
  */
+import { repairScreeningFormat } from '../../utils/repairScreeningFormat';
+
 export function useAiChatRules() {
   // 32 อาการเจ็บป่วยเล็กน้อย (สิทธิบัตรทอง)
   const SYMPTOMS_32 = [
@@ -225,7 +227,7 @@ export function useAiChatRules() {
 
   const parseAiMessage = (text) => {
     if (!text) return [];
-    const rawLines = normalizeMessageText(text).split(/\r?\n/);
+    const rawLines = repairScreeningFormat(normalizeMessageText(text)).split(/\r?\n/);
 
     // header: "🩺 ข้อ N: <ข้อความ>?"
     const HEADER_RE =
@@ -336,7 +338,7 @@ export function useAiChatRules() {
 
   /** จัดประเภท + parse สำหรับบันทึก/โหลด UI */
   const classifyAssistantMessage = (text) => {
-    const cleaned = normalizeMessageText(text);
+    const cleaned = repairScreeningFormat(normalizeMessageText(text));
     const lower = cleaned.toLowerCase();
     const isRedFlag = cleaned.includes('🚨')
       || lower.includes('อาการเสี่ยง')
