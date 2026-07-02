@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 
 /**
  * 🚩 AdminLayout — โครงหลักของทุกหน้าใน admin/
@@ -23,7 +23,7 @@ const props = defineProps({
   },
 })
 
-const { user } = useAuthUser()
+const { user, syncFromServer } = useAuthUser()
 const route = useRoute()
 const isSidebarOpen = ref(false)
 const pendingCount = ref(0)
@@ -96,9 +96,15 @@ const fetchPendingAdminCount = async () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // ดึง is_super_admin จากเซิร์ฟเวอร์ทันที (login cache อาจยังไม่มีฟิลด์นี้)
+  await syncFromServer({ force: true })
   fetchPendingCount()
   fetchPendingAdminCount()
+})
+
+watch(isSuperAdmin, (val) => {
+  if (val) fetchPendingAdminCount()
 })
 
 defineExpose({ pendingCount, refreshPending: fetchPendingCount })

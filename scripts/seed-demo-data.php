@@ -2,6 +2,10 @@
 /**
  * seed-demo-data.php — เติมข้อมูลตัวอย่างสำหรับทดสอบระบบ Telebot Pharmacy
  *
+ * ⚠️ Production (Vercel) ใช้ Supabase Postgres ผ่าน DATABASE_URL
+ *    ข้อ 1 (แอดมิน) และ ข้อ 2 (ร้านยา พระราม 9) — ใส่ใน Supabase SQL Editor แล้ว
+ *    → ดู scripts/seed-supabase-demo-1-2.sql (ไม่ต้องรัน PHP สองส่วนนี้ซ้ำ)
+ *
  * รันผ่านเบราว์เซอร์: http://localhost/4/seed-demo-data.php
  * หรือ CLI: php seed-demo-data.php
  *
@@ -199,6 +203,81 @@ function upsertPharmacist(mysqli $db, array $p, ?int $storeId): int
     return (int) mysqli_insert_id($db);
 }
 
+function upsertAdmin(mysqli $db, array $a, bool $isSuper = false): int
+{
+    $existing = findByEmail($db, 'account_admin', 'email_account', $a['email']);
+    $super = $isSuper ? 1 : 0;
+
+    if ($existing) {
+        $id = (int) $existing['id_account_admin'];
+        $stmt = mysqli_prepare($db, 'UPDATE account_admin SET username_account=?, firstname=?, lastname=?, gender=?, old=?, phone_number=?, admin_status=?, is_super_admin=?, is_deleted=0, admin_reviewed_at=NOW() WHERE id_account_admin=?');
+        mysqli_stmt_bind_param($stmt, 'ssssissii',
+            $a['username'], $a['firstname'], $a['lastname'], $a['gender'],
+            $a['age'], $a['phone'], $a['admin_status'], $super, $id
+        );
+        mysqli_stmt_execute($stmt);
+        return $id;
+    }
+
+    $c = demoCreds();
+    $img = 'default.png';
+    $stmt = mysqli_prepare($db, 'INSERT INTO account_admin (username_account, email_account, password_account, salt_account, firstname, lastname, gender, old, phone_number, images_account, admin_status, is_super_admin, is_deleted, admin_reviewed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0,NOW())');
+    mysqli_stmt_bind_param($stmt, 'sssssssisssi',
+        $a['username'], $a['email'], $c['hash'], $c['salt'],
+        $a['firstname'], $a['lastname'], $a['gender'], $a['age'],
+        $a['phone'], $img, $a['admin_status'], $super
+    );
+    mysqli_stmt_execute($stmt);
+    return (int) mysqli_insert_id($db);
+}
+
+/** เหลือแอดมิน pending 5 คน — soft-delete ที่เกิน */
+function trimPendingAdmins(mysqli $db, int $keep = 5): int
+{
+    $demoList = [
+        'demo.admin01@telebot-pharmacy.test',
+        'demo.admin02@telebot-pharmacy.test',
+        'demo.admin03@telebot-pharmacy.test',
+        'demo.admin04@telebot-pharmacy.test',
+        'demo.admin05@telebot-pharmacy.test',
+    ];
+    $inDemo = "'" . implode("','", array_map(fn ($e) => mysqli_real_escape_string($db, $e), $demoList)) . "'";
+    $sql = "UPDATE account_admin a
+            INNER JOIN (
+                SELECT id_account_admin,
+                       ROW_NUMBER() OVER (
+                           ORDER BY
+                               CASE WHEN email_account IN ($inDemo) THEN 0 ELSE 1 END,
+                               created_at ASC,
+                               id_account_admin ASC
+                       ) AS rn
+                FROM account_admin
+                WHERE admin_status = 'pending'
+                  AND (is_deleted IS NULL OR is_deleted = 0)
+            ) r ON r.id_account_admin = a.id_account_admin
+            SET a.is_deleted = 1
+            WHERE r.rn > $keep";
+    mysqli_query($db, $sql);
+    return mysqli_affected_rows($db);
+}
+
+/** เหลือแอดมิน demo 5 คน — soft-delete แอดมิน demo เกิน */
+function trimDemoAdmins(mysqli $db, array $keepEmails): int
+{
+    if (!$keepEmails) return 0;
+    $placeholders = implode(',', array_fill(0, count($keepEmails), '?'));
+    $types = str_repeat('s', count($keepEmails));
+    $sql = "UPDATE account_admin SET is_deleted = 1
+            WHERE (is_deleted IS NULL OR is_deleted = 0)
+              AND is_super_admin = 0
+              AND email_account NOT IN ($placeholders)
+              AND email_account LIKE '%@telebot-pharmacy.test'";
+    $stmt = mysqli_prepare($db, $sql);
+    mysqli_stmt_bind_param($stmt, $types, ...$keepEmails);
+    mysqli_stmt_execute($stmt);
+    return mysqli_affected_rows($db);
+}
+
 $weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 $allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -298,6 +377,29 @@ $stores = [
             ['day' => 'Sun', 'open' => '08:00', 'close' => '18:00', 'is_open' => 1],
         ],
     ],
+    [
+        'username' => 'demo_owner_r9',
+        'firstname' => 'สุภา',
+        'lastname' => 'พระรามเก้า',
+        'phone' => '0812345004',
+        'email' => 'demo.owner.r9@telebot-pharmacy.test',
+        'admin_status' => 'approved',
+        'details' => [
+            'store_name' => 'ร้านยาเทเลบอท สาขาพระราม 9',
+            'house_no' => '55/12',
+            'road' => 'ถนนพระราม 9',
+            'sub_district' => 'ห้วยขวาง',
+            'district' => 'ห้วยขวาง',
+            'province' => 'กรุงเทพมหานคร',
+            'zipcode' => '10310',
+            'store_phone' => '022456789',
+            'store_email' => 'rama9@telebot-pharmacy.test',
+            'google_maps_url' => 'https://maps.google.com/?q=13.7590,100.5650',
+            'latitude' => 13.7590000,
+            'longitude' => 100.5650000,
+        ],
+        'schedule' => $defaultSchedule,
+    ],
 ];
 
 $users = [
@@ -309,9 +411,34 @@ $users = [
 ];
 
 mysqli_begin_transaction($connect);
-$summary = ['password' => DEMO_PASSWORD, 'stores' => [], 'users' => [], 'pharmacists' => []];
+$summary = ['password' => DEMO_PASSWORD, 'stores' => [], 'users' => [], 'pharmacists' => [], 'admins' => []];
 
 try {
+    $demoAdminEmails = [];
+    $admins = [
+        ['username' => 'demo_admin01', 'email' => 'demo.admin01@telebot-pharmacy.test', 'firstname' => 'อรุณ', 'lastname' => 'บริหารดี', 'gender' => 'ชาย', 'age' => 38, 'phone' => '0813000001', 'admin_status' => 'approved', 'super' => true],
+        ['username' => 'demo_admin02', 'email' => 'demo.admin02@telebot-pharmacy.test', 'firstname' => 'พิมพ์ใจ', 'lastname' => 'ดูแลระบบ', 'gender' => 'หญิง', 'age' => 34, 'phone' => '0813000002', 'admin_status' => 'approved', 'super' => false],
+        ['username' => 'demo_admin03', 'email' => 'demo.admin03@telebot-pharmacy.test', 'firstname' => 'วิชัย', 'lastname' => 'ตรวจสอบ', 'gender' => 'ชาย', 'age' => 41, 'phone' => '0813000003', 'admin_status' => 'approved', 'super' => false],
+        ['username' => 'demo_admin04', 'email' => 'demo.admin04@telebot-pharmacy.test', 'firstname' => 'มานี', 'lastname' => 'อนุมัติ', 'gender' => 'หญิง', 'age' => 29, 'phone' => '0813000004', 'admin_status' => 'approved', 'super' => false],
+        ['username' => 'demo_admin05', 'email' => 'demo.admin05@telebot-pharmacy.test', 'firstname' => 'ประเสริฐ', 'lastname' => 'สนับสนุน', 'gender' => 'ชาย', 'age' => 36, 'phone' => '0813000005', 'admin_status' => 'approved', 'super' => false],
+    ];
+    foreach ($admins as $a) {
+        $isSuper = !empty($a['super']);
+        unset($a['super']);
+        $demoAdminEmails[] = $a['email'];
+        $id = upsertAdmin($connect, $a, $isSuper);
+        $summary['admins'][] = [
+            'id' => $id,
+            'username' => $a['username'],
+            'email' => $a['email'],
+            'name' => $a['firstname'] . ' ' . $a['lastname'],
+            'is_super_admin' => $isSuper,
+        ];
+    }
+    $trimmed = trimDemoAdmins($connect, $demoAdminEmails);
+    $summary['admins_trimmed'] = $trimmed;
+    $summary['pending_trimmed'] = trimPendingAdmins($connect, 5);
+
     $storeIds = [];
     foreach ($stores as $s) {
         $id = upsertStore($connect, $s);
@@ -348,8 +475,8 @@ try {
         ['username' => 'demo_pharma05', 'email' => 'demo.pharma05@telebot-pharmacy.test', 'firstname' => 'กิตติ', 'lastname' => 'ยาดี', 'gender' => 'M', 'age' => 41, 'phone' => '0822000005', 'work_time' => workTime($allDays, '10:00', '19:00'), 'store_key' => 'demo_owner_cnx'],
         ['username' => 'demo_pharma06', 'email' => 'demo.pharma06@telebot-pharmacy.test', 'firstname' => 'พิมพ์ใจ', 'lastname' => 'เภสัชกร', 'gender' => 'F', 'age' => 27, 'phone' => '0822000006', 'work_time' => workTime($weekdays, '08:00', '17:00'), 'store_key' => 'demo_owner_kkc'],
         ['username' => 'demo_pharma07', 'email' => 'demo.pharma07@telebot-pharmacy.test', 'firstname' => 'ชัยวัฒน์', 'lastname' => 'แพทย์ดี', 'gender' => 'M', 'age' => 45, 'phone' => '0822000007', 'work_time' => workTime(array_merge($weekdays, ['Saturday']), '07:30', '16:30'), 'store_key' => 'demo_owner_kkc'],
-        ['username' => 'demo_pharma08', 'email' => 'demo.pharma08@telebot-pharmacy.test', 'firstname' => 'ศิริพร', 'lastname' => 'ว่องไว', 'gender' => 'F', 'age' => 31, 'phone' => '0822000008', 'work_time' => workTime($weekdays, '13:00', '22:00'), 'store_key' => null],
-        ['username' => 'demo_pharma09', 'email' => 'demo.pharma09@telebot-pharmacy.test', 'firstname' => 'ธนากร', 'lastname' => 'ปรึกษาดี', 'gender' => 'M', 'age' => 36, 'phone' => '0822000009', 'work_time' => workTime($weekdays, '08:00', '16:00'), 'store_key' => null],
+        ['username' => 'demo_pharma08', 'email' => 'demo.pharma08@telebot-pharmacy.test', 'firstname' => 'ศิริพร', 'lastname' => 'ว่องไว', 'gender' => 'F', 'age' => 31, 'phone' => '0822000008', 'work_time' => workTime($weekdays, '13:00', '22:00'), 'store_key' => 'demo_owner_r9'],
+        ['username' => 'demo_pharma09', 'email' => 'demo.pharma09@telebot-pharmacy.test', 'firstname' => 'ธนากร', 'lastname' => 'ปรึกษาดี', 'gender' => 'M', 'age' => 36, 'phone' => '0822000009', 'work_time' => workTime($weekdays, '08:00', '16:00'), 'store_key' => 'demo_owner_r9'],
     ];
 
     foreach ($pharmacists as $p) {

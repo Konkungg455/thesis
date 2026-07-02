@@ -28,8 +28,15 @@ const CACHE_TTL_MS = 120_000;
 
 /** โหลดข้อมูลหน้าแรกครั้งเดียว — ลด cold start + round-trip บน Vercel */
 export async function fetchHomeSummary(event?: H3Event) {
+    const q = event ? getQuery(event) : {};
+    if (String(q.nocache || '') === '1') {
+        clearBffCache(SUMMARY_CACHE_KEY);
+        clearBffCache(PHARMA_CACHE_KEY);
+        clearBffCachePrefix('pharmacists:');
+    }
+
     const cached = getBffCache(SUMMARY_CACHE_KEY);
-    if (cached && isValidHomeSummary(cached)) return cached;
+    if (cached && isValidHomeSummary(cached) && String(q.nocache || '') !== '1') return cached;
 
     const stale = getBffCacheStale(SUMMARY_CACHE_KEY);
 
@@ -64,14 +71,18 @@ export async function fetchHomeSummary(event?: H3Event) {
 }
 
 async function fetchPharmacistsPayload(event?: H3Event): Promise<PharmacistPayload> {
-    const cached = getBffCache(PHARMA_CACHE_KEY);
-    if (cached) return cached as PharmacistPayload;
+    const q = event ? getQuery(event) : {};
+    const skipCache = String(q.nocache || '') === '1';
+
+    if (!skipCache) {
+        const cached = getBffCache(PHARMA_CACHE_KEY);
+        if (cached) return cached as PharmacistPayload;
+    }
 
     if (!isDbConfigured()) {
         return { status: 'error', message: dbUnavailableMessage(), data: [] };
     }
 
-    const q = event ? getQuery(event) : {};
     const userLat = q.lat ? Number(q.lat) : null;
     const userLng = q.lng ? Number(q.lng) : null;
     const hasGps = userLat != null && userLng != null
@@ -87,7 +98,8 @@ async function fetchPharmacistsPayload(event?: H3Event): Promise<PharmacistPaylo
                 return sql`
                     SELECT p.id_pharma, p.firstname_pharma, p.lastname_pharma,
                            p.images_pharma, p.work_time, p.status_verify, p.id_store,
-                           d.store_name, d.latitude, d.longitude,
+                           COALESCE(NULLIF(TRIM(d.store_name), ''), NULLIF(TRIM(p.store_name), '')) AS store_name,
+                           d.latitude, d.longitude,
                            d.house_no, d.road, d.sub_district, d.district, d.province
                     FROM pharmacist_account p
                     LEFT JOIN phamacy_store_accounts a ON a.id_store_accounts = p.id_store
@@ -100,7 +112,7 @@ async function fetchPharmacistsPayload(event?: H3Event): Promise<PharmacistPaylo
             return sql`
                 SELECT p.id_pharma, p.firstname_pharma, p.lastname_pharma,
                        p.images_pharma, p.work_time, p.id_store,
-                       d.store_name
+                       COALESCE(NULLIF(TRIM(d.store_name), ''), NULLIF(TRIM(p.store_name), '')) AS store_name
                 FROM pharmacist_account p
                 LEFT JOIN phamacy_store_details d ON d.id_store_accounts = p.id_store
                 WHERE p.status_verify = 1

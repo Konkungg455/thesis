@@ -2,8 +2,8 @@ import { randomBytes } from 'node:crypto';
 import type { H3Event } from 'h3';
 import type postgres from 'postgres';
 import { readMultipartRequest, readRequestFields } from './formData';
-import { getAuthContext } from './sessionContext';
-import { repairMissingTrackingForPharmacist } from './consultTracking';
+import { getAuthContext, parsePositiveInt } from './sessionContext';
+import { consolidateDuplicateActiveTracking } from './consultTracking';
 
 function accountDeletedFilter(sql: ReturnType<typeof postgres>, deleted: boolean) {
     return deleted ? sql`COALESCE(is_deleted, 0) = 1` : sql`COALESCE(is_deleted, 0) = 0`;
@@ -104,11 +104,15 @@ export async function handleGetPharmacistDetail(event: H3Event) {
 
     const row = await dbQuery(async (sql) => {
         const rows = await sql`
-            SELECT id_pharma, firstname_pharma, lastname_pharma, images_pharma,
-                   license_image, work_time, status_verify
-            FROM pharmacist_account
-            WHERE id_pharma = ${id}
-              AND COALESCE(is_deleted, 0) = 0
+            SELECT p.id_pharma, p.firstname_pharma, p.lastname_pharma, p.images_pharma,
+                   p.license_image, p.work_time, p.status_verify, p.id_store,
+                   COALESCE(NULLIF(TRIM(d.store_name), ''), NULLIF(TRIM(p.store_name), '')) AS store_name,
+                   d.house_no, d.road, d.sub_district, d.district, d.province,
+                   d.latitude, d.longitude
+            FROM pharmacist_account p
+            LEFT JOIN phamacy_store_details d ON d.id_store_accounts = p.id_store
+            WHERE p.id_pharma = ${id}
+              AND COALESCE(p.is_deleted, 0) = 0
             LIMIT 1
         `;
         return rows[0] || null;
@@ -126,6 +130,10 @@ export async function handleGetPharmacistDetail(event: H3Event) {
     const name = `${String(row.firstname_pharma || '').trim()} ${String(row.lastname_pharma || '').trim()}`.trim()
         || `เภสัชกร #${id}`;
 
+    const address = [row.house_no, row.road, row.sub_district, row.district, row.province]
+        .filter(Boolean)
+        .join(' ');
+
     return {
         status: 'success',
         data: {
@@ -134,7 +142,12 @@ export async function handleGetPharmacistDetail(event: H3Event) {
             image: imageFile,
             time: row.work_time || '-',
             price: '100 บาท / 15 นาที',
-            location: 'TP Pharma Center',
+            location: address || 'กรุงเทพมหานคร',
+            store_id: row.id_store != null ? Number(row.id_store) : null,
+            store_name: String(row.store_name || '').trim(),
+            store_address: address,
+            store_lat: row.latitude != null ? Number(row.latitude) : null,
+            store_lng: row.longitude != null ? Number(row.longitude) : null,
             status_verify: Number(row.status_verify || 0),
         },
     };
@@ -234,7 +247,7 @@ export async function handleGetPrescriptions(event: H3Event) {
 
     const rows = await dbQuery(async (sql) => {
         if (auth.id_pharma) {
-            await repairMissingTrackingForPharmacist(sql, auth.id_pharma);
+            await consolidateDuplicateActiveTracking(sql, auth.id_pharma);
         }
         if (auth.isAdmin) {
             return sql`
@@ -346,6 +359,7 @@ export async function handleAdminListAdmins(event: H3Event) {
                        admin_reviewed_at, admin_review_note, reviewed_by, created_at, images_account
                 FROM account_admin
                 WHERE admin_status = ${filter}
+                  AND (is_deleted IS NULL OR is_deleted = 0)
                 ORDER BY (admin_status = 'pending') DESC, created_at DESC
                 LIMIT 500
             `;
@@ -355,6 +369,7 @@ export async function handleAdminListAdmins(event: H3Event) {
                    gender, old, phone_number, admin_status, is_super_admin,
                    admin_reviewed_at, admin_review_note, reviewed_by, created_at, images_account
             FROM account_admin
+            WHERE (is_deleted IS NULL OR is_deleted = 0)
             ORDER BY (admin_status = 'pending') DESC, created_at DESC
             LIMIT 500
         `;
@@ -392,6 +407,155 @@ export async function handleAdminListAdmins(event: H3Event) {
     });
 
     return { status: 'success', items, summary, me };
+}
+
+export async function handleAdminReviewAdmin(event: H3Event) {
+    const body = await readBody(event).catch(() => ({}));
+    const auth = getAuthContext(event, body as Record<string, unknown>);
+    const reviewerId = parsePositiveInt(auth.id_account_admin);
+    const targetId = parsePositiveInt((body as Record<string, unknown>).id);
+    const action = String((body as Record<string, unknown>).action || '').trim();
+    const note = String((body as Record<string, unknown>).note || '').trim();
+
+    const validActions = ['approve', 'reject', 'revoke', 'promote', 'demote'];
+    if (reviewerId <= 0) {
+        return { status: 'error', message: 'กรุณาเข้าสู่ระบบในฐานะแอดมิน' };
+    }
+    if (targetId <= 0 || !validActions.includes(action)) {
+        return { status: 'error', message: 'ข้อมูลไม่ครบหรือไม่ถูกต้อง' };
+    }
+
+    const result = await dbQuery(async (sql) => {
+        const reviewerRows = await sql`
+            SELECT is_super_admin, admin_status
+            FROM account_admin
+            WHERE id_account_admin = ${reviewerId}
+              AND (is_deleted IS NULL OR is_deleted = 0)
+            LIMIT 1
+        `;
+        const reviewer = reviewerRows[0];
+        if (!reviewer || Number(reviewer.is_super_admin) !== 1 || String(reviewer.admin_status) !== 'approved') {
+            return { error: 'เฉพาะ Super Admin เท่านั้นที่ทำรายการนี้ได้' };
+        }
+
+        const targetRows = await sql`
+            SELECT id_account_admin, admin_status, is_super_admin
+            FROM account_admin
+            WHERE id_account_admin = ${targetId}
+              AND (is_deleted IS NULL OR is_deleted = 0)
+            LIMIT 1
+        `;
+        const target = targetRows[0];
+        if (!target) {
+            return { error: 'ไม่พบบัญชีแอดมิน' };
+        }
+
+        const targetStatus = String(target.admin_status || '');
+        const targetIsSuper = Number(target.is_super_admin || 0) === 1;
+
+        if ((action === 'revoke' || action === 'demote') && targetId === reviewerId) {
+            return { error: 'ไม่สามารถดำเนินการกับบัญชีของตนเองได้' };
+        }
+
+        if (action === 'demote' && targetIsSuper) {
+            const [{ n: superCount }] = await sql`
+                SELECT COUNT(*)::int AS n FROM account_admin
+                WHERE is_super_admin = 1
+                  AND admin_status = 'approved'
+                  AND (is_deleted IS NULL OR is_deleted = 0)
+            `;
+            if (superCount <= 1) {
+                return { error: 'ต้องเหลือ Super Admin อย่างน้อย 1 คน' };
+            }
+        }
+
+        const reviewNote = note || null;
+
+        if (action === 'approve') {
+            await sql`
+                UPDATE account_admin SET
+                    admin_status = 'approved',
+                    admin_reviewed_at = NOW(),
+                    admin_review_note = ${reviewNote},
+                    reviewed_by = ${reviewerId}
+                WHERE id_account_admin = ${targetId}
+            `;
+            return { message: 'อนุมัติแอดมินเรียบร้อยแล้ว' };
+        }
+
+        if (action === 'reject') {
+            await sql`
+                UPDATE account_admin SET
+                    admin_status = 'rejected',
+                    is_super_admin = 0,
+                    admin_reviewed_at = NOW(),
+                    admin_review_note = ${reviewNote},
+                    reviewed_by = ${reviewerId}
+                WHERE id_account_admin = ${targetId}
+            `;
+            return { message: 'ปฏิเสธคำขอเรียบร้อยแล้ว' };
+        }
+
+        if (action === 'revoke') {
+            if (targetStatus !== 'approved') {
+                return { error: 'เพิกถอนได้เฉพาะแอดมินที่อนุมัติแล้ว' };
+            }
+            if (targetIsSuper) {
+                return { error: 'ไม่สามารถเพิกถอน Super Admin ได้ — ให้ปลดตำแหน่งก่อน' };
+            }
+            await sql`
+                UPDATE account_admin SET
+                    admin_status = 'rejected',
+                    is_super_admin = 0,
+                    admin_reviewed_at = NOW(),
+                    admin_review_note = ${reviewNote},
+                    reviewed_by = ${reviewerId}
+                WHERE id_account_admin = ${targetId}
+            `;
+            return { message: 'เพิกถอนสิทธิ์แอดมินเรียบร้อยแล้ว' };
+        }
+
+        if (action === 'promote') {
+            if (targetStatus !== 'approved') {
+                return { error: 'ตั้ง Super Admin ได้เฉพาะแอดมินที่อนุมัติแล้ว' };
+            }
+            await sql`
+                UPDATE account_admin SET
+                    is_super_admin = 1,
+                    admin_reviewed_at = NOW(),
+                    admin_review_note = ${reviewNote},
+                    reviewed_by = ${reviewerId}
+                WHERE id_account_admin = ${targetId}
+            `;
+            return { message: 'ตั้งเป็น Super Admin เรียบร้อยแล้ว' };
+        }
+
+        if (action === 'demote') {
+            if (!targetIsSuper) {
+                return { error: 'บัญชีนี้ไม่ใช่ Super Admin' };
+            }
+            await sql`
+                UPDATE account_admin SET
+                    is_super_admin = 0,
+                    admin_reviewed_at = NOW(),
+                    admin_review_note = ${reviewNote},
+                    reviewed_by = ${reviewerId}
+                WHERE id_account_admin = ${targetId}
+            `;
+            return { message: 'ปลดจาก Super Admin เรียบร้อยแล้ว' };
+        }
+
+        return { error: 'การดำเนินการไม่รองรับ' };
+    });
+
+    if (!result) {
+        return { status: 'error', message: 'อัปเดตไม่สำเร็จ' };
+    }
+    if ('error' in result) {
+        return { status: 'error', message: result.error };
+    }
+
+    return { status: 'success', message: result.message };
 }
 
 export async function handleGetServiceUsage(_event: H3Event) {
@@ -488,10 +652,10 @@ export async function handleGetStorePharmacists(event: H3Event) {
 export async function handleGetPharmacistBillingSlips(event: H3Event) {
     const q = getQuery(event);
     const auth = getAuthContext(event);
-    const idPharma = Number(q.id_pharma || auth.id_pharma || 0);
+    const idPharma = parsePositiveInt(q.id_pharma ?? auth.id_pharma);
 
     if (idPharma <= 0) {
-        return { status: 'error', message: 'ไม่พบรหัสเภสัชกร' };
+        return { status: 'error', message: 'ไม่พบรหัสเภสัชกร', slips: [] };
     }
 
     const rows = await dbQuery(async (sql) => sql`
@@ -532,10 +696,10 @@ export async function handleGetPharmacistBillingSlips(event: H3Event) {
 export async function handleGetStoreBillingSlips(event: H3Event) {
     const q = getQuery(event);
     const auth = getAuthContext(event);
-    const storeId = Number(q.store_id || auth.id_store_accounts || 0);
+    const storeId = parsePositiveInt(q.store_id ?? auth.id_store_accounts);
 
     if (storeId <= 0) {
-        return { status: 'error', message: 'ไม่พบรหัสร้าน' };
+        return { status: 'error', message: 'ไม่พบรหัสร้าน', slips: [] };
     }
 
     const rows = await dbQuery(async (sql) => sql`
@@ -576,7 +740,7 @@ export async function handleGetStoreBillingSlips(event: H3Event) {
 export async function handleGetStoreStatement(event: H3Event) {
     const q = getQuery(event);
     const auth = getAuthContext(event);
-    const storeId = Number(q.store_id || auth.id_store_accounts || 0);
+    const storeId = parsePositiveInt(q.store_id ?? auth.id_store_accounts);
     const period = String(q.period || 'all');
 
     if (storeId <= 0) {

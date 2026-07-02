@@ -65,7 +65,7 @@ export function usePharmacistsList() {
     const refreshWithGps = async (lat: number, lng: number) => {
         try {
             const res = await $fetch<PharmacistsResponse>(
-                `/api/bff/get_pharmacists.php?lat=${lat}&lng=${lng}`,
+                `/api/bff/get_pharmacists.php?lat=${lat}&lng=${lng}&nocache=1`,
                 { timeout: 10_000 },
             );
             if (res?.status === 'success' && Array.isArray(res.data)) {

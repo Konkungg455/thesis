@@ -32,6 +32,31 @@ export function useAuthLogin(roleKey) {
         return config.value.defaultRedirect;
     };
 
+    const emailKey = `remember_email_${roleKey}`;
+    const passwordKey = `remember_password_${roleKey}`;
+
+    const saveRememberedCredentials = () => {
+        if (!import.meta.client) return;
+        localStorage.setItem(emailKey, email.value.trim());
+        localStorage.setItem(passwordKey, password.value);
+    };
+
+    const clearRememberedCredentials = () => {
+        if (!import.meta.client) return;
+        localStorage.removeItem(emailKey);
+        localStorage.removeItem(passwordKey);
+    };
+
+    const loadRememberedCredentials = () => {
+        if (!import.meta.client) return;
+        const savedEmail = localStorage.getItem(emailKey);
+        if (!savedEmail) return;
+        email.value = savedEmail;
+        const savedPassword = localStorage.getItem(passwordKey);
+        if (savedPassword) password.value = savedPassword;
+        remember.value = true;
+    };
+
     const login = async () => {
         errorMessage.value = '';
         if (!email.value.trim() || !password.value) {
@@ -55,8 +80,12 @@ export function useAuthLogin(roleKey) {
 
             if (data.status === 'success') {
                 saveUserSession(data.user, config.value.role);
-                if (import.meta.client && remember.value) {
-                    localStorage.setItem(`remember_email_${roleKey}`, email.value.trim());
+                if (import.meta.client) {
+                    if (remember.value) {
+                        saveRememberedCredentials();
+                    } else {
+                        clearRememberedCredentials();
+                    }
                 }
                 // ปล่อยปุ่มทันที — ไม่รอหน้าใหม่โหลดเสร็จ (กัน "กำลังตรวจสอบ" ค้างนาน)
                 isLoading.value = false;
@@ -81,22 +110,21 @@ export function useAuthLogin(roleKey) {
     };
 
     onMounted(() => {
-        if (!import.meta.client) return;
-        const savedEmail = localStorage.getItem(`remember_email_${roleKey}`);
-        if (savedEmail) {
-            email.value = savedEmail;
-            remember.value = true;
-        }
+        loadRememberedCredentials();
     });
 
     watch(remember, (val) => {
         if (!import.meta.client) return;
-        const key = `remember_email_${roleKey}`;
         if (val && email.value) {
-            localStorage.setItem(key, email.value.trim());
-        } else {
-            localStorage.removeItem(key);
+            saveRememberedCredentials();
+        } else if (!val) {
+            clearRememberedCredentials();
         }
+    });
+
+    watch([email, password], () => {
+        if (!import.meta.client || !remember.value) return;
+        saveRememberedCredentials();
     });
 
     return {

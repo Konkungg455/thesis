@@ -6,6 +6,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 
 definePageMeta({ middleware: 'admin-only' })
 
+const { apiUrl } = useApiBase()
+
 const allData = ref([])
 const searchQuery = ref('')
 const isLoading = ref(false)
@@ -161,10 +163,10 @@ const handleActionConfirm = async () => {
   try {
     const id = actionPopup.value.id
     if (currentAction === 'delete') {
-      const res = await $fetch(`${useNuxtApp().$getApiBase()}/delete-pharma.php?id=${id}`, { credentials: 'include' })
+      const res = await $fetch(apiUrl(`delete-pharma.php?id=${id}`), { credentials: 'include' })
       showResultPopup('success', 'ลบข้อมูลแล้ว', res?.message || 'ลบออกจากหน้าปกติแล้ว')
     } else {
-      const res = await $fetch(`${useNuxtApp().$getApiBase()}/restore-deleted.php?type=pharma&id=${id}`, { credentials: 'include' })
+      const res = await $fetch(apiUrl(`restore-deleted.php?type=pharma&id=${id}`), { credentials: 'include' })
       if (res?.status !== 'success') throw new Error(res?.message || 'restore failed')
       showResultPopup('success', 'กู้คืนข้อมูลแล้ว', res.message || 'กู้คืนข้อมูลสำเร็จ')
     }
@@ -387,6 +389,11 @@ onMounted(() => {
                 <div class="form-group full-width">
                   <label>อีเมล *</label>
                   <input type="text" :value="selectedData.email" readonly class="input-readonly">
+                </div>
+
+                <div class="form-group full-width">
+                  <label>ร้านยาสังกัด</label>
+                  <input type="text" :value="selectedData.store_name || 'ยังไม่สังกัดร้าน'" readonly class="input-readonly">
                 </div>
               </div>
             </div>

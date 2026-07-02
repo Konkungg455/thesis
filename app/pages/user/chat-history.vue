@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { ref, onMounted, nextTick, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 // โหลด CSS แบบ side-effect — Nuxt/Vite จะ bundle เข้า chunk ของหน้านี้
@@ -110,7 +110,7 @@ const openSession = (sid) => {
 };
 
 const startNewChat = () => {
-    router.push('/Advice');
+    router.push('/Advice?new=1');
     closeSidebar();
 };
 

@@ -42,6 +42,13 @@ export function getAuthContext(event: H3Event, body?: Record<string, unknown>): 
 }
 
 function numOrUndef(v: unknown): number | undefined {
-    const n = Number(v || 0);
+    const n = parsePositiveInt(v);
     return n > 0 ? n : undefined;
+}
+
+/** แปลงค่าเป็นจำนวนเต็มบวก — กัน NaN ไปเข้า Postgres */
+export function parsePositiveInt(v: unknown): number {
+    if (v === null || v === undefined || v === '') return 0;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }

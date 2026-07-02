@@ -28,7 +28,13 @@ const checkAuth = () => {
     }
 }
 
-const idPharma = computed(() => user.value?.id_pharma || user.value?.id || 0)
+const idPharma = computed(() => {
+    const u = user.value;
+    if (!u) return 0;
+    const raw = u.id_pharma ?? u.id;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+});
 
 // --- รายการสลิปของตัวเอง ---
 const slips = ref([])
@@ -36,11 +42,20 @@ const isLoading = ref(false)
 const errorMsg = ref('')
 
 const loadSlips = async () => {
+    if (!idPharma.value) {
+        errorMsg.value = 'ไม่พบรหัสเภสัชกร — กรุณาเข้าสู่ระบบใหม่';
+        return;
+    }
     isLoading.value = true
     errorMsg.value = ''
     try {
-        const data = await $fetch(apiUrl(`get-pharmacist-billing-slips.php?id_pharma=${idPharma.value}&t=${Date.now()}`), {
-            credentials: 'include'
+        const data = await $fetch(apiUrl('get-pharmacist-billing-slips.php'), {
+            credentials: 'include',
+            query: {
+                id_pharma: idPharma.value,
+                role: 'pharmacist',
+                t: Date.now(),
+            },
         })
         if (data?.status === 'success') {
             slips.value = data.slips || []
@@ -119,6 +134,10 @@ const resetForm = () => {
 
 const submitSlip = async () => {
     uploadMsg.value = ''
+    if (!idPharma.value) {
+        uploadMsg.value = 'ไม่พบรหัสเภสัชกร — กรุณาเข้าสู่ระบบใหม่'
+        return
+    }
     if (!slipFile.value) {
         uploadMsg.value = 'กรุณาแนบรูปสลิปการโอน'
         return
@@ -179,7 +198,7 @@ const closePreview = () => { previewImage.value = '' }
 onMounted(async () => {
     isAuthorized.value = checkAuth()
     if (!isAuthorized.value) return
-    await syncFromServer()
+    await syncFromServer({ force: true })
     if (idPharma.value) await loadSlips()
 })
 </script>

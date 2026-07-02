@@ -57,11 +57,27 @@ export function useHomeSummaryData() {
         { default: emptyHome },
     );
 
-    // SSR/ISR อาจได้ข้อมูลว่างเมื่อ DB cold — โหลดซ้ำฝั่ง client
+    // SSR/ISR อาจได้ข้อมูลว่างเมื่อ DB cold — โหลดซ้ำฝั่ง client (bust BFF cache หลัง seed DB)
     onMounted(async () => {
-        if (route.path !== '/' || !isHomeEmpty(result.data.value)) return;
+        if (route.path !== '/') return;
+
+        const applyFresh = async () => {
+            const fresh = await $fetch<HomeSummary>('/api/home/summary?nocache=1', { timeout: 25_000 });
+            if (fresh && !isHomeEmpty(fresh)) {
+                result.data.value = fresh;
+                return true;
+            }
+            return false;
+        };
+
+        if (!isHomeEmpty(result.data.value)) {
+            try { await applyFresh(); } catch { /* keep SSR data */ }
+            return;
+        }
+
         for (let i = 0; i < 2; i++) {
             try {
+                if (await applyFresh()) break;
                 await result.refresh();
                 if (!isHomeEmpty(result.data.value)) break;
                 await new Promise((r) => setTimeout(r, 1200));

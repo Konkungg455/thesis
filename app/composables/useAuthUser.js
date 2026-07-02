@@ -105,6 +105,12 @@ export function useAuthUser() {
                 }
                 if (u.id_pharma) {
                     query.id_pharma = u.id_pharma;
+                    query.role = 'pharmacist';
+                    query.username = u.username || u.username_pharma;
+                    query.image = u.image;
+                } else if ((u.role || '').toLowerCase() === 'pharmacist' && u.id) {
+                    query.id_pharma = u.id;
+                    query.role = 'pharmacist';
                     query.username = u.username || u.username_pharma;
                     query.image = u.image;
                 }

@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import type { H3Event } from 'h3';
 import { getArrayField, readMultipartRequest } from './formData';
-import { getAuthContext } from './sessionContext';
+import { getAuthContext, parsePositiveInt } from './sessionContext';
+import { uploadMediaFile, mimeFromExt } from '../../utils/storageUpload';
 
 const VALID_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -495,8 +496,8 @@ export async function handleRejectPharmacist(event: H3Event) {
 export async function handleReviewBillingSlip(event: H3Event) {
     const body = await readBody(event).catch(() => ({}));
     const auth = getAuthContext(event, body as Record<string, unknown>);
-    const id = Number((body as Record<string, unknown>).id || 0);
-    const storeId = Number((body as Record<string, unknown>).store_id || auth.id_store_accounts || 0);
+    const id = parsePositiveInt((body as Record<string, unknown>).id);
+    const storeId = parsePositiveInt((body as Record<string, unknown>).store_id ?? auth.id_store_accounts);
     const action = String((body as Record<string, unknown>).action || '').trim();
 
     if (id <= 0 || storeId <= 0 || !['approve', 'reject'].includes(action)) {
@@ -518,4 +519,69 @@ export async function handleReviewBillingSlip(event: H3Event) {
         return { status: 'error', message: 'ไม่พบสลิปหรืออัปเดตไม่สำเร็จ' };
     }
     return { status: 'success', message: 'อัปเดตสลิปแล้ว' };
+}
+
+export async function handleUploadBillingSlip(event: H3Event) {
+    const { fields, files } = await readMultipartRequest(event);
+    const auth = getAuthContext(event, fields);
+    const idPharma = parsePositiveInt(fields.id_pharma ?? auth.id_pharma);
+
+    if (idPharma <= 0) {
+        return { status: 'error', message: 'ไม่พบรหัสเภสัชกร' };
+    }
+
+    const amount = Number(fields.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+        return { status: 'error', message: 'กรุณากรอกจำนวนเงิน' };
+    }
+
+    const slipFile = files.slip_image;
+    if (!slipFile?.data?.length) {
+        return { status: 'error', message: 'กรุณาแนบรูปสลิปการโอน' };
+    }
+
+    const pharmaRow = await dbQuery(async (sql) => {
+        const rows = await sql`
+            SELECT id_store FROM pharmacist_account WHERE id_pharma = ${idPharma} LIMIT 1
+        `;
+        return rows[0];
+    });
+
+    const idStore = parsePositiveInt(pharmaRow?.id_store);
+    if (idStore <= 0) {
+        return { status: 'error', message: 'กรุณาสังกัดร้านยาก่อนส่งสลิป' };
+    }
+
+    const origName = String(slipFile.filename || 'slip.jpg');
+    const ext = origName.includes('.') ? origName.slice(origName.lastIndexOf('.') + 1).toLowerCase() : 'jpg';
+    const safeExt = ['jpg', 'jpeg', 'png', 'webp', 'pdf'].includes(ext) ? ext : 'jpg';
+    const filename = `slip_${idPharma}_${randomBytes(6).toString('hex')}.${safeExt === 'jpeg' ? 'jpg' : safeExt}`;
+
+    await uploadMediaFile('uploads/slips', filename, slipFile.data, mimeFromExt(safeExt));
+
+    const transferRaw = String(fields.transfer_date || '').trim();
+    const transferDate = transferRaw ? new Date(transferRaw) : null;
+    const transferTs = transferDate && !Number.isNaN(transferDate.getTime())
+        ? transferDate.toISOString()
+        : null;
+    const note = String(fields.note || '').trim() || null;
+
+    const inserted = await dbQuery(async (sql) => {
+        const rows = await sql`
+            INSERT INTO pharmacy_billing_slips (
+                id_pharma, id_store, amount, slip_image, transfer_date, note, status, created_at
+            ) VALUES (
+                ${idPharma}, ${idStore}, ${amount}, ${filename},
+                ${transferTs}, ${note}, 'pending', NOW()
+            )
+            RETURNING id
+        `;
+        return rows[0];
+    });
+
+    if (!inserted?.id) {
+        return { status: 'error', message: 'บันทึกสลิปไม่สำเร็จ' };
+    }
+
+    return { status: 'success', message: 'ส่งสลิปเรียบร้อย รอร้านอนุมัติ', id: Number(inserted.id) };
 }

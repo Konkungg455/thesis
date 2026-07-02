@@ -214,7 +214,7 @@ onMounted(() => {
     }
     applyTheme(theme.value)
     window.addEventListener("click", handleClickOutside)
-    syncFromServer()
+    syncFromServer({ force: true })
 })
 
 onBeforeUnmount(() => {

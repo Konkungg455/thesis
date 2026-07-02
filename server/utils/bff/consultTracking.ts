@@ -79,6 +79,40 @@ export async function ensureConsultTrackingRecord(
         return rxId;
     }
 
+    const activeExisting = await sql`
+        SELECT id, tracking_status, med_details, id_consult_request
+        FROM prescriptions
+        WHERE id_pharma = ${idPharma}
+          AND id_account = ${idAccount}
+          AND COALESCE(tracking_status, 'active') = 'active'
+        ORDER BY id DESC
+        LIMIT 1
+    `;
+    if (activeExisting[0]) {
+        const rxId = Number(activeExisting[0].id);
+        const syncedName = await resolveAccountPatientName(sql, idAccount, '');
+        await sql`
+            UPDATE prescriptions SET
+                id_consult_request = COALESCE(NULLIF(id_consult_request, 0), ${consultId}),
+                last_followup_at = COALESCE(last_followup_at, NOW()),
+                patient_name = CASE
+                    WHEN ${syncedName} <> '' THEN ${syncedName}
+                    ELSE patient_name
+                END,
+                med_details = CASE
+                    WHEN COALESCE(TRIM(med_details), '') = '' THEN ${TRACKING_PLACEHOLDER_MED}
+                    ELSE med_details
+                END,
+                auto_created = CASE
+                    WHEN COALESCE(TRIM(med_details), '') = '' THEN 1
+                    ELSE auto_created
+                END
+            WHERE id = ${rxId}
+        `;
+        invalidateConsultCaches(idPharma, idAccount);
+        return rxId;
+    }
+
     const accRows = await sql`
         SELECT firstname, lastname, username_account
         FROM account
@@ -118,26 +152,75 @@ export async function ensureConsultTrackingRecord(
     return rxId;
 }
 
-/** สร้างใบติดตามที่หายไปเมื่อ consult จบแล้วแต่ไม่มี prescriptions (เช่น ถูก auto-complete ตอนขอ consult ใหม่) */
-export async function repairMissingTrackingForPharmacist(
+/** ปิดรายการติดตาม active ที่ซ้ำของคนไข้คนเดียวกัน (เก็บล่าสุด) */
+export async function consolidateDuplicateActiveTracking(
     sql: ReturnType<typeof useDb>,
     idPharma: number,
-    limit = 20,
 ): Promise<number> {
     if (idPharma <= 0) return 0;
 
     await ensureTrackingColumns(sql);
 
+    const closed = await sql`
+        WITH ranked AS (
+            SELECT id,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY id_account
+                       ORDER BY COALESCE(last_followup_at, created_at) DESC NULLS LAST, id DESC
+                   ) AS rn
+            FROM prescriptions
+            WHERE id_pharma = ${idPharma}
+              AND COALESCE(id_account, 0) > 0
+              AND COALESCE(tracking_status, 'active') = 'active'
+              AND (
+                  COALESCE(auto_created, 0) = 1
+                  OR COALESCE(TRIM(med_details), '') <> ''
+              )
+        )
+        UPDATE prescriptions p
+        SET tracking_status = 'completed',
+            tracking_completed_at = COALESCE(p.tracking_completed_at, NOW())
+        FROM ranked r
+        WHERE p.id = r.id
+          AND r.rn > 1
+        RETURNING p.id
+    `;
+    return closed.length;
+}
+
+/** สร้างใบติดตามที่หายไปเมื่อ consult จบแล้วแต่ไม่มี prescriptions (เช่น ถูก auto-complete ตอนขอ consult ใหม่) */
+export async function repairMissingTrackingForPharmacist(
+    sql: ReturnType<typeof useDb>,
+    idPharma: number,
+    limit = 5,
+): Promise<number> {
+    if (idPharma <= 0) return 0;
+
+    await ensureTrackingColumns(sql);
+    await consolidateDuplicateActiveTracking(sql, idPharma);
+
     const missing = await sql`
         SELECT cr.id AS consult_id, cr.id_account
         FROM consult_requests cr
-        LEFT JOIN prescriptions p
-          ON p.id_consult_request = cr.id AND p.id_pharma = cr.id_pharma
         WHERE cr.id_pharma = ${idPharma}
           AND cr.status = 'completed'
           AND COALESCE(cr.is_deleted, 0) = 0
-          AND p.id IS NULL
           AND cr.created_at > NOW() - INTERVAL '60 days'
+          AND NOT EXISTS (
+              SELECT 1 FROM prescriptions p
+              WHERE p.id_consult_request = cr.id
+                AND p.id_pharma = cr.id_pharma
+          )
+          AND NOT EXISTS (
+              SELECT 1 FROM prescriptions p2
+              WHERE p2.id_pharma = cr.id_pharma
+                AND p2.id_account = cr.id_account
+                AND COALESCE(p2.tracking_status, 'active') = 'active'
+                AND (
+                    COALESCE(p2.auto_created, 0) = 1
+                    OR COALESCE(TRIM(p2.med_details), '') <> ''
+                )
+          )
         ORDER BY cr.id DESC
         LIMIT ${limit}
     `;

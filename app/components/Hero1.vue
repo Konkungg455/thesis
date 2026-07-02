@@ -16,7 +16,14 @@
 
                 <p>Telepharmacy พร้อมปรึกษาทุกพื้นที่</p>
 
-                <NuxtLink to="/" class="btn-primary">ใช้งานเลย</NuxtLink>
+                <button
+                    type="button"
+                    class="btn-primary"
+                    :disabled="isNavigating"
+                    @click="onStart"
+                >
+                    {{ isNavigating ? 'กำลังเปิด...' : 'ใช้งานเลย' }}
+                </button>
             </div>
 
             <!-- RIGHT -->
@@ -42,6 +49,21 @@
     </svg>
     </div>
 </template>
+
+<script setup>
+const { goAdviceOrResumeChat } = useAdviceEntry();
+const isNavigating = ref(false);
+
+const onStart = async () => {
+    if (isNavigating.value) return;
+    isNavigating.value = true;
+    try {
+        await goAdviceOrResumeChat();
+    } finally {
+        isNavigating.value = false;
+    }
+};
+</script>
 
 <style scoped>
 @import "@/assets/hero1.css";

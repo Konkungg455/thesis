@@ -32,7 +32,7 @@ const historyData = ref([])
 const isLoading = ref(false)
 const isAuthorized = ref(false)
 const sidebarOpen = ref(false)
-const showCompleted = ref(false)         // แสดงรายการที่เสร็จสิ้นแล้วหรือไม่
+const showCompleted = ref(true)          // แสดงรายการที่เสร็จสิ้นแล้วด้วย (รวม 40 เคส)
 let timerInterval = null
 
 const toggleSidebar = () => { sidebarOpen.value = !sidebarOpen.value }
@@ -53,19 +53,45 @@ const checkAuth = () => {
     }
 }
 
+const isTrackableItem = (item) => {
+    const status = String(item?.tracking_status || 'active');
+    const hasMeds = String(item?.med_details || '').trim() !== '';
+    const autoCreated = Number(item?.auto_created || 0) === 1;
+    if (status === 'active' && (hasMeds || autoCreated)) return true;
+    if (status === 'completed' && hasMeds && !autoCreated) return true;
+    return false;
+};
+
+/** คนไข้คนเดียวกันในรายการ active แสดงแค่รายการล่าสุด */
+const dedupeTrackingItems = (items) => {
+    const completed = [];
+    const activeByPatient = new Map();
+
+    for (const item of items) {
+        if (item.tracking_status === 'completed') {
+            completed.push(item);
+            continue;
+        }
+        const accountId = Number(item.id_account) || 0;
+        const key = accountId > 0
+            ? `acc:${accountId}`
+            : `name:${String(item.patient_name || '').trim().toLowerCase()}`;
+        const prev = activeByPatient.get(key);
+        if (!prev || Number(item.id) > Number(prev.id)) {
+            activeByPatient.set(key, item);
+        }
+    }
+
+    return [...completed, ...activeByPatient.values()];
+};
+
 const fetchPrescriptionHistory = async () => {
     if (!isAuthorized.value) return;
     isLoading.value = true
     try {
         const res = await $fetch(apiUrl('get-prescriptions.php'), { credentials: 'include' });
         if (res.status === 'success') {
-            // แสดงเฉพาะใบที่เปิดติดตามอาการแล้ว (tracking_status = active)
-            const trackable = (res.data || []).filter((item) => {
-                const status = String(item?.tracking_status || 'active');
-                const hasMeds = String(item?.med_details || '').trim() !== '';
-                const autoCreated = Number(item?.auto_created || 0) === 1;
-                return status === 'active' && (hasMeds || autoCreated);
-            });
+            const trackable = dedupeTrackingItems((res.data || []).filter(isTrackableItem));
             historyData.value = trackable.map(item => ({
                 ...item,
                 remainingTime: calculateRemaining(item.created_at, item.last_followup_at)
@@ -80,6 +106,17 @@ const fetchPrescriptionHistory = async () => {
         isLoading.value = false;
     }
 }
+
+const trackingStatusLabel = (item) => {
+    const hasRx = String(item?.med_details || '').trim() !== '' && Number(item?.auto_created || 0) !== 1;
+    if (item?.tracking_status === 'completed' && hasRx) {
+        return 'ติดตามอาการเสร็จ · เขียนใบสั่งยาแล้ว';
+    }
+    if (item?.tracking_status === 'completed') {
+        return 'เสร็จสิ้นแล้ว';
+    }
+    return calculateRemaining(item.created_at, item.last_followup_at);
+};
 
 // ฟังก์ชันคำนวณเวลาที่เหลือ (3 วัน)
 //   - ใช้ last_followup_at เป็นจุดเริ่ม ถ้ามี (รีเซ็ตเมื่อเภสัชกดกลับไปตอบในแชท)
@@ -682,13 +719,13 @@ const formatArchiveExpiry = (expiresAt) => {
                                         class="status-badge done complete-mark"
                                         :title="`ปิดเคสเมื่อ ${formatDate(item.tracking_completed_at)}`"
                                     >
-                                        <i class="fa-solid fa-circle-check"></i> เสร็จสิ้นแล้ว
+                                        <i class="fa-solid fa-circle-check"></i> {{ trackingStatusLabel(item) }}
                                     </span>
                                     <span
                                         v-else
                                         :class="['status-badge', item.remainingTime === 'ติดตามเสร็จสิ้น' ? 'done' : 'waiting']"
                                     >
-                                        {{ item.remainingTime }}
+                                        {{ trackingStatusLabel(item) }}
                                     </span>
                                 </td>
                                 <td class="text-center">
@@ -770,13 +807,13 @@ const formatArchiveExpiry = (expiresAt) => {
                                     v-if="item.tracking_status === 'completed'"
                                     class="status-badge done complete-mark"
                                 >
-                                    <i class="fa-solid fa-circle-check"></i> เสร็จสิ้นแล้ว
+                                    <i class="fa-solid fa-circle-check"></i> {{ trackingStatusLabel(item) }}
                                 </span>
                                 <span
                                     v-else
                                     :class="['status-badge', item.remainingTime === 'ติดตามเสร็จสิ้น' ? 'done' : 'waiting']"
                                 >
-                                    {{ item.remainingTime }}
+                                    {{ trackingStatusLabel(item) }}
                                 </span>
                             </div>
                             <div class="card-row">

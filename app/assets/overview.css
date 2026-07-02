@@ -241,6 +241,11 @@
     grid-template-columns: minmax(0, 1.65fr) minmax(280px, 1fr);
     gap: 20px;
     align-items: stretch;
+    min-width: 0;
+}
+
+.dashboard-content > * {
+    min-width: 0;
 }
 
 .chart-card,
@@ -333,7 +338,7 @@
 .chart-period-select {
     appearance: none;
     border: none;
-    background: transparent;
+    background-color: transparent;
     color: #fff;
     font-size: 0.88rem;
     font-weight: 600;
@@ -563,6 +568,54 @@
 
     .accent-stat {
         grid-column: span 2;
+    }
+}
+
+/* MacBook / narrow laptop (sidebar + ~1280–1512px viewport) */
+@media (min-width: 1025px) and (max-width: 1512px) {
+    .view-container {
+        padding: 24px 20px 36px;
+    }
+
+    .overview-view {
+        max-width: none;
+        gap: 18px;
+    }
+
+    .overview-hero {
+        padding: 22px 24px;
+        gap: 18px;
+    }
+
+    .stat-grid {
+        gap: 14px;
+    }
+
+    .stat-card {
+        padding: 20px 22px;
+        min-height: 132px;
+    }
+
+    .dashboard-content {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
+    .chart-card {
+        min-height: 380px;
+    }
+
+    .chart-card,
+    .top-list-card {
+        padding: 22px 20px;
+    }
+
+    .chart-header {
+        gap: 12px;
+    }
+
+    .chart-header-text {
+        min-width: 0;
     }
 }
 

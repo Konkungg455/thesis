@@ -185,6 +185,7 @@ const maxChartCount = computed(() => {
 const totalChartCount = computed(() => chartPeriodData.value.reduce((s, d) => s + d.count, 0))
 
 const chartColumnClass = computed(() => ({
+  'bar-chart-bars--week': chartPeriod.value === 'week',
   'bar-chart-bars--day': chartPeriod.value === 'day',
   'bar-chart-bars--month': chartPeriod.value === 'month',
   'bar-chart-bars--year': chartPeriod.value === 'year',

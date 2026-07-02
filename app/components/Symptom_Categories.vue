@@ -2,14 +2,6 @@
   <section class="category-section">
     <div class="top-bar">
       <h1>หมวดหมู่อาการ <i class="fa-solid fa-capsules"></i></h1>
-      
-      <button 
-        v-if="!search" 
-        class="all-btn" 
-        @click="isExpanded = !isExpanded"
-      >
-        {{ isExpanded ? 'แสดงน้อยลง' : 'ดูทั้งหมด' }}
-      </button>
     </div>
 
     <div class="category-tags">
@@ -58,7 +50,6 @@ const router = useRouter()
 
 /* --- State --- */
 const search = ref('')
-const isExpanded = ref(false)
 const showError = ref(false) // ใช้สำหรับแสดงข้อความแจ้งเตือนเมื่อไม่พบข้อมูล
 
 // ข้อมูลอาการทั้งหมด 32+ รายการ
@@ -105,11 +96,8 @@ const filteredCategories = computed(() => {
   return categories.value.filter(cat => cat.includes(search.value))
 })
 
-// 2. จัดการการแสดงผล
-const displayedCategories = computed(() => {
-  if (search.value) return filteredCategories.value
-  return isExpanded.value ? filteredCategories.value : filteredCategories.value.slice(0, 6)
-})
+// แสดงหมวดหมู่ครบทุกรายการ (ไม่ซ่อน/ไม่ซ้อน)
+const displayedCategories = computed(() => filteredCategories.value)
 
 /* --- Methods --- */
 

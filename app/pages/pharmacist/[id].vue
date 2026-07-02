@@ -3,8 +3,6 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { usePharmacistStatus } from '~/composables/usePharmacistStatus';
 
-definePageMeta({ middleware: 'user-only' });
-
 const route = useRoute();
 const router = useRouter();
 const { apiUrl, imagesPharma } = useApiBase();

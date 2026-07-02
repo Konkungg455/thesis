@@ -137,6 +137,7 @@ export default defineNuxtPlugin(() => {
             if (storeId) params.set('id_store_accounts', String(storeId));
             else if ((u.role || u.role_account) === 'store' && u.id) params.set('id_store_accounts', String(u.id));
             if (u.id_account_admin) params.set('id_account_admin', String(u.id_account_admin));
+            else if ((u.role || u.role_account) === 'admin' && u.id) params.set('id_account_admin', String(u.id));
             const role = u.role || u.role_account;
             const urlHasRole = /(?:^|[?&])role=/i.test(url);
             if (role && !urlHasRole) params.set('role', role);

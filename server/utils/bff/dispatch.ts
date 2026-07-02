@@ -5,6 +5,7 @@ import {
     handleSavePrescription,
     handleSendPrescriptionEmail,
 } from './savePrescription';
+import { parsePositiveInt } from './sessionContext';
 
 function normalizePath(pathname: string): string {
     return pathname.split('?')[0].replace(/^\/+/, '');
@@ -92,6 +93,26 @@ export async function dispatchBff(event: H3Event, pathname: string) {
         return handleAdminListAdmins(event);
     }
 
+    if (pathLower === 'admin-review-admin.php' && method === 'POST') {
+        return handleAdminReviewAdmin(event);
+    }
+
+    if (pathLower === 'delete-user.php') {
+        return handleDeleteUser(event);
+    }
+
+    if (pathLower === 'delete-pharma.php') {
+        return handleDeletePharma(event);
+    }
+
+    if (pathLower === 'delete-store.php') {
+        return handleDeleteStore(event);
+    }
+
+    if (pathLower === 'restore-deleted.php') {
+        return handleRestoreDeleted(event);
+    }
+
     if (pathLower === 'get-service-usage.php') {
         return handleGetServiceUsage(event);
     }
@@ -154,6 +175,10 @@ export async function dispatchBff(event: H3Event, pathname: string) {
 
     if (pathLower === 'review-billing-slip.php' && method === 'POST') {
         return handleReviewBillingSlip(event);
+    }
+
+    if (pathLower === 'upload-billing-slip.php' && method === 'POST') {
+        return handleUploadBillingSlip(event);
     }
 
     if (pathLower === 'invite-pharmacist-to-store.php' && method === 'POST') {
@@ -291,7 +316,8 @@ async function handleGetUserSession(event: H3Event) {
         }
 
         if (q.id_pharma) {
-            const id = Number(q.id_pharma);
+            const id = parsePositiveInt(q.id_pharma);
+            if (id <= 0) return null;
             const rows = await sql`
                 SELECT username_pharma, images_pharma, license_image, is_deleted
                 FROM pharmacist_account
@@ -395,11 +421,13 @@ async function handleGetUserSession(event: H3Event) {
     }
 
     if (q.id_pharma) {
+        const id = parsePositiveInt(q.id_pharma);
+        if (id <= 0) return { authenticated: false };
         return {
             authenticated: true,
             user: {
-                id: Number(q.id_pharma),
-                id_pharma: Number(q.id_pharma),
+                id,
+                id_pharma: id,
                 username: String(q.username || 'pharmacist'),
                 role: 'pharmacist',
                 image: String(q.image || ''),
@@ -497,7 +525,8 @@ async function handleProcessLogin(event: H3Event, path: string) {
             username, firstname, profile_store_account
             FROM phamacy_store_accounts WHERE personal_email = $1 LIMIT 1`,
         'process-login-admin.php': `SELECT id_account_admin, password_account, salt_account, is_deleted,
-            username_account, images_account, firstname, role_account
+            username_account, images_account, firstname, lastname, email_account,
+            admin_status, is_super_admin
             FROM account_admin WHERE email_account = $1 LIMIT 1`,
     };
 
@@ -567,6 +596,26 @@ async function handleProcessLogin(event: H3Event, path: string) {
         || 'default.png',
     );
 
+    const user: Record<string, unknown> = {
+        id,
+        id_account: cfg.table === 'account' ? id : undefined,
+        id_pharma: cfg.table === 'pharmacist_account' ? id : undefined,
+        id_store_accounts: cfg.table === 'phamacy_store_accounts' ? id : undefined,
+        id_account_admin: cfg.table === 'account_admin' ? id : undefined,
+        store_id: cfg.table === 'phamacy_store_accounts' ? id : undefined,
+        username,
+        role,
+        image,
+    };
+
+    if (cfg.table === 'account_admin') {
+        user.firstname = result.firstname;
+        user.lastname = result.lastname;
+        user.email_account = email;
+        user.admin_status = String(result.admin_status || 'approved');
+        user.is_super_admin = Number(result.is_super_admin || 0);
+    }
+
     const redirectMap: Record<string, string> = {
         user: '/',
         pharmacist: '/dashboard',
@@ -578,17 +627,7 @@ async function handleProcessLogin(event: H3Event, path: string) {
         status: 'success',
         message: 'เข้าสู่ระบบสำเร็จ',
         redirect: redirectMap[role] || '/',
-        user: {
-            id,
-            id_account: cfg.table === 'account' ? id : undefined,
-            id_pharma: cfg.table === 'pharmacist_account' ? id : undefined,
-            id_store_accounts: cfg.table === 'phamacy_store_accounts' ? id : undefined,
-            id_account_admin: cfg.table === 'account_admin' ? id : undefined,
-            store_id: cfg.table === 'phamacy_store_accounts' ? id : undefined,
-            username,
-            role,
-            image,
-        },
+        user,
     };
 }
 
@@ -603,12 +642,13 @@ async function handleGetPharmacists(event: H3Event) {
     }
 
     const cached = getBffCache(cacheKey);
-    if (cached) return cached;
+    if (cached && String(q.nocache || '') !== '1') return cached;
 
     const rows = await dbQuery(async (sql) => sql`
         SELECT p.id_pharma, p.firstname_pharma, p.lastname_pharma,
                p.images_pharma, p.work_time, p.status_verify, p.id_store,
-               d.store_name, d.latitude, d.longitude,
+               COALESCE(NULLIF(TRIM(d.store_name), ''), NULLIF(TRIM(p.store_name), '')) AS store_name,
+               d.latitude, d.longitude,
                d.house_no, d.road, d.sub_district, d.district, d.province
         FROM pharmacist_account p
         LEFT JOIN phamacy_store_accounts a ON a.id_store_accounts = p.id_store

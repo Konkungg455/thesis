@@ -94,7 +94,7 @@ const onSubmit = (e) => {
                 <div class="auth-options">
                     <label class="auth-remember">
                         <input v-model="remember" type="checkbox" />
-                        <span>จดจำอีเมล</span>
+                        <span>จดจำฉัน</span>
                     </label>
                     <NuxtLink :to="config.forgotPath" class="auth-forgot">ลืมรหัสผ่าน?</NuxtLink>
                 </div>

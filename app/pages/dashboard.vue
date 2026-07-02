@@ -71,11 +71,19 @@ const loadActiveCaseCount = () => {
   }
 }
 
-const isWithinFollowUpWindow = (createdAt) => {
-  const start = new Date(createdAt).getTime()
-  if (Number.isNaN(start)) return false
-  const threeDaysMs = 3 * 24 * 60 * 60 * 1000
-  return Date.now() < start + threeDaysMs
+const dedupeActiveTracking = (items) => {
+  const activeByPatient = new Map()
+  for (const item of items) {
+    const accountId = Number(item?.id_account) || 0
+    const key = accountId > 0
+      ? `acc:${accountId}`
+      : `name:${String(item?.patient_name || '').trim().toLowerCase()}`
+    const prev = activeByPatient.get(key)
+    if (!prev || Number(item?.id) > Number(prev?.id)) {
+      activeByPatient.set(key, item)
+    }
+  }
+  return activeByPatient.size
 }
 
 const fetchFollowUpCount = async () => {
@@ -83,11 +91,13 @@ const fetchFollowUpCount = async () => {
   try {
     const res = await $fetch(apiUrl('get-prescriptions.php'), { credentials: 'include' })
     if (res.status === 'success' && Array.isArray(res.data)) {
-      followUpCount.value = res.data.filter((item) =>
-        String(item?.med_details || '').trim() !== ''
-        && String(item?.tracking_status || 'active') === 'active'
-        && isWithinFollowUpWindow(item.created_at)
-      ).length
+      const active = res.data.filter((item) => {
+        const status = String(item?.tracking_status || 'active')
+        const hasMeds = String(item?.med_details || '').trim() !== ''
+        const autoCreated = Number(item?.auto_created || 0) === 1
+        return status === 'active' && (hasMeds || autoCreated)
+      })
+      followUpCount.value = dedupeActiveTracking(active)
     } else {
       followUpCount.value = 0
     }

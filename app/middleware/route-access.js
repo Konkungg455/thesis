@@ -18,6 +18,15 @@ export const PUBLIC_PATH_PREFIXES = [
 /** หน้าแรก — ผู้ใช้ทั่วไป + guest เข้าได้ */
 export const LANDING_PATHS = ['/', ''];
 
+/** หน้าเภสัชที่ guest เปิดดูได้ (ไม่ต้องล็อกอิน) */
+export const GUEST_PHARMACIST_PATHS = ['/pharmacist/all'];
+
+export function isGuestPharmacistBrowsePath(path) {
+    if (GUEST_PHARMACIST_PATHS.includes(path)) return true;
+    // รายละเอียดเภสัช /pharmacist/:id (ตัวเลขเท่านั้น)
+    return /^\/pharmacist\/\d+$/.test(path);
+}
+
 /**
  * prefix ที่แต่ละ role เข้าได้ (นอกจาก PUBLIC + LANDING ตามกฎด้านล่าง)
  * ลำดับสำคัญ: ตรวจ prefix ยาวก่อนใน auth-guard
@@ -69,7 +78,7 @@ export function isPublicPath(path) {
 }
 
 export function isPathAllowedForRole(path, role) {
-    if (!role) return isPublicPath(path);
+    if (!role) return isPublicPath(path) || isGuestPharmacistBrowsePath(path);
     if (isPublicPath(path)) return true;
 
     // หน้าแรก: ทุก role เข้าได้ (smart-home จะเด้ง admin/เภสัช/ร้านไป home ของตัวเอง)

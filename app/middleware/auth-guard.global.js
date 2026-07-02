@@ -3,6 +3,7 @@
  *
  * แก้บั๊ก: ผู้ใช้ทั่วไปเข้าหน้าเภสัช/ร้าน/แอดมิน หรือหน้าที่ไม่มี definePageMeta ได้
  *  - ผู้ใช้ (user) เข้าได้เฉพาะ /, /user/*, /pharmacist/*, หน้า public, /auth/*
+ *  - guest ดูรายชื่อ/รายละเอียดเภสัชได้ (/pharmacist/all, /pharmacist/:id)
  *  - เภสัช / เจ้าร้าน / แอดมิน — เข้าได้เฉพาะโซนของตัวเอง
  */
 import { readAuthFromStorage, redirectToOwnHome } from './role-helper.js';

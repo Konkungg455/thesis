@@ -29,6 +29,15 @@ $bangkokCoords = [
     20 => ['lat' => 13.7650000, 'lng' => 100.5690000, 'label' => 'Ratchada'],
 ];
 
+/** จับคู่จากชื่อร้าน (สำหรับสาขาใหม่หลัง seed) */
+$nameCoords = [
+    'พระราม 9' => ['lat' => 13.7590000, 'lng' => 100.5650000, 'label' => 'Rama 9'],
+    'พระราม9'  => ['lat' => 13.7590000, 'lng' => 100.5650000, 'label' => 'Rama 9'],
+    'ลาดพร้าว' => ['lat' => 13.8167000, 'lng' => 100.6050000, 'label' => 'Lat Phrao'],
+    'บางนา'    => ['lat' => 13.6680000, 'lng' => 100.6300000, 'label' => 'Bang Na'],
+    'รัชดา'    => ['lat' => 13.7650000, 'lng' => 100.5690000, 'label' => 'Ratchada'],
+];
+
 $defaultBangkok = ['lat' => 13.7563000, 'lng' => 100.5018000]; // ใจกลางกรุงเทพฯ (พระนคร)
 
 $res = mysqli_query($connect,
@@ -52,7 +61,17 @@ while ($row = mysqli_fetch_assoc($res)) {
         continue;
     }
 
-    $c = $bangkokCoords[$id] ?? $defaultBangkok;
+    $storeName = (string) ($row['store_name'] ?? '');
+    $c = $bangkokCoords[$id] ?? null;
+    if (!$c) {
+        foreach ($nameCoords as $keyword => $coords) {
+            if ($storeName !== '' && mb_strpos($storeName, $keyword) !== false) {
+                $c = $coords;
+                break;
+            }
+        }
+    }
+    $c = $c ?? $defaultBangkok;
     $newLat = $c['lat'];
     $newLng = $c['lng'];
     $maps = "https://maps.google.com/?q={$newLat},{$newLng}";

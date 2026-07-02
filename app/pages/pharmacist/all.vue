@@ -2,8 +2,6 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useApiBase } from '~/composables/useApiBase';
-
-definePageMeta({ middleware: 'user-only' });
 import { usePharmacistStatus } from '~/composables/usePharmacistStatus';
 
 const router = useRouter();

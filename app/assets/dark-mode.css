@@ -1302,6 +1302,77 @@ html.dark body #__nuxt .hint-line strong {
   color: #f8fafc !important;
 }
 
+/* Homepage — หมวดหมู่อาการ + ขั้นตอนการใช้งาน */
+html.dark body #__nuxt .category-section .top-bar h1,
+html.dark body #__nuxt .category-section .top-bar h1 i {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .category-section .tag {
+  background-color: #1e293b !important;
+  border-color: rgba(125, 211, 252, 0.45) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .category-section .tag:hover {
+  background-color: #2563eb !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .category-section .search-box input {
+  background: #0b1220 !important;
+  border-color: rgba(125, 211, 252, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .category-section .search-box input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .category-section .no-result,
+html.dark body #__nuxt .category-section .error-subtext {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .tele-section .tele-heading__text {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .tele-section .subtitle {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .tele-section .tele-brand {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .tele-section .tele-brand::after {
+  background: linear-gradient(90deg, rgba(125, 211, 252, 0.35), rgba(56, 189, 248, 0.15)) !important;
+}
+
+html.dark body #__nuxt .tele-section .step {
+  background: #111827 !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+  color: #e2e8f0 !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28) !important;
+}
+
+html.dark body #__nuxt .tele-section .step:hover {
+  border-color: rgba(125, 211, 252, 0.45) !important;
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.36) !important;
+}
+
+html.dark body #__nuxt .tele-section .step p {
+  color: #e2e8f0 !important;
+}
+
 /* Pharmacist workspace pages */
 html.dark body #__nuxt .pharma-home-page,
 html.dark body #__nuxt .pharma-home {
@@ -1347,19 +1418,20 @@ html.dark body #__nuxt .admin-layout {
 html.dark body #__nuxt .admin-layout .main-content {
   flex: 1 0 auto !important;
   align-items: stretch !important;
-  background: linear-gradient(to right, #0b1220 0, #0b1220 300px, #0f172a 300px, #0f172a 100%) !important;
+  background: #0f172a !important;
+  background-color: #0f172a !important;
 }
 
 html.dark body #__nuxt .admin-layout .footer-divider {
   position: relative !important;
-  background: linear-gradient(to right, #0b1220 0, #0b1220 300px, #0f172a 300px, #0f172a 100%) !important;
+  background: linear-gradient(to right, #0b1220 0, #0b1220 260px, #0f172a 260px, #0f172a 100%) !important;
 }
 
 html.dark body #__nuxt .admin-layout .footer-divider::before {
   content: "" !important;
   position: absolute !important;
   inset: 0 auto 0 0 !important;
-  width: 300px !important;
+  width: 260px !important;
   background: #0b1220 !important;
   pointer-events: none !important;
   z-index: 1 !important;
@@ -1370,7 +1442,7 @@ html.dark body #__nuxt .admin-layout .footer-divider svg {
 }
 
 html.dark body #__nuxt .admin-layout .footer-wave {
-  background: linear-gradient(to right, #0b1220 0, #0b1220 300px, #020617 300px, #020617 100%) !important;
+  background: linear-gradient(to right, #0b1220 0, #0b1220 260px, #020617 260px, #020617 100%) !important;
   background-color: #020617 !important;
 }
 
@@ -1382,21 +1454,17 @@ html.dark body #__nuxt .admin-layout .sidebar {
   min-height: 100% !important;
 }
 
-@media (min-width: 901px) and (max-width: 1280px) {
-  html.dark body #__nuxt .admin-layout .main-content {
-    background: linear-gradient(to right, #0b1220 0, #0b1220 280px, #0f172a 280px, #0f172a 100%) !important;
-  }
-
+@media (min-width: 1025px) and (max-width: 1280px) {
   html.dark body #__nuxt .admin-layout .footer-divider {
-    background: linear-gradient(to right, #0b1220 0, #0b1220 280px, #0f172a 280px, #0f172a 100%) !important;
+    background: linear-gradient(to right, #0b1220 0, #0b1220 230px, #0f172a 230px, #0f172a 100%) !important;
   }
 
   html.dark body #__nuxt .admin-layout .footer-divider::before {
-    width: 280px !important;
+    width: 230px !important;
   }
 
   html.dark body #__nuxt .admin-layout .footer-wave {
-    background: linear-gradient(to right, #0b1220 0, #0b1220 280px, #020617 280px, #020617 100%) !important;
+    background: linear-gradient(to right, #0b1220 0, #0b1220 230px, #020617 230px, #020617 100%) !important;
     background-color: #020617 !important;
   }
 }
@@ -3425,6 +3493,140 @@ html.dark body #__nuxt .modal-overlay .service-detail-card .service-close-x {
   background: #e2e8f0 !important;
   border: 1px solid rgba(255, 255, 255, 0.75) !important;
   color: #334155 !important;
+}
+
+/* Admin overview — dark mode: hero + พื้นหลัง + contrast อ่านง่าย */
+html.dark body #__nuxt .admin-layout .view-container {
+  background: #0f172a !important;
+  background-color: #0f172a !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .overview-hero {
+  background: linear-gradient(135deg, #111827 0%, #1e293b 50%, #0f172a 100%) !important;
+  border: 1px solid rgba(125, 211, 252, 0.26) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .overview-hero::after {
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.14) 0%, transparent 70%) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .overview-eyebrow {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .overview-eyebrow i {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .overview-title {
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .overview-subtitle {
+  color: #cbd5e1 !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .stat-footnote {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .stat-footnote.light {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .dark-stat {
+  background: linear-gradient(135deg, #0b1437 0%, #1e40af 100%) !important;
+  border-color: rgba(96, 165, 250, 0.35) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .accent-stat {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 55%, #1e3a8a 100%) !important;
+  border-color: rgba(129, 140, 248, 0.35) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .accent-stat .stat-value {
+  color: #e0e7ff !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .accent-stat .stat-footnote {
+  color: #a5b4fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .stat-icon-users {
+  background: rgba(56, 189, 248, 0.18) !important;
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .stat-icon-rx {
+  background: rgba(129, 140, 248, 0.22) !important;
+  color: #a5b4fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .top-list-header {
+  border-bottom-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .top-list-badge {
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .chart-header h3 i,
+html.dark body #__nuxt .admin-layout .overview-view .top-list-header h3 i {
+  background: rgba(56, 189, 248, 0.15) !important;
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-row-gold {
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.45) 0%, rgba(146, 64, 14, 0.35) 100%) !important;
+  border-color: rgba(251, 191, 36, 0.45) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-avatar-wrap {
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .bar-chart-line {
+  border-top-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .bar-chart-bars {
+  border-bottom-color: rgba(148, 163, 184, 0.38) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .bar-value {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .bar-zero .bar-value {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .bar-day {
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .bar-date {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .chart-period-select {
+  background-color: transparent !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 8L1 3h10z'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right center !important;
+  border: none !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .chart-period-select option {
+  background: #111827 !important;
+  color: #f8fafc !important;
 }
 
 /* Final override: admin overview contrast */

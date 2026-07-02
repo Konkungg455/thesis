@@ -1,5 +1,14 @@
 <script setup lang="ts">
 import Symptom_Categories from '~/components/Symptom_Categories.vue';
+
+const route = useRoute();
+const { tryRedirectFromAdvice } = useAdviceEntry();
+
+const startFresh = computed(() => String(route.query.new || '') === '1');
+
+onMounted(() => {
+    tryRedirectFromAdvice(startFresh.value);
+});
 </script>
 
 <template>
