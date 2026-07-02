@@ -58,9 +58,8 @@ function hasSubQuestionBullet(text: string): boolean {
 function extractSymptom(contextInput: string): string {
     const hint = String(contextInput || '');
     const m = hint.match(/อาการ:\s*([^\n\[]+)/i);
-    if (m?.[1]) return m[1].trim();
-    const profile = hint.match(/\[PROFILE\][^\n]*/i)?.[0] || '';
-    const combined = `${hint}\n${profile}`.toLowerCase();
+    const fromHint = (m?.[1] || '').trim();
+    const combined = `${fromHint}\n${hint}`.toLowerCase();
     for (const key of Object.keys(SYMPTOM_Q1)) {
         if (combined.includes(key.toLowerCase())) return key;
     }
