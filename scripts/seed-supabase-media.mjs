@@ -11,6 +11,7 @@ const DEFAULT_PROFILE_IMAGE = 'default.png';
 const DEFAULT_PHARMACIST_LICENSE = 'default-license.png';
 const DEFAULT_STORE_LICENSE = 'default-store-license.png';
 const PROFILE_AVATAR_SOURCE = 'default-profile-avatar.png';
+const PHARMACIST_AVATAR_SOURCE = 'default-pharmacist-avatar.png';
 const PHARMACIST_LICENSE_SOURCE = 'default-pharmacist-license.png';
 const STORE_LICENSE_SOURCE = 'default-store-license.png';
 const MEDIA_VERSION = '20260703a';
@@ -53,6 +54,7 @@ if (!supabaseUrl || !serviceKey) {
 }
 
 const profileAvatarSource = join(__dirname, 'assets', PROFILE_AVATAR_SOURCE);
+const pharmacistAvatarSource = join(__dirname, 'assets', PHARMACIST_AVATAR_SOURCE);
 const pharmacistLicenseSource = join(__dirname, 'assets', PHARMACIST_LICENSE_SOURCE);
 const storeLicenseSource = join(__dirname, 'assets', STORE_LICENSE_SOURCE);
 
@@ -195,10 +197,16 @@ const profileAvatarData = readFileSync(profileAvatarSource);
 
 // user + admin avatar
 await uploadBuffer('images_account', DEFAULT_PROFILE_IMAGE, profileAvatarData);
-// เภสัช avatar
-await uploadBuffer('images_pharma', DEFAULT_PROFILE_IMAGE, profileAvatarData);
 // เจ้าของร้าน avatar
 await uploadBuffer('uploads/store_profiles', DEFAULT_PROFILE_IMAGE, profileAvatarData);
+
+if (!existsSync(pharmacistAvatarSource)) {
+    console.error(`ไม่พบ scripts/assets/${PHARMACIST_AVATAR_SOURCE}`);
+    process.exit(1);
+}
+const pharmacistAvatarData = readFileSync(pharmacistAvatarSource);
+// เภสัช avatar (แยกจากผู้ใช้/แอดมิน/เจ้าของร้าน)
+await uploadBuffer('images_pharma', DEFAULT_PROFILE_IMAGE, pharmacistAvatarData);
 
 if (!existsSync(pharmacistLicenseSource)) {
     console.error(`ไม่พบ scripts/assets/${PHARMACIST_LICENSE_SOURCE}`);

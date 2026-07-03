@@ -334,25 +334,27 @@ onMounted(() => {
             <div class="bar-chart-grid">
               <div class="bar-chart-line" v-for="n in 4" :key="n"></div>
             </div>
-            <div class="bar-chart-bars" :class="chartColumnClass">
-              <div
-                v-for="bucket in chartPeriodData"
-                :key="bucket.key"
-                class="bar-column"
-              >
-                <div class="bar-track">
-                  <div
-                    class="bar"
-                    :class="{ 'bar-zero': bucket.count === 0 }"
-                    :style="{ height: ((bucket.count / maxChartCount) * 100) + '%' }"
-                  >
-                    <span class="bar-value">{{ bucket.count }}</span>
-                    <div class="bar-fill"></div>
+            <div class="bar-chart-scroll">
+              <div class="bar-chart-bars" :class="chartColumnClass">
+                <div
+                  v-for="bucket in chartPeriodData"
+                  :key="bucket.key"
+                  class="bar-column"
+                >
+                  <div class="bar-track">
+                    <div
+                      class="bar"
+                      :class="{ 'bar-zero': bucket.count === 0 }"
+                      :style="{ height: ((bucket.count / maxChartCount) * 100) + '%' }"
+                    >
+                      <span class="bar-value">{{ bucket.count }}</span>
+                      <div class="bar-fill"></div>
+                    </div>
                   </div>
-                </div>
-                <div class="bar-label">
-                  <span class="bar-day">{{ bucket.label }}</span>
-                  <span v-if="bucket.dateLabel" class="bar-date">{{ bucket.dateLabel }}</span>
+                  <div class="bar-label">
+                    <span class="bar-day">{{ bucket.label }}</span>
+                    <span v-if="bucket.dateLabel" class="bar-date">{{ bucket.dateLabel }}</span>
+                  </div>
                 </div>
               </div>
             </div>
