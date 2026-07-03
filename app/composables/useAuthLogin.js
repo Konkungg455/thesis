@@ -93,7 +93,7 @@ export function useAuthLogin(roleKey) {
                 return;
             }
 
-            if (data.status === 'pending' || data.status === 'rejected') {
+            if (data.status === 'pending' || data.status === 'rejected' || data.status === 'locked') {
                 errorMessage.value = data.message || 'ไม่สามารถเข้าสู่ระบบได้';
                 return;
             }

@@ -2,6 +2,11 @@ import { randomBytes } from 'node:crypto';
 import type { H3Event } from 'h3';
 import { getRoleFromOtpType } from '../../utils/emailTemplates';
 import { readRequestFields } from './formData';
+import {
+    completeAdminRegistration,
+    completePharmacistRegistration,
+    completeStoreRegistration,
+} from './authRegister';
 
 type OtpType = 'user' | 'admin' | 'pharmacist' | 'store';
 
@@ -181,6 +186,36 @@ export async function handleVerifyOtp(event: H3Event) {
         });
         if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
         return { status: 'success', message: 'สมัครสมาชิกสำเร็จ!', redirect: '/auth/login-user' };
+    }
+
+    if (type === 'pharmacist') {
+        const newId = await completePharmacistRegistration(u, email);
+        if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
+        return {
+            status: 'success',
+            message: 'สมัครสมาชิกสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ',
+            redirect: '/auth/login-pharmacist',
+        };
+    }
+
+    if (type === 'admin') {
+        const newId = await completeAdminRegistration(u, email);
+        if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
+        return {
+            status: 'success',
+            message: 'สมัครสมาชิกสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ',
+            redirect: '/auth/login-admin',
+        };
+    }
+
+    if (type === 'store') {
+        const newId = await completeStoreRegistration(u, email);
+        if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
+        return {
+            status: 'success',
+            message: 'สมัครสมาชิกสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ',
+            redirect: '/auth/login-store',
+        };
     }
 
     return { status: 'error', message: `ยืนยัน OTP สำหรับ ${type} ยังไม่พร้อม — ติดต่อผู้ดูแลระบบ` };

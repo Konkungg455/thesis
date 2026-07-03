@@ -171,15 +171,10 @@ onMounted(() => {
             <span class="mgmt-card-no">#{{ pageStart + index }}</span>
 
             <div class="mgmt-card-avatar avatar-pending">
-              <template v-if="item.image && item.image !== 'default.png'">
-                <img
-                  :src="`${useNuxtApp().$getApiBase()}/images_pharma/${item.image}`"
-                  :alt="item.username || 'avatar'"
-                  @error="(e) => { e.target.style.display='none'; e.target.parentElement.classList.add('avatar-fallback'); }">
-              </template>
-              <template v-else>
-                <i class="fa-solid fa-user-doctor"></i>
-              </template>
+              <img
+                :src="`${useNuxtApp().$getApiBase()}/images_pharma/${item.image || 'default.png'}?v=20260703a`"
+                :alt="item.username || 'avatar'"
+                @error="(e) => { e.target.style.display='none'; e.target.parentElement.classList.add('avatar-fallback'); }">
             </div>
 
             <div class="mgmt-card-body">

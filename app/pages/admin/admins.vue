@@ -102,7 +102,8 @@ const confirmAction = async () => {
 }
 
 const formatDate = (iso) => iso ? new Date(iso).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' }) : '-'
-const imgUrl = (file) => `${apiBase.value}/images_account/${file || 'default.png'}`
+const MEDIA_AVATAR_VER = '20260703a'
+const imgUrl = (file) => `${apiBase.value}/images_account/${file || 'default.png'}?v=${MEDIA_AVATAR_VER}`
 
 const statusLabel = {
     pending: 'รออนุมัติ',

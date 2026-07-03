@@ -43,18 +43,27 @@ export async function readMultipartRequest(event: H3Event): Promise<{
 
     const parts = await readMultipartFormData(event);
     const fields: Record<string, string> = {};
+    const arrays: Record<string, string[]> = {};
     const files: Record<string, { data: Buffer; filename?: string; type?: string }> = {};
 
     for (const part of parts || []) {
         if (!part.name || !part.data) continue;
         if (part.filename) {
             files[part.name] = { data: part.data, filename: part.filename, type: part.type };
+            continue;
+        }
+        const name = String(part.name);
+        const value = part.data.toString('utf8');
+        if (name.endsWith('[]')) {
+            const key = name.slice(0, -2);
+            if (!arrays[key]) arrays[key] = [];
+            arrays[key].push(value);
         } else {
-            fields[part.name] = part.data.toString('utf8');
+            fields[name] = value;
         }
     }
 
-    return { fields, arrays: collectArrayFields(fields), files };
+    return { fields, arrays, files };
 }
 
 function collectArrayFields(fields: Record<string, string>): Record<string, string[]> {
@@ -80,9 +89,10 @@ export function getArrayField(
     name: string,
 ): string[] {
     if (arrays[name]?.length) return arrays[name];
+    if (arrays[`${name}[]`]?.length) return arrays[`${name}[]`];
     const values: string[] = [];
     for (const [k, v] of Object.entries(fields)) {
-        if (k === name || k.startsWith(`${name}[`)) values.push(v);
+        if (k === name || k === `${name}[]` || k.startsWith(`${name}[`)) values.push(v);
     }
     return values;
 }

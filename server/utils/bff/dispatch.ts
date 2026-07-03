@@ -198,7 +198,27 @@ export async function dispatchBff(event: H3Event, pathname: string) {
         return handleRegisterUser(event);
     }
 
+    if (pathLower === 'vue-register-pharmacist.php' && method === 'POST') {
+        return handleRegisterPharmacist(event);
+    }
+
+    if (pathLower === 'vue-register-admin.php' && method === 'POST') {
+        return handleRegisterAdmin(event);
+    }
+
+    if (pathLower === 'process-register-step1.php' && method === 'POST') {
+        return handleRegisterStoreStep1(event);
+    }
+
+    if (pathLower === 'process-register-step2.php' && method === 'POST') {
+        return handleRegisterStoreStep2(event);
+    }
+
     if (pathLower === 'vue-verify-otp.php' && method === 'POST') {
+        return handleVerifyOtp(event);
+    }
+
+    if (pathLower === 'process-otp-verify.php' && method === 'POST') {
         return handleVerifyOtp(event);
     }
 
@@ -515,6 +535,9 @@ async function handleProcessLogin(event: H3Event, path: string) {
         return { status: 'error', message: 'ไม่รองรับ endpoint นี้' };
     }
 
+    const locked = await checkLoginLockout(cfg.role, email);
+    if (locked) return locked;
+
     const selectByPath: Record<string, string> = {
         'process-login.php': `SELECT id_account, password_account, salt_account, is_deleted,
             username_account, images_account, role_account
@@ -548,7 +571,7 @@ async function handleProcessLogin(event: H3Event, path: string) {
                 message: dbUnavailableMessage(),
             };
         }
-        return { status: 'error', message: 'ไม่พบอีเมลนี้ในระบบ' };
+        return recordLoginFailure(cfg.role, email, 'ไม่พบอีเมลนี้ในระบบ');
     }
 
     if (Number(result.is_deleted || 0) === 1) {
@@ -562,8 +585,10 @@ async function handleProcessLogin(event: H3Event, path: string) {
     });
 
     if (!ok) {
-        return { status: 'error', message: 'รหัสผ่านไม่ถูกต้อง' };
+        return recordLoginFailure(cfg.role, email, 'รหัสผ่านไม่ถูกต้อง');
     }
+
+    await clearLoginLockout(cfg.role, email);
 
     if (cfg.table === 'pharmacist_account') {
         const verifyStatus = Number(result.status_verify ?? 1);

@@ -1,6 +1,6 @@
 <script setup>
 /**
- * 🚩 /admin/phacmacy_shop — ร้านยาพาร์ทเนอร์ (ดู/แก้ไขข้อมูล + ตารางเวลาเปิด-ปิด)
+ * 🚩 /admin/phacmacy_shop — ร้านยาพาร์ทเนอร์ (แอดมินดูข้อมูลเจ้าของร้านอย่างเดียว + อนุมัติ/ปฏิเสธคำขอ)
  */
 import { ref, computed, onMounted, watch } from 'vue'
 
@@ -38,9 +38,7 @@ const actionPopup = ref({
 
 // 🚩 state สำหรับ Modal ร้านยา
 const isLoadingPartner = ref(false)
-const isSavingPartner = ref(false)
 const partnerError = ref('')
-const partnerSuccess = ref('')
 const partnerForm = ref({
   id: '',
   username: '',
@@ -91,6 +89,16 @@ const DAY_OPTIONS = [
   { value: 'Sat', label: 'เสาร์' },
   { value: 'Sun', label: 'อาทิตย์' },
 ]
+const DEFAULT_PARTNER_SCHEDULE = [
+  { day: 'Mon', start: '08:00', end: '20:00' },
+  { day: 'Tue', start: '08:00', end: '20:00' },
+  { day: 'Wed', start: '08:00', end: '20:00' },
+  { day: 'Thu', start: '08:00', end: '20:00' },
+  { day: 'Fri', start: '08:00', end: '20:00' },
+]
+
+const scheduleDayLabel = (value) =>
+  DAY_OPTIONS.find((d) => d.value === value)?.label || value || '-'
 
 const tabMeta = {
   label: 'ร้านยาพาร์ทเนอร์',
@@ -184,7 +192,7 @@ const resetPartnerFormFromList = (item) => {
     license_file: item.license_file || '',
     license_url: item.license_url || '',
   }
-  partnerSchedules.value = []
+  partnerSchedules.value = [...DEFAULT_PARTNER_SCHEDULE]
 }
 
 // 🚩 ดึงข้อมูลร้านยาแบบเต็ม (รวมตารางเปิด-ปิด)
@@ -208,14 +216,18 @@ const fetchPartnerDetail = async (id) => {
       let d = null
       if (res?.status === 'success') {
         if (res.data) d = res.data
-        else if (Array.isArray(res.stores)) d = res.stores.find(s => String(s.id) === String(id)) || res.stores[0]
+        else if (Array.isArray(res.stores)) {
+          d = res.stores.find(s =>
+            String(s.id) === String(id) || String(s.id_store_accounts) === String(id)
+          ) || res.stores[0]
+        }
         else if (res.store) d = res.store
       }
 
       if (d) {
         const det = d.details || d
         partnerForm.value = {
-          id: d.id || id,
+          id: d.id_store_accounts || d.id || id,
           username: d.username || partnerForm.value.username || '',
           firstname: d.firstname || '',
           lastname: d.lastname || '',
@@ -241,7 +253,7 @@ const fetchPartnerDetail = async (id) => {
               start: s.open_time || s.start || '08:00',
               end: s.close_time || s.end || '20:00',
             }))
-          : [{ day: 'Mon', start: '08:00', end: '20:00' }]
+          : [...DEFAULT_PARTNER_SCHEDULE]
 
         isLoadingPartner.value = false
         return
@@ -250,94 +262,22 @@ const fetchPartnerDetail = async (id) => {
   }
 
   isLoadingPartner.value = false
+  partnerSchedules.value = [...DEFAULT_PARTNER_SCHEDULE]
 }
 
 const openDetail = (item) => {
+  const storeId = item?.id || item?.id_store_accounts || ''
   selectedData.value = item
   showModal.value = true
   partnerError.value = ''
-  partnerSuccess.value = ''
   resetPartnerFormFromList(item)
-  fetchPartnerDetail(item.id)
+  fetchPartnerDetail(storeId)
 }
 
 const closeModal = () => {
   showModal.value = false
   partnerError.value = ''
-  partnerSuccess.value = ''
   setTimeout(() => { selectedData.value = null }, 300)
-}
-
-const addPartnerSchedule = () => {
-  partnerSchedules.value.push({ day: 'Mon', start: '08:00', end: '20:00' })
-}
-const removePartnerSchedule = (idx) => {
-  if (partnerSchedules.value.length <= 1) return
-  partnerSchedules.value.splice(idx, 1)
-}
-
-const savePartner = async () => {
-  if (!partnerForm.value.id) return
-  isSavingPartner.value = true
-  partnerError.value = ''
-  partnerSuccess.value = ''
-  try {
-    const body = new FormData()
-    body.append('id', partnerForm.value.id)
-    body.append('firstname', partnerForm.value.firstname)
-    body.append('lastname', partnerForm.value.lastname)
-    body.append('personal_phone', partnerForm.value.personal_phone)
-    body.append('personal_email', partnerForm.value.personal_email)
-    body.append('store_name', partnerForm.value.store_name)
-    body.append('house_no', partnerForm.value.house_no)
-    body.append('road', partnerForm.value.road)
-    body.append('sub_district', partnerForm.value.sub_district)
-    body.append('district', partnerForm.value.district)
-    body.append('province', partnerForm.value.province)
-    body.append('zipcode', partnerForm.value.zipcode)
-    body.append('store_phone', partnerForm.value.store_phone)
-    body.append('store_email', partnerForm.value.store_email)
-    body.append('google_maps_url', partnerForm.value.google_maps_url)
-
-    partnerSchedules.value.forEach(s => {
-      if (s.day && s.start && s.end) {
-        body.append('work_day[]', s.day)
-        body.append('open_time[]', s.start)
-        body.append('close_time[]', s.end)
-      }
-    })
-
-    const base = useNuxtApp().$getApiBase()
-    let res = null
-    try {
-      res = await $fetch(`${base}/admin-update-store-profile.php`, {
-        method: 'POST', body, credentials: 'include',
-      })
-    } catch (_) { res = null }
-    if (!res || res.status !== 'success') {
-      res = await $fetch(`${base}/vue-update-store-profile.php`, {
-        method: 'POST', body, credentials: 'include',
-      })
-    }
-
-    if (res?.status === 'success') {
-      partnerSuccess.value = res.message || 'บันทึกข้อมูลสำเร็จ'
-      await fetchPartnerDetail(partnerForm.value.id)
-      handleFetch()
-    } else {
-      const msg = res?.message || ''
-      if (/เข้าสู่ระบบ|เจ้าของร้าน|login|unauth/i.test(msg)) {
-        partnerError.value = 'ไม่สามารถบันทึกได้ — กรุณาให้แอดมินอัปเดต API ฝั่ง backend ให้รองรับการแก้ไขโดยแอดมิน'
-      } else {
-        partnerError.value = msg || 'บันทึกไม่สำเร็จ'
-      }
-    }
-  } catch (err) {
-    console.error('savePartner error:', err)
-    partnerError.value = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
-  } finally {
-    isSavingPartner.value = false
-  }
 }
 
 const closeActionPopup = () => {
@@ -660,7 +600,6 @@ onMounted(() => {
               </div>
 
               <div v-if="partnerError" class="partner-msg error">{{ partnerError }}</div>
-              <div v-if="partnerSuccess" class="partner-msg success">{{ partnerSuccess }}</div>
 
               <h4 class="section-head"><i class="fa-solid fa-user"></i> ข้อมูลส่วนตัวเจ้าของร้าน</h4>
               <div class="info-grid">
@@ -669,65 +608,64 @@ onMounted(() => {
                   <input type="text" v-model="partnerForm.username" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>ชื่อ *</label>
-                  <input type="text" v-model="partnerForm.firstname" class="input-editable">
+                  <label>ชื่อ</label>
+                  <input type="text" v-model="partnerForm.firstname" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>นามสกุล *</label>
-                  <input type="text" v-model="partnerForm.lastname" class="input-editable">
+                  <label>นามสกุล</label>
+                  <input type="text" v-model="partnerForm.lastname" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>เบอร์โทรส่วนตัว *</label>
-                  <input type="text" v-model="partnerForm.personal_phone" class="input-editable">
+                  <label>เบอร์โทรส่วนตัว</label>
+                  <input type="text" v-model="partnerForm.personal_phone" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>อีเมลส่วนตัว *</label>
-                  <input type="text" v-model="partnerForm.personal_email" class="input-editable">
+                  <label>อีเมลส่วนตัว</label>
+                  <input type="text" v-model="partnerForm.personal_email" readonly class="input-readonly">
                 </div>
               </div>
 
               <h4 class="section-head"><i class="fa-solid fa-store"></i> ข้อมูลร้านยา</h4>
               <div class="info-grid">
                 <div class="form-group full-width">
-                  <label>ชื่อร้าน *</label>
-                  <input type="text" v-model="partnerForm.store_name" class="input-editable">
+                  <label>ชื่อร้าน</label>
+                  <input type="text" v-model="partnerForm.store_name" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>บ้านเลขที่ *</label>
-                  <input type="text" v-model="partnerForm.house_no" class="input-editable">
+                  <label>บ้านเลขที่</label>
+                  <input type="text" v-model="partnerForm.house_no" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
                   <label>หมู่ / ถนน</label>
-                  <input type="text" v-model="partnerForm.road" class="input-editable">
+                  <input type="text" v-model="partnerForm.road" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>ตำบล *</label>
-                  <input type="text" v-model="partnerForm.sub_district" class="input-editable">
+                  <label>ตำบล</label>
+                  <input type="text" v-model="partnerForm.sub_district" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>อำเภอ *</label>
-                  <input type="text" v-model="partnerForm.district" class="input-editable">
+                  <label>อำเภอ</label>
+                  <input type="text" v-model="partnerForm.district" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>จังหวัด *</label>
-                  <input type="text" v-model="partnerForm.province" class="input-editable">
+                  <label>จังหวัด</label>
+                  <input type="text" v-model="partnerForm.province" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>รหัสไปรษณีย์ *</label>
-                  <input type="text" v-model="partnerForm.zipcode" class="input-editable">
+                  <label>รหัสไปรษณีย์</label>
+                  <input type="text" v-model="partnerForm.zipcode" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>เบอร์ร้าน *</label>
-                  <input type="text" v-model="partnerForm.store_phone" class="input-editable">
+                  <label>เบอร์ร้าน</label>
+                  <input type="text" v-model="partnerForm.store_phone" readonly class="input-readonly">
                 </div>
                 <div class="form-group">
-                  <label>อีเมลร้าน *</label>
-                  <input type="text" v-model="partnerForm.store_email" class="input-editable">
+                  <label>อีเมลร้าน</label>
+                  <input type="text" v-model="partnerForm.store_email" readonly class="input-readonly">
                 </div>
                 <div class="form-group full-width">
                   <label>Google Maps URL</label>
-                  <input type="text" v-model="partnerForm.google_maps_url"
-                         placeholder="https://maps.google.com/..." class="input-editable">
+                  <input type="text" v-model="partnerForm.google_maps_url" readonly class="input-readonly">
                   <a v-if="partnerForm.google_maps_url"
                      :href="partnerForm.google_maps_url" target="_blank" rel="noopener"
                      class="maps-link" style="margin-top: 8px;">
@@ -757,30 +695,19 @@ onMounted(() => {
               </div>
 
               <h4 class="section-head"><i class="fa-solid fa-clock"></i> ตารางเวลาเปิด-ปิด</h4>
-              <div class="schedule-list">
-                <div v-for="(s, idx) in partnerSchedules" :key="idx" class="schedule-row">
-                  <select v-model="s.day" class="sched-day">
-                    <option v-for="d in DAY_OPTIONS" :key="d.value" :value="d.value">{{ d.label }}</option>
-                  </select>
-                  <span class="sched-sep">เริ่ม</span>
-                  <input type="time" v-model="s.start" class="sched-time">
-                  <span class="sched-sep">ถึง</span>
-                  <input type="time" v-model="s.end" class="sched-time">
-                  <button class="sched-remove"
-                          :disabled="partnerSchedules.length <= 1"
-                          @click="removePartnerSchedule(idx)">
-                    <i class="fa-solid fa-trash"></i>
-                  </button>
+              <div class="schedule-list schedule-list-readonly">
+                <div v-if="partnerSchedules.length === 0" class="schedule-empty">
+                  ยังไม่มีตารางเวลาเปิด-ปิด
                 </div>
-
-                <button class="btn-add-schedule" @click="addPartnerSchedule">
-                  <i class="fa-solid fa-plus"></i> เพิ่มตารางเวลา
-                </button>
+                <div v-for="(s, idx) in partnerSchedules" :key="idx" class="schedule-row-readonly">
+                  <span class="sched-day-label">{{ scheduleDayLabel(s.day) }}</span>
+                  <span class="sched-time-label">{{ s.start }} – {{ s.end }}</span>
+                </div>
               </div>
             </div>
 
             <div class="verify-actions partner-actions">
-              <button class="btn-cancel" @click="closeModal" :disabled="isSavingPartner">ปิด</button>
+              <button class="btn-cancel" @click="closeModal">ปิด</button>
 
               <template v-if="selectedData && selectedData.admin_status === 'pending'">
                 <button class="btn-reject" @click="reviewStore(selectedData, 'reject')" :disabled="reviewLoading">
@@ -789,12 +716,6 @@ onMounted(() => {
                 <button class="btn-approve" @click="reviewStore(selectedData, 'approve')" :disabled="reviewLoading">
                   <i class="fa-solid fa-check"></i>
                   {{ reviewLoading ? 'กำลังดำเนินการ...' : 'อนุมัติร้านยา' }}
-                </button>
-              </template>
-              <template v-else>
-                <button class="btn-save" @click="savePartner" :disabled="isSavingPartner || isLoadingPartner">
-                  <i class="fa-solid fa-floppy-disk"></i>
-                  {{ isSavingPartner ? 'กำลังบันทึก...' : 'บันทึกการแก้ไข' }}
                 </button>
               </template>
             </div>
@@ -942,6 +863,52 @@ onMounted(() => {
 }
 .btn-reject:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(239,68,68,.4); }
 .btn-reject:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ===== View-only modal ===== */
+.view-only-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-size: .9rem;
+  font-weight: 600;
+}
+.schedule-list-readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.schedule-row-readonly {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.sched-day-label {
+  font-weight: 700;
+  color: #334155;
+}
+.sched-time-label {
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+.schedule-empty {
+  padding: 14px;
+  text-align: center;
+  color: #94a3b8;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+}
 
 /* ===== License image viewer ===== */
 .license-viewer {

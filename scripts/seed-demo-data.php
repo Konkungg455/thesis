@@ -28,6 +28,9 @@ require __DIR__ . '/connect.php';
 date_default_timezone_set('Asia/Bangkok');
 
 const DEMO_PASSWORD = 'Demo@1234';
+const DEFAULT_PHARMACIST_LICENSE = 'default-license.png';
+const DEFAULT_STORE_LICENSE = 'default-store-license.png';
+const DEFAULT_PROFILE_IMAGE = 'default.png';
 
 function demoCreds(): array
 {
@@ -69,10 +72,10 @@ function upsertUser(mysqli $db, array $u): int
     $existing = findByEmail($db, 'account', 'email_account', $u['email']);
     if ($existing) {
         $id = (int) $existing['id_account'];
-        $stmt = mysqli_prepare($db, 'UPDATE account SET username_account=?, firstname=?, lastname=?, gender=?, old=?, height=?, weight=?, phone_number=?, personal_disease=? WHERE id_account=?');
-        mysqli_stmt_bind_param($stmt, 'ssssiiissi',
+        $stmt = mysqli_prepare($db, 'UPDATE account SET username_account=?, firstname=?, lastname=?, gender=?, old=?, height=?, weight=?, phone_number=?, personal_disease=?, images_account=? WHERE id_account=?');
+        mysqli_stmt_bind_param($stmt, 'ssssiiisssi',
             $u['username'], $u['firstname'], $u['lastname'], $u['gender'],
-            $u['age'], $u['height'], $u['weight'], $u['phone'], $u['disease'], $id
+            $u['age'], $u['height'], $u['weight'], $u['phone'], $u['disease'], DEFAULT_PROFILE_IMAGE, $id
         );
         mysqli_stmt_execute($stmt);
         return $id;
@@ -80,7 +83,7 @@ function upsertUser(mysqli $db, array $u): int
 
     $c = demoCreds();
     $stmt = mysqli_prepare($db, 'INSERT INTO account (username_account, email_account, password_account, salt_account, firstname, lastname, gender, old, height, weight, phone_number, personal_disease, images_account) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)');
-    $img = 'default.png';
+    $img = DEFAULT_PROFILE_IMAGE;
     mysqli_stmt_bind_param($stmt, 'sssssssiiisss',
         $u['username'], $u['email'], $c['hash'], $c['salt'],
         $u['firstname'], $u['lastname'], $u['gender'],
@@ -107,20 +110,20 @@ function upsertStore(mysqli $db, array $s): int
     $existing = findByEmail($db, 'phamacy_store_accounts', 'personal_email', $s['email']);
     if ($existing) {
         $id = (int) $existing['id_store_accounts'];
-        $stmt = mysqli_prepare($db, 'UPDATE phamacy_store_accounts SET username=?, firstname=?, lastname=?, personal_phone=?, status=1, admin_status=?, admin_reviewed_at=NOW() WHERE id_store_accounts=?');
+        $stmt = mysqli_prepare($db, 'UPDATE phamacy_store_accounts SET username=?, firstname=?, lastname=?, personal_phone=?, profile_store_account=?, license_file=?, status=1, admin_status=?, admin_reviewed_at=NOW() WHERE id_store_accounts=?');
         if (!$stmt) throw new RuntimeException('store update prepare: ' . mysqli_error($db));
-        mysqli_stmt_bind_param($stmt, 'sssssi',
-            $s['username'], $s['firstname'], $s['lastname'], $s['phone'], $s['admin_status'], $id
+        mysqli_stmt_bind_param($stmt, 'sssssssi',
+            $s['username'], $s['firstname'], $s['lastname'], $s['phone'], DEFAULT_PROFILE_IMAGE, DEFAULT_STORE_LICENSE, $s['admin_status'], $id
         );
         if (!mysqli_stmt_execute($stmt)) throw new RuntimeException('store update: ' . mysqli_stmt_error($stmt));
     } else {
         $c = demoCredsStore();
-        $license = 'license_69c517754e074.png';
-        $stmt = mysqli_prepare($db, 'INSERT INTO phamacy_store_accounts (username, password, salt_store, firstname, lastname, personal_phone, personal_email, license_file, status, admin_status, admin_reviewed_at) VALUES (?,?,?,?,?,?,?,?,1,?,NOW())');
+        $license = DEFAULT_STORE_LICENSE;
+        $stmt = mysqli_prepare($db, 'INSERT INTO phamacy_store_accounts (username, password, salt_store, firstname, lastname, personal_phone, personal_email, license_file, profile_store_account, status, admin_status, admin_reviewed_at) VALUES (?,?,?,?,?,?,?,?,?,1,?,NOW())');
         if (!$stmt) throw new RuntimeException('store insert prepare: ' . mysqli_error($db));
-        mysqli_stmt_bind_param($stmt, 'sssssssss',
+        mysqli_stmt_bind_param($stmt, 'ssssssssss',
             $s['username'], $c['hash'], $c['salt'], $s['firstname'], $s['lastname'],
-            $s['phone'], $s['email'], $license, $s['admin_status']
+            $s['phone'], $s['email'], $license, DEFAULT_PROFILE_IMAGE, $s['admin_status']
         );
         if (!mysqli_stmt_execute($stmt)) throw new RuntimeException('store insert: ' . mysqli_stmt_error($stmt));
         $id = (int) mysqli_insert_id($db);
@@ -176,14 +179,14 @@ function upsertPharmacist(mysqli $db, array $p, ?int $storeId): int
 {
     $existing = findByEmail($db, 'pharmacist_account', 'email_pharma', $p['email']);
     $storeName = $p['store_name'] ?? null;
-    $license = 'license_69ce44ed3b232.png';
+    $license = DEFAULT_PHARMACIST_LICENSE;
 
     if ($existing) {
         $id = (int) $existing['id_pharma'];
-        $stmt = mysqli_prepare($db, 'UPDATE pharmacist_account SET username_pharma=?, firstname_pharma=?, lastname_pharma=?, gender_pharma=?, age_pharma=?, phone_pharma=?, work_time=?, id_store=?, store_name=?, status_verify=1 WHERE id_pharma=?');
-        mysqli_stmt_bind_param($stmt, 'ssssissisi',
+        $stmt = mysqli_prepare($db, 'UPDATE pharmacist_account SET username_pharma=?, firstname_pharma=?, lastname_pharma=?, gender_pharma=?, age_pharma=?, phone_pharma=?, work_time=?, id_store=?, store_name=?, license_image=?, images_pharma=?, status_verify=1 WHERE id_pharma=?');
+        mysqli_stmt_bind_param($stmt, 'ssssississsi',
             $p['username'], $p['firstname'], $p['lastname'], $p['gender'], $p['age'],
-            $p['phone'], $p['work_time'], $storeId, $storeName, $id
+            $p['phone'], $p['work_time'], $storeId, $storeName, $license, DEFAULT_PROFILE_IMAGE, $id
         );
         mysqli_stmt_execute($stmt);
         return $id;
@@ -193,7 +196,7 @@ function upsertPharmacist(mysqli $db, array $p, ?int $storeId): int
     $stmt = mysqli_prepare($db, 'INSERT INTO pharmacist_account (username_pharma, email_pharma, password_pharma, salt_pharma, firstname_pharma, lastname_pharma, gender_pharma, age_pharma, height_pharma, weight_pharma, phone_pharma, work_time, license_image, id_store, store_name, images_pharma, status_verify) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)');
     $h = 170;
     $w = 65;
-    $img = 'default.png';
+    $img = DEFAULT_PROFILE_IMAGE;
     mysqli_stmt_bind_param($stmt, 'sssssssiiisssiss',
         $p['username'], $p['email'], $c['hash'], $c['salt'],
         $p['firstname'], $p['lastname'], $p['gender'], $p['age'],
@@ -210,17 +213,17 @@ function upsertAdmin(mysqli $db, array $a, bool $isSuper = false): int
 
     if ($existing) {
         $id = (int) $existing['id_account_admin'];
-        $stmt = mysqli_prepare($db, 'UPDATE account_admin SET username_account=?, firstname=?, lastname=?, gender=?, old=?, phone_number=?, admin_status=?, is_super_admin=?, is_deleted=0, admin_reviewed_at=NOW() WHERE id_account_admin=?');
-        mysqli_stmt_bind_param($stmt, 'ssssissii',
+        $stmt = mysqli_prepare($db, 'UPDATE account_admin SET username_account=?, firstname=?, lastname=?, gender=?, old=?, phone_number=?, images_account=?, admin_status=?, is_super_admin=?, is_deleted=0, admin_reviewed_at=NOW() WHERE id_account_admin=?');
+        mysqli_stmt_bind_param($stmt, 'ssssissiii',
             $a['username'], $a['firstname'], $a['lastname'], $a['gender'],
-            $a['age'], $a['phone'], $a['admin_status'], $super, $id
+            $a['age'], $a['phone'], DEFAULT_PROFILE_IMAGE, $a['admin_status'], $super, $id
         );
         mysqli_stmt_execute($stmt);
         return $id;
     }
 
     $c = demoCreds();
-    $img = 'default.png';
+    $img = DEFAULT_PROFILE_IMAGE;
     $stmt = mysqli_prepare($db, 'INSERT INTO account_admin (username_account, email_account, password_account, salt_account, firstname, lastname, gender, old, phone_number, images_account, admin_status, is_super_admin, is_deleted, admin_reviewed_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,0,NOW())');
     mysqli_stmt_bind_param($stmt, 'sssssssisssi',
         $a['username'], $a['email'], $c['hash'], $c['salt'],

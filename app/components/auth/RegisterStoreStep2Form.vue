@@ -71,6 +71,7 @@ onMounted(() => {
             }
         } catch { /* ignore */ }
     }
+    preloadAddress();
 });
 
 // 💾 save form + ตารางเวลา ทุกครั้งที่กรอก
@@ -109,21 +110,34 @@ const removeSchedule = (i) => {
 const { search: searchAddress, preload: preloadAddress } = useThaiAddress();
 const addrSuggestions = ref([]);
 const showAddrSuggest = ref(false);
+const addrSearching = ref(false);
 const activeAddrField = ref('');
 let addrTimer = null;
 
+const getAddrQuery = (field) => {
+    if (field === 'zipcode') return form.value.zipcode;
+    if (field === 'district') return form.value.district;
+    return form.value.sub_district;
+};
+
 const onAddrInput = (field) => {
     activeAddrField.value = field;
-    const q = field === 'zipcode' ? form.value.zipcode : form.value.sub_district;
+    const q = getAddrQuery(field);
     clearTimeout(addrTimer);
     if (!q || String(q).trim().length < 2) {
         addrSuggestions.value = [];
         showAddrSuggest.value = false;
+        addrSearching.value = false;
         return;
     }
     addrTimer = setTimeout(async () => {
-        addrSuggestions.value = await searchAddress(q, 8);
-        showAddrSuggest.value = addrSuggestions.value.length > 0;
+        addrSearching.value = true;
+        showAddrSuggest.value = true;
+        try {
+            addrSuggestions.value = await searchAddress(q, 8);
+        } finally {
+            addrSearching.value = false;
+        }
     }, 250);
 };
 
@@ -139,8 +153,6 @@ const pickAddress = (item) => {
 const hideAddrSuggestSoon = () => {
     setTimeout(() => { showAddrSuggest.value = false; }, 150);
 };
-
-onMounted(() => preloadAddress());
 
 /* ---- validate client-side ก่อนส่ง OTP ---- */
 const validate = () => {
@@ -240,44 +252,74 @@ const submit = async () => {
                 </div>
                 <div class="auth-field">
                     <label>ถนน</label>
-                    <input v-model="form.road" type="text" />
+                    <input v-model="form.road" type="text" placeholder="เช่น พหลโยธิน หรือ ไม่มี" />
+                </div>
+                <div class="auth-field full addr-hint">
+                    <small>
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        พิมพ์ <strong>ตำบล</strong> · <strong>อำเภอ</strong> หรือ <strong>รหัสไปรษณีย์</strong>
+                        อย่างน้อย 2 ตัวอักษร — เลือกจากรายการแล้วระบบจะกรอกอำเภอ จังหวัด และรหัสไปรษณีย์ให้อัตโนมัติ
+                    </small>
                 </div>
                 <div class="auth-field addr-field">
                     <label>ตำบล <span class="req">*</span></label>
                     <input v-model="form.sub_district" type="text"
                            autocomplete="off"
-                           placeholder="พิมพ์ชื่อตำบล"
+                           placeholder="พิมพ์ชื่อตำบล เช่น อินทประมูล"
                            @input="onAddrInput('sub_district')"
                            @focus="onAddrInput('sub_district')"
                            @blur="hideAddrSuggestSoon"
                            required />
-                    <ul v-if="showAddrSuggest && activeAddrField === 'sub_district' && addrSuggestions.length"
+                    <ul v-if="showAddrSuggest && activeAddrField === 'sub_district'"
                         class="addr-suggest">
-                        <li v-for="(s, idx) in addrSuggestions" :key="idx"
+                        <li v-if="addrSearching" class="addr-suggest-status">กำลังค้นหา...</li>
+                        <li v-else-if="!addrSuggestions.length" class="addr-suggest-status">ไม่พบที่อยู่ที่ตรงกัน</li>
+                        <li v-for="(s, idx) in addrSuggestions" v-else :key="idx"
+                            @mousedown.prevent="pickAddress(s)">
+                            <i class="fa-solid fa-location-dot"></i> {{ s.label }}
+                        </li>
+                    </ul>
+                </div>
+                <div class="auth-field addr-field">
+                    <label>อำเภอ <span class="req">*</span></label>
+                    <input v-model="form.district" type="text"
+                           autocomplete="off"
+                           placeholder="พิมพ์ชื่ออำเภอ"
+                           @input="onAddrInput('district')"
+                           @focus="onAddrInput('district')"
+                           @blur="hideAddrSuggestSoon"
+                           required />
+                    <ul v-if="showAddrSuggest && activeAddrField === 'district'"
+                        class="addr-suggest">
+                        <li v-if="addrSearching" class="addr-suggest-status">กำลังค้นหา...</li>
+                        <li v-else-if="!addrSuggestions.length" class="addr-suggest-status">ไม่พบที่อยู่ที่ตรงกัน</li>
+                        <li v-for="(s, idx) in addrSuggestions" v-else :key="idx"
                             @mousedown.prevent="pickAddress(s)">
                             <i class="fa-solid fa-location-dot"></i> {{ s.label }}
                         </li>
                     </ul>
                 </div>
                 <div class="auth-field">
-                    <label>อำเภอ <span class="req">*</span></label>
-                    <input v-model="form.district" type="text" required />
-                </div>
-                <div class="auth-field">
                     <label>จังหวัด <span class="req">*</span></label>
-                    <input v-model="form.province" type="text" required />
+                    <input v-model="form.province" type="text" placeholder="เช่น อ่างทอง" required />
                 </div>
                 <div class="auth-field addr-field">
                     <label>รหัสไปรษณีย์ <span class="req">*</span></label>
                     <input v-model="form.zipcode" type="text"
+                           inputmode="numeric"
                            autocomplete="off"
+                           pattern="\d{5}"
+                           maxlength="5"
+                           placeholder="14120"
                            @input="onAddrInput('zipcode')"
                            @focus="onAddrInput('zipcode')"
                            @blur="hideAddrSuggestSoon"
                            required />
-                    <ul v-if="showAddrSuggest && activeAddrField === 'zipcode' && addrSuggestions.length"
+                    <ul v-if="showAddrSuggest && activeAddrField === 'zipcode'"
                         class="addr-suggest">
-                        <li v-for="(s, idx) in addrSuggestions" :key="idx"
+                        <li v-if="addrSearching" class="addr-suggest-status">กำลังค้นหา...</li>
+                        <li v-else-if="!addrSuggestions.length" class="addr-suggest-status">ไม่พบที่อยู่ที่ตรงกัน</li>
+                        <li v-for="(s, idx) in addrSuggestions" v-else :key="idx"
                             @mousedown.prevent="pickAddress(s)">
                             <i class="fa-solid fa-location-dot"></i> {{ s.label }}
                         </li>
@@ -361,8 +403,22 @@ const submit = async () => {
 <style scoped>
 @import "@/assets/auth-login.css";
 
+.auth-card.auth-form-wide { overflow: visible; }
+
 /* ===== Autocomplete ที่อยู่ ===== */
-.addr-field { position: relative; }
+.addr-hint small {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.55;
+    padding: 8px 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+.addr-hint i { color: #6366f1; margin-right: 4px; }
+.addr-field { position: relative; z-index: 1; }
+.addr-field:focus-within { z-index: 20; }
 .addr-suggest {
     position: absolute;
     top: calc(100% + 4px);
@@ -392,6 +448,13 @@ const submit = async () => {
 }
 .addr-suggest li:hover { background: #eef2ff; }
 .addr-suggest li i { color: #6366f1; font-size: 0.8rem; flex-shrink: 0; }
+.addr-suggest-status {
+    color: #64748b;
+    font-size: 0.85rem;
+    cursor: default;
+    pointer-events: none;
+}
+.addr-suggest-status:hover { background: transparent; }
 
 /* reset <button> ให้ใช้ style เดียวกับ NuxtLink ที่มี class .auth-back */
 button.auth-back {

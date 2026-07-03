@@ -1,9 +1,18 @@
 import { randomBytes } from 'node:crypto';
 import type { H3Event } from 'h3';
 import type postgres from 'postgres';
+import { resolvePharmacistLicenseFile, resolveProfileImageFile, resolveStoreLicenseFile } from '#shared/utils/mediaDefaults';
 import { readMultipartRequest, readRequestFields } from './formData';
 import { getAuthContext, parsePositiveInt } from './sessionContext';
 import { consolidateDuplicateActiveTracking } from './consultTracking';
+
+function pharmacistLicensePath(filename?: string | null): string {
+    return `uploads/licenses/${resolvePharmacistLicenseFile(filename)}`;
+}
+
+function storeLicensePath(filename?: string | null): string {
+    return `uploads/licenses/${resolveStoreLicenseFile(filename)}`;
+}
 
 function accountDeletedFilter(sql: ReturnType<typeof postgres>, deleted: boolean) {
     return deleted ? sql`COALESCE(is_deleted, 0) = 1` : sql`COALESCE(is_deleted, 0) = 0`;
@@ -925,8 +934,8 @@ export async function handleGetPharmaProfile(event: H3Event) {
             work_time: row.work_time || '',
             schedules: parseWorkTimeSchedules(String(row.work_time || '')),
             images_pharma: row.images_pharma,
-            license_image: row.license_image || '',
-            license_url: row.license_image ? `uploads/licenses/${row.license_image}` : '',
+            license_image: resolvePharmacistLicenseFile(row.license_image),
+            license_url: pharmacistLicensePath(row.license_image),
             id_store: row.id_store != null ? Number(row.id_store) : null,
             pending_store_id: row.pending_store_id != null ? Number(row.pending_store_id) : null,
             status_verify: Number(row.status_verify || 0),
@@ -978,13 +987,14 @@ export async function handleGetStoreProfile(event: H3Event) {
         Fri: 'ศุกร์', Sat: 'เสาร์', Sun: 'อาทิตย์',
     };
 
-    const licenseFile = String(acc.license_file || '');
-    const profileFile = String(acc.profile_store_account || '');
+    const licenseFile = resolveStoreLicenseFile(acc.license_file);
+    const profileFile = resolveProfileImageFile(acc.profile_store_account);
     const qrPaymentFile = String(det?.qr_payment_file || '');
 
     return {
         status: 'success',
         data: {
+            id: id,
             id_store_accounts: id,
             username: acc.username ?? '',
             firstname: acc.firstname ?? '',
@@ -992,9 +1002,9 @@ export async function handleGetStoreProfile(event: H3Event) {
             personal_phone: acc.personal_phone ?? '',
             personal_email: acc.personal_email ?? '',
             license_file: licenseFile,
-            license_url: licenseFile ? `uploads/licenses/${licenseFile}` : '',
+            license_url: storeLicensePath(acc.license_file),
             profile_file: profileFile,
-            profile_url: profileFile ? `uploads/store_profiles/${profileFile}` : '',
+            profile_url: `uploads/store_profiles/${profileFile}`,
             details: {
                 store_name: det?.store_name ?? '',
                 house_no: det?.house_no ?? '',
@@ -1357,7 +1367,7 @@ function mapStoreRow(row: Record<string, unknown>) {
         lastname: row.lastname ?? '',
         personal_phone: row.personal_phone ?? '',
         personal_email: row.personal_email ?? '',
-        license_file: row.license_file ?? '',
+        license_file: resolveStoreLicenseFile(row.license_file),
         status: Number(row.status || 0),
         admin_status: row.admin_status ?? 'approved',
         admin_reviewed_at: row.admin_reviewed_at ?? null,
@@ -1458,8 +1468,8 @@ function mapStorePharmacistRow(row: Record<string, unknown>) {
         gender: row.gender_pharma ?? '',
         age: Number(row.age_pharma || 0),
         work_time: row.work_time ?? '',
-        license_image: row.license_image ?? '',
-        license_exists: Boolean(row.license_image),
+        license_image: resolvePharmacistLicenseFile(row.license_image),
+        license_exists: true,
         images_pharma: row.images_pharma ?? 'default.png',
         status_verify: Number(row.status_verify || 0),
         id_store: row.id_store != null ? Number(row.id_store) : null,

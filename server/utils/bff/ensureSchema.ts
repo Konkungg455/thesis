@@ -15,6 +15,17 @@ export async function ensureBffSchema() {
 
     await dbQuery(async (sql) => {
         await sql`
+            CREATE TABLE IF NOT EXISTS login_lockout (
+                role VARCHAR(20) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                failed_attempts INT NOT NULL DEFAULT 0,
+                locked_until TIMESTAMPTZ NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (role, email)
+            )
+        `;
+
+        await sql`
             CREATE TABLE IF NOT EXISTS consult_chat_timer (
                 id SERIAL PRIMARY KEY,
                 id_account INT NOT NULL,
