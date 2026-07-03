@@ -110,6 +110,7 @@
 <script setup>
 import { ref, onUnmounted } from 'vue'
 import { loadGoogleMaps } from '~/composables/useGoogleMaps'
+import { openGoogleMapsNavigation } from '../../utils/googleMapsLinks'
 
 const { apiUrl } = useApiBase()
 
@@ -144,17 +145,13 @@ const loadPartners = async (userPos = null) => {
 }
 
 const openStoreMaps = (store) => {
-    if (store.google_maps_url) {
-        window.open(store.google_maps_url, '_blank', 'noopener')
-        return
-    }
-    if (store.latitude && store.longitude) {
-        const url = `https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}`
-        window.open(url, '_blank', 'noopener')
-        return
-    }
-    const q = encodeURIComponent(store.store_name + ' ' + (store.address || ''))
-    window.open(`https://www.google.com/maps/search/?api=1&query=${q}`, '_blank', 'noopener')
+    openGoogleMapsNavigation({
+        lat: store.latitude,
+        lng: store.longitude,
+        name: store.store_name,
+        address: store.address,
+        googleMapsUrl: store.google_maps_url,
+    })
 }
 
 const startTimer = () => {
@@ -277,10 +274,8 @@ const handleSearch = async () => {
   }, geoOptions);
 }
 
-// แก้ไขฟังก์ชันนำทางให้ถูกต้อง
 const openMap = (placeId, name) => {
-  const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}&query_place_id=${placeId}`;
-  window.open(url, '_blank');
+    openGoogleMapsNavigation({ placeId, name })
 }
 
 onUnmounted(() => stopTimer())

@@ -61,6 +61,17 @@ function needsCoords(lat, lng) {
     return la === 0 && ln === 0;
 }
 
+function googleMapsSearchUrl(lat, lng) {
+    return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+}
+
+function isBadMapsUrl(url) {
+    const u = String(url || '').trim().toLowerCase();
+    if (!u) return true;
+    if (u.includes('example.test') || u.includes('dummy-store') || u.includes('localhost')) return true;
+    return !(u.includes('google.com/maps') || u.includes('maps.google.com') || u.includes('goo.gl/maps'));
+}
+
 function pickCoords(store) {
     const id = Number(store.id);
     if (ID_COORDS[id]) return ID_COORDS[id];
@@ -115,7 +126,7 @@ try {
         if (!needsCoords(store.latitude, store.longitude)) continue;
 
         const c = pickCoords(store);
-        const maps = `https://maps.google.com/?q=${c.lat},${c.lng}`;
+        const maps = googleMapsSearchUrl(c.lat, c.lng);
         const province = (store.province && store.province !== 'อ่างทอง')
             ? store.province
             : 'กรุงเทพมหานคร';
@@ -154,6 +165,28 @@ try {
             latitude: c.lat,
             longitude: c.lng,
             area: c.label,
+        });
+    }
+
+    const mapsUrlFixed = [];
+    const storesWithCoords = await sql`
+        SELECT id_store_accounts AS id, store_name, latitude, longitude, google_maps_url
+        FROM phamacy_store_details
+        WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+          AND NOT (latitude = 0 AND longitude = 0)
+    `;
+    for (const row of storesWithCoords) {
+        if (!isBadMapsUrl(row.google_maps_url)) continue;
+        const maps = googleMapsSearchUrl(Number(row.latitude), Number(row.longitude));
+        await sql`
+            UPDATE phamacy_store_details
+            SET google_maps_url = ${maps}
+            WHERE id_store_accounts = ${row.id}
+        `;
+        mapsUrlFixed.push({
+            id: row.id,
+            store_name: row.store_name,
+            google_maps_url: maps,
         });
     }
 
@@ -268,6 +301,8 @@ try {
         status: 'success',
         message: 'เติมพิกัดร้านยา + ผูกเภสัชสำเร็จ',
         stores_coords_updated: coordsUpdated.length,
+        maps_url_fixed: mapsUrlFixed.length,
+        maps_url_fixed_sample: mapsUrlFixed.slice(0, 5),
         coords_updated: coordsUpdated,
         stores_with_coords: storeWithCoords,
         pharmacists_total: pharmaTotal,

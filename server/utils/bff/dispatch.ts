@@ -1,5 +1,6 @@
 import type { H3Event } from 'h3';
 import { issueAgoraRtcToken } from '../agora/issueToken';
+import { resolveGoogleMapsSearchUrl } from '../../../utils/googleMapsLinks';
 import {
     handleGetPrescriptionDetail,
     handleSavePrescription,
@@ -758,7 +759,13 @@ async function handleGetNearbyPharmacies(event: H3Event) {
             address: address || 'ไม่ระบุที่อยู่',
             phone: String(row.store_phone || row.personal_phone || '').trim(),
             email: String(row.store_email || row.personal_email || '').trim(),
-            google_maps_url: String(row.google_maps_url || '').trim(),
+            google_maps_url: resolveGoogleMapsSearchUrl({
+                lat: storeLat,
+                lng: storeLng,
+                name,
+                address,
+                googleMapsUrl: String(row.google_maps_url || '').trim(),
+            }),
             latitude: storeLat,
             longitude: storeLng,
             distance,
