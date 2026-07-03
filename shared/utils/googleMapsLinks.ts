@@ -9,7 +9,8 @@ type MapsPoint = {
 
 const GOOGLE_MAPS_SHORT_RE = /^(https?:\/\/)?(maps\.app\.goo\.gl|goo\.gl\/maps)/i;
 
-export function isUsableGoogleMapsUrl(url: string): boolean {    const raw = String(url || '').trim();
+export function isUsableGoogleMapsUrl(url: string): boolean {
+    const raw = String(url || '').trim();
     if (!raw) return false;
     const lower = raw.toLowerCase();
     if (

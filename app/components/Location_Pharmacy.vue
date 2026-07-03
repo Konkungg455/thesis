@@ -110,7 +110,7 @@
 <script setup>
 import { ref, onUnmounted } from 'vue'
 import { loadGoogleMaps } from '~/composables/useGoogleMaps'
-import { openGoogleMapsNavigation } from '../../utils/googleMapsLinks'
+import { openGoogleMapsNavigation } from '#shared/utils/googleMapsLinks'
 
 const { apiUrl } = useApiBase()
 

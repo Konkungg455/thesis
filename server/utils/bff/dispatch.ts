@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3';
 import { issueAgoraRtcToken } from '../agora/issueToken';
-import { resolveGoogleMapsSearchUrl } from '../../../utils/googleMapsLinks';
+import { resolveGoogleMapsSearchUrl } from '#shared/utils/googleMapsLinks';
 import {
     handleGetPrescriptionDetail,
     handleSavePrescription,
