@@ -64,6 +64,7 @@ function mapLiveRow(row: ChatRow) {
         message_id: Number(row.id || row.message_id || 0),
         created_at: createdAt,
         edited_at: row.edited_at ? toIsoTime(row.edited_at) : null,
+        display_time: String(row.display_time || '').trim(),
         is_archived: 0,
         can_modify: canModify,
     };
@@ -80,6 +81,7 @@ function mapArchiveRow(row: ChatRow) {
         file_path: row.file_path,
         created_at: toIsoTime(row.created_at),
         edited_at: row.edited_at ? toIsoTime(row.edited_at) : null,
+        display_time: String(row.display_time || '').trim(),
         id_consult_request: row.id_consult_request,
         service_code: row.service_code,
         is_archived: 1,
@@ -125,7 +127,8 @@ export async function handleChatGet(event: H3Event) {
     const rows = await dbQuery(async (sql) => {
         const liveRows = await sql`
             SELECT *, id AS message_id,
-                   (EXTRACT(EPOCH FROM (NOW() - created_at)) <= ${EDIT_DELETE_WINDOW_SEC}) AS can_modify
+                   (EXTRACT(EPOCH FROM (NOW() - created_at)) <= ${EDIT_DELETE_WINDOW_SEC}) AS can_modify,
+                   TO_CHAR(created_at AT TIME ZONE 'Asia/Bangkok', 'HH24:MI') AS display_time
             FROM chat_messages
             WHERE COALESCE(is_deleted, 0) = 0
               AND (
@@ -143,7 +146,8 @@ export async function handleChatGet(event: H3Event) {
             archiveRows = await sql`
                 SELECT message_id, sender_id, receiver_id, sender_role,
                        message_text, file_path, created_at, edited_at,
-                       id_consult_request, service_code, archive_id
+                       id_consult_request, service_code, archive_id,
+                       TO_CHAR(created_at AT TIME ZONE 'Asia/Bangkok', 'HH24:MI') AS display_time
                 FROM chat_messages_archive
                 WHERE service_code = ${serviceCode}
                   AND COALESCE(is_deleted, 0) = 0
@@ -157,7 +161,8 @@ export async function handleChatGet(event: H3Event) {
             archiveRows = await sql`
                 SELECT message_id, sender_id, receiver_id, sender_role,
                        message_text, file_path, created_at, edited_at,
-                       id_consult_request, service_code, archive_id
+                       id_consult_request, service_code, archive_id,
+                       TO_CHAR(created_at AT TIME ZONE 'Asia/Bangkok', 'HH24:MI') AS display_time
                 FROM chat_messages_archive
                 WHERE id_consult_request = ${consultId}
                   AND COALESCE(is_deleted, 0) = 0

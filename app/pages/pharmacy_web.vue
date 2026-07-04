@@ -1,5 +1,5 @@
 <script setup>
-import { formatChatBubbleTime } from '@/utils/datetime';
+import { formatChatMessageTime } from '@/utils/datetime';
 
 definePageMeta({ middleware: 'pharmacist-only' });
 
@@ -996,6 +996,7 @@ const normalizeChatMessage = (msg) => ({
     ...msg,
     message_id: getMessageId(msg),
     created_at: msg?.created_at ? String(msg.created_at) : '',
+    display_time: msg?.display_time ? String(msg.display_time).trim() : '',
     can_modify: msg?.can_modify === true || msg?.can_modify === 1 || msg?.can_modify === '1',
     is_archived: Number(msg?.is_archived || 0),
 });
@@ -1675,7 +1676,7 @@ const closePreview = () => { isShowPreview.value = false; };
                                     </div>
                                 </template>
 
-                                <div class="time">{{ formatChatBubbleTime(msg.created_at) }}</div>
+                                <div class="time">{{ formatChatMessageTime(msg) }}</div>
                                 </div>
                             </template>
                         </div>
