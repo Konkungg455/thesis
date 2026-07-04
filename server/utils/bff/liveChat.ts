@@ -5,6 +5,8 @@ import { readMultipartRequest } from './formData';
 
 const TIMER_TOTAL = 15 * 60;
 const PRESENCE_GAP_SEC = 15;
+const EDIT_DELETE_WINDOW_MS = 5 * 60 * 1000;
+const EDIT_DELETE_WINDOW_SEC = EDIT_DELETE_WINDOW_MS / 1000;
 
 function resolveChatIdentity(event: H3Event, targetId: number) {
     const auth = getAuthContext(event);
@@ -32,7 +34,12 @@ type ChatRow = Record<string, unknown>;
 function toIsoTime(v: unknown): string {
     if (v == null || v === '') return '';
     if (v instanceof Date) return v.toISOString();
-    const s = String(v);
+    const s = String(v).trim();
+    // timestamp without time zone จาก Postgres → ถือเป็น UTC แล้วแปลงเป็น ISO
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(s) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) {
+        const ms = new Date(`${s.replace(' ', 'T')}Z`).getTime();
+        return Number.isNaN(ms) ? s : new Date(ms).toISOString();
+    }
     const ms = new Date(s).getTime();
     return Number.isNaN(ms) ? s : new Date(ms).toISOString();
 }
@@ -47,12 +54,18 @@ function msgTieBreak(m: ChatRow): number {
 }
 
 function mapLiveRow(row: ChatRow) {
+    const createdAt = toIsoTime(row.created_at);
+    const canModify = row.can_modify === true
+        || row.can_modify === 't'
+        || row.can_modify === 1
+        || row.can_modify === '1';
     return {
         ...row,
         message_id: Number(row.id || row.message_id || 0),
-        created_at: toIsoTime(row.created_at),
+        created_at: createdAt,
         edited_at: row.edited_at ? toIsoTime(row.edited_at) : null,
         is_archived: 0,
+        can_modify: canModify,
     };
 }
 
@@ -70,18 +83,22 @@ function mapArchiveRow(row: ChatRow) {
         id_consult_request: row.id_consult_request,
         service_code: row.service_code,
         is_archived: 1,
+        can_modify: false,
     };
 }
 
 function mergeMessages(live: ChatRow[], archive: ChatRow[]) {
-    const merged: ChatRow[] = [];
-    const seen = new Set<string>();
-    for (const m of [...archive, ...live]) {
+    const byKey = new Map<string, ChatRow>();
+    // ใส่ archive ก่อน แล้วให้ live ทับ (ข้อความสดแก้/ลบได้)
+    for (const m of archive) {
         const key = `${toIsoTime(m.created_at)}|${m.sender_id || ''}|${m.message_text || ''}|${m.file_path || ''}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        merged.push(m);
+        byKey.set(key, m);
     }
+    for (const m of live) {
+        const key = `${toIsoTime(m.created_at)}|${m.sender_id || ''}|${m.message_text || ''}|${m.file_path || ''}`;
+        byKey.set(key, m);
+    }
+    const merged = [...byKey.values()];
     merged.sort((a, b) => {
         const diff = msgSortKey(a) - msgSortKey(b);
         if (diff !== 0) return diff;
@@ -107,7 +124,8 @@ export async function handleChatGet(event: H3Event) {
 
     const rows = await dbQuery(async (sql) => {
         const liveRows = await sql`
-            SELECT *, id AS message_id
+            SELECT *, id AS message_id,
+                   (EXTRACT(EPOCH FROM (NOW() - created_at)) <= ${EDIT_DELETE_WINDOW_SEC}) AS can_modify
             FROM chat_messages
             WHERE COALESCE(is_deleted, 0) = 0
               AND (
@@ -354,28 +372,36 @@ export async function handleChatDelete(event: H3Event) {
         return { status: 'error', message: 'กรุณาเข้าสู่ระบบ' };
     }
 
-    const ok = await dbQuery(async (sql) => {
+    const result = await dbQuery(async (sql) => {
         const rows = await sql`
-            SELECT sender_id, sender_role FROM chat_messages
+            SELECT sender_id, sender_role,
+                   (EXTRACT(EPOCH FROM (NOW() - created_at)) <= ${EDIT_DELETE_WINDOW_SEC}) AS can_modify
+            FROM chat_messages
             WHERE id = ${messageId} AND COALESCE(is_deleted, 0) = 0
             LIMIT 1
         `;
         const msg = rows[0];
-        if (!msg) return false;
+        if (!msg) return { ok: false, reason: 'not_found' as const };
         if (Number(msg.sender_id) !== myId || String(msg.sender_role) !== myRole) {
-            return false;
+            return { ok: false, reason: 'forbidden' as const };
         }
+        if (!msg.can_modify) return { ok: false, reason: 'expired' as const };
         await sql`
             UPDATE chat_messages
             SET is_deleted = 1, deleted_at = NOW(), deleted_by = ${myId}, deleted_by_role = ${myRole}
             WHERE id = ${messageId}
         `;
-        return true;
+        return { ok: true, reason: 'success' as const };
     });
 
-    return ok
-        ? { status: 'success', message: 'ลบออกจากหน้าจอแล้ว และ freeze ข้อความไว้ในฐานข้อมูล' }
-        : { status: 'error', message: 'ไม่พบข้อความ' };
+    if (!result?.ok) {
+        if (result?.reason === 'expired') {
+            return { status: 'error', message: 'ข้อความนี้ส่งเกิน 5 นาทีแล้ว ไม่สามารถลบได้' };
+        }
+        return { status: 'error', message: 'ไม่พบข้อความหรือไม่มีสิทธิ์ลบ' };
+    }
+
+    return { status: 'success', message: 'ลบข้อความเรียบร้อยแล้ว' };
 }
 
 export async function handleChatEdit(event: H3Event) {
@@ -398,26 +424,36 @@ export async function handleChatEdit(event: H3Event) {
         return { status: 'error', message: 'ข้อมูลไม่ครบ' };
     }
 
-    const ok = await dbQuery(async (sql) => {
+    const result = await dbQuery(async (sql) => {
         const rows = await sql`
-            SELECT sender_id, sender_role FROM chat_messages
+            SELECT sender_id, sender_role,
+                   (EXTRACT(EPOCH FROM (NOW() - created_at)) <= ${EDIT_DELETE_WINDOW_SEC}) AS can_modify
+            FROM chat_messages
             WHERE id = ${messageId} AND COALESCE(is_deleted, 0) = 0
             LIMIT 1
         `;
         const msg = rows[0];
-        if (!msg) return false;
+        if (!msg) return { ok: false, reason: 'not_found' as const };
         if (Number(msg.sender_id) !== myId || String(msg.sender_role) !== myRole) {
-            return false;
+            return { ok: false, reason: 'forbidden' as const };
         }
+        if (!msg.can_modify) return { ok: false, reason: 'expired' as const };
         const updated = await sql`
             UPDATE chat_messages
             SET message_text = ${newText}, edited_at = NOW()
             WHERE id = ${messageId} AND COALESCE(is_deleted, 0) = 0
         `;
-        return updated.count > 0;
+        return updated.count > 0
+            ? { ok: true, reason: 'success' as const }
+            : { ok: false, reason: 'not_found' as const };
     });
 
-    return ok
-        ? { status: 'success', message: 'แก้ไขข้อความเรียบร้อยแล้ว' }
-        : { status: 'error', message: 'ไม่พบข้อความ' };
+    if (!result?.ok) {
+        if (result?.reason === 'expired') {
+            return { status: 'error', message: 'ข้อความนี้ส่งเกิน 5 นาทีแล้ว ไม่สามารถแก้ไขได้' };
+        }
+        return { status: 'error', message: 'ไม่พบข้อความหรือไม่มีสิทธิ์แก้ไข' };
+    }
+
+    return { status: 'success', message: 'แก้ไขข้อความเรียบร้อยแล้ว' };
 }

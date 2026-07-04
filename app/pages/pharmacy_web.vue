@@ -1,6 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick, watch, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { formatChatBubbleTime } from '@/utils/datetime';
 
 definePageMeta({ middleware: 'pharmacist-only' });
 
@@ -911,8 +910,9 @@ const fetchMessages = async () => {
         if (normalizePatientId(activePatientId.value) !== pid) return;
 
         if (data) {
-            chatMessages.value = data;
-            const latestMedicineRequest = [...data]
+            const list = Array.isArray(data) ? data.map(normalizeChatMessage) : [];
+            chatMessages.value = list;
+            const latestMedicineRequest = [...list]
                 .reverse()
                 .find((msg) => msg.sender_role === 'user' && msg.message_text === MEDICINE_REQUEST_TEXT);
 
@@ -973,22 +973,80 @@ const handleFileUpload = async (event) => {
 };
 
 // แก้ไข/ลบข้อความได้เฉพาะภายใน 5 นาทีหลังส่ง
+const modifyTick = ref(0);
+let modifyTickTimer = null;
 const EDIT_DELETE_WINDOW_MS = 5 * 60 * 1000;
+const DELETE_CONFIRM_TEXT = 'ลบข้อความนี้ออกจากหน้าจอหรือไม่?\nข้อมูลจริงจะถูก freeze เก็บไว้ในฐานข้อมูล';
+
+const parseChatTimestamp = (v) => {
+    if (v == null || v === '') return NaN;
+    const s = String(v).trim();
+    const candidates = [new Date(s).getTime()];
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) {
+        candidates.push(new Date(`${s.replace(' ', 'T')}Z`).getTime());
+        candidates.push(new Date(`${s.replace(' ', 'T')}+07:00`).getTime());
+    }
+    const valid = candidates.filter((t) => !Number.isNaN(t));
+    return valid.length ? Math.max(...valid) : NaN;
+};
+
+const getMessageId = (msg) => Number(msg?.message_id || msg?.id || 0);
+
+const normalizeChatMessage = (msg) => ({
+    ...msg,
+    message_id: getMessageId(msg),
+    created_at: msg?.created_at ? String(msg.created_at) : '',
+    can_modify: msg?.can_modify === true || msg?.can_modify === 1 || msg?.can_modify === '1',
+    is_archived: Number(msg?.is_archived || 0),
+});
+
+const editingMessageId = ref(null);
+const editingText = ref('');
+
 const canModifyMessage = (msg) => {
-    if (!msg?.created_at) return false;
-    const t = new Date(msg.created_at).getTime();
-    if (Number.isNaN(t)) return false;
-    return (Date.now() - t) <= EDIT_DELETE_WINDOW_MS;
+    void modifyTick.value;
+    if (!msg || Number(msg.is_archived)) return false;
+    if (getMessageId(msg) <= 0) return false;
+    return msg.can_modify === true;
+};
+
+const showMsgActions = (msg) =>
+    !!msg
+    && !msg.__divider
+    && msg.sender_role === 'pharma'
+    && Number(msg.is_archived) === 0
+    && getMessageId(msg) > 0
+    && getMessageId(msg) !== editingMessageId.value
+    && canModifyMessage(msg);
+
+const openMsgActionsId = ref(0);
+const hoveredMsgId = ref(0);
+const isMsgActionsVisible = (msg) => {
+    const id = getMessageId(msg);
+    return id > 0 && (hoveredMsgId.value === id || openMsgActionsId.value === id);
+};
+const onMsgPointerEnter = (msg) => {
+    if (!canModifyMessage(msg)) return;
+    hoveredMsgId.value = getMessageId(msg);
+};
+const onMsgPointerLeave = (msg) => {
+    if (hoveredMsgId.value === getMessageId(msg)) hoveredMsgId.value = 0;
+};
+const onMsgBubbleTap = (msg, ev) => {
+    if (!canModifyMessage(msg)) return;
+    if (ev.target.closest('.msg-act-btn, .msg-edit-box, .msg-image, .pdf-container, a')) return;
+    const id = getMessageId(msg);
+    openMsgActionsId.value = openMsgActionsId.value === id ? 0 : id;
 };
 
 // ===== ลบข้อความ/รูป/ไฟล์ =====
 const deleteMessage = async (msg) => {
-    const messageId = typeof msg === 'object' && msg !== null ? msg.message_id : msg;
+    const messageId = typeof msg === 'object' && msg !== null ? getMessageId(msg) : Number(msg || 0);
     if (typeof msg === 'object' && msg !== null && !canModifyMessage(msg)) {
         alert('ข้อความนี้ส่งเกิน 5 นาทีแล้ว ไม่สามารถลบได้');
         return;
     }
-    if (!confirm('ลบข้อความนี้ออกจากหน้าจอหรือไม่?\nข้อมูลจริงจะถูก freeze เก็บไว้ในฐานข้อมูล')) return;
+    if (!confirm(DELETE_CONFIRM_TEXT)) return;
     try {
         const body = new FormData();
         body.append('message_id', messageId);
@@ -1006,15 +1064,12 @@ const deleteMessage = async (msg) => {
     }
 };
 
-// ===== แก้ไขข้อความ =====
-const editingMessageId = ref(null);
-const editingText = ref('');
 const startEditMessage = (msg) => {
     if (!canModifyMessage(msg)) {
         alert('ข้อความนี้ส่งเกิน 5 นาทีแล้ว ไม่สามารถแก้ไขได้');
         return;
     }
-    editingMessageId.value = msg.message_id;
+    editingMessageId.value = getMessageId(msg);
     editingText.value = msg.message_text || '';
 };
 const cancelEditMessage = () => {
@@ -1023,6 +1078,12 @@ const cancelEditMessage = () => {
 };
 const saveEditMessage = async () => {
     if (!editingMessageId.value) return;
+    const editingMsg = chatMessages.value.find((m) => getMessageId(m) === editingMessageId.value);
+    if (editingMsg && !canModifyMessage(editingMsg)) {
+        alert('ข้อความนี้ส่งเกิน 5 นาทีแล้ว ไม่สามารถแก้ไขได้');
+        cancelEditMessage();
+        return;
+    }
     if (!editingText.value.trim()) {
         alert('ข้อความว่างเปล่า');
         return;
@@ -1204,11 +1265,16 @@ onMounted(async () => {
     // 💓 heartbeat นาฬิกากลางทุก 5 วิ (ส่งเฉพาะตอนเปิดหน้าจออยู่) + เช็คทันทีเมื่อกลับมาที่แท็บ
     chatTimerHeartbeat = setInterval(() => syncChatTimer(), 5000);
     bindChatTimerPageLifecycle();
+
+    modifyTickTimer = setInterval(() => {
+        modifyTick.value += 1;
+    }, 1000);
 });
 
 onBeforeUnmount(() => {
     persistTimerBeforeLeave();
     if (mainTimer) clearInterval(mainTimer);
+    if (modifyTickTimer) clearInterval(modifyTickTimer);
     if (consultInfoPollTimer) clearInterval(consultInfoPollTimer);
     if (chatTimerHeartbeat) clearInterval(chatTimerHeartbeat);
     unbindChatTimerPageLifecycle();
@@ -1542,18 +1608,24 @@ const closePreview = () => { isShowPreview.value = false; };
                                     <span class="divider-line"></span>
                                 </div>
                                 <div v-else
-                                    :class="['message-bubble', msg.sender_role === 'pharma' ? 'doctor' : 'patient']">
+                                    :class="['message-bubble', msg.sender_role === 'pharma' ? 'doctor' : 'patient', {
+                                        'can-modify': showMsgActions(msg),
+                                        'msg-actions-open': isMsgActionsVisible(msg),
+                                    }]"
+                                    @mouseenter="onMsgPointerEnter(msg)"
+                                    @mouseleave="onMsgPointerLeave(msg)"
+                                    @click="onMsgBubbleTap(msg, $event)">
 
-                                <!-- ปุ่มแก้ไข/ลบ — แสดงเฉพาะข้อความของตัวเอง -->
-                                <div v-if="msg.sender_role === 'pharma' && editingMessageId !== msg.message_id && canModifyMessage(msg)"
-                                     class="msg-actions">
-                                    <button v-if="msg.message_text" type="button" class="msg-act-btn"
-                                            @click="startEditMessage(msg)" title="แก้ไขข้อความ">
-                                        <i class="fa-solid fa-pen"></i>
+                                <!-- ปุ่มแก้ไข/ลบ — แสดงเมื่อชี้/แตะข้อความของตัวเอง (ภายใน 5 นาที) -->
+                                <div v-if="showMsgActions(msg)" class="msg-actions-bar">
+                                    <button v-if="String(msg.message_text || '').trim()" type="button"
+                                            class="msg-act-btn edit"
+                                            @click.stop="startEditMessage(msg)" title="แก้ไขข้อความ">
+                                        <span class="msg-act-label">แก้ไข</span>
                                     </button>
                                     <button type="button" class="msg-act-btn delete"
-                                            @click="deleteMessage(msg)" title="ลบ">
-                                        <i class="fa-solid fa-trash"></i>
+                                            @click.stop="deleteMessage(msg)" title="ลบข้อความ">
+                                        <span class="msg-act-label">ลบ</span>
                                     </button>
                                 </div>
 
@@ -1573,7 +1645,7 @@ const closePreview = () => { isShowPreview.value = false; };
                                 </div>
 
                                 <!-- โหมดแก้ไข -->
-                                <div v-if="editingMessageId === msg.message_id" class="msg-edit-box">
+                                <div v-if="getMessageId(msg) === editingMessageId" class="msg-edit-box">
                                     <textarea v-model="editingText" rows="2" class="edit-input"
                                               @keyup.esc="cancelEditMessage"></textarea>
                                     <div class="edit-actions">
@@ -1603,7 +1675,7 @@ const closePreview = () => { isShowPreview.value = false; };
                                     </div>
                                 </template>
 
-                                <div class="time">{{ new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</div>
+                                <div class="time">{{ formatChatBubbleTime(msg.created_at) }}</div>
                                 </div>
                             </template>
                         </div>

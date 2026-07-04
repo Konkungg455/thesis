@@ -6,6 +6,7 @@ import postgres from 'postgres';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveAccountIdByPatientName } from './lib/resolvePatientAccount.mjs';
 
 const DEFAULT_COUNT = 40;
 
@@ -194,6 +195,7 @@ try {
         const med = MEDICINES[i % MEDICINES.length];
         const price = (55 + (i * 41) % 420).toFixed(2);
         const docNo = `RX-${targetPharmaId}-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(i + 1).padStart(3, '0')}`;
+        const patientAccountId = await resolveAccountIdByPatientName(sql, patient);
 
         const [row] = await sql`
             INSERT INTO prescriptions (
@@ -203,7 +205,7 @@ try {
                 doctor_name, created_at, tracking_status, auto_created
             ) VALUES (
                 ${`RX-${String(i + 1).padStart(4, '0')}`},
-                NULL,
+                ${patientAccountId},
                 ${targetPharmaId},
                 ${clinic},
                 'Telebot-pharmacy',

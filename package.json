@@ -17,6 +17,8 @@
     "ngrok:check": "powershell -ExecutionPolicy Bypass -File ./scripts/check-ngrok-n8n.ps1",
     "media:seed": "node scripts/seed-supabase-media.mjs",
     "db:seed-dummy-admins": "node scripts/seed-dummy-pending-admins.mjs",
+    "db:seed-dummy-user-addresses": "node scripts/seed-dummy-user-addresses.mjs",
+    "db:seed-prescription-patient-links": "node scripts/seed-prescription-patient-links.mjs",
     "media:migrate": "node scripts/migrate-media-to-supabase.mjs",
     "db:check": "node scripts/test-db.mjs",
     "db:trim-pending-admins": "node scripts/trim-pending-admins.mjs",

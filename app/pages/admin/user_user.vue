@@ -373,6 +373,34 @@ onMounted(() => {
                   <label>อีเมล *</label>
                   <input type="text" :value="selectedData.email" readonly class="input-readonly">
                 </div>
+
+                <div class="form-group full-width section-head-inline">
+                  <i class="fa-solid fa-location-dot"></i> ที่อยู่จัดส่ง
+                </div>
+                <div class="form-group">
+                  <label>บ้านเลขที่</label>
+                  <input type="text" :value="selectedData.house_no || '-'" readonly class="input-readonly">
+                </div>
+                <div class="form-group">
+                  <label>ถนน</label>
+                  <input type="text" :value="selectedData.road || '-'" readonly class="input-readonly">
+                </div>
+                <div class="form-group">
+                  <label>ตำบล</label>
+                  <input type="text" :value="selectedData.sub_district || '-'" readonly class="input-readonly">
+                </div>
+                <div class="form-group">
+                  <label>อำเภอ</label>
+                  <input type="text" :value="selectedData.district || '-'" readonly class="input-readonly">
+                </div>
+                <div class="form-group">
+                  <label>จังหวัด</label>
+                  <input type="text" :value="selectedData.province || '-'" readonly class="input-readonly">
+                </div>
+                <div class="form-group">
+                  <label>รหัสไปรษณีย์</label>
+                  <input type="text" :value="selectedData.zipcode || '-'" readonly class="input-readonly">
+                </div>
               </div>
             </div>
           </div>
@@ -414,4 +442,15 @@ onMounted(() => {
   background: #be123c;
   border-color: #be123c;
 }
+.section-head-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  font-weight: 700;
+  color: #2B3674;
+}
+.section-head-inline i { color: #4318FF; }
 </style>

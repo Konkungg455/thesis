@@ -36,21 +36,29 @@ export async function handleGetUsers(event: H3Event) {
         const deleted = accountDeletedFilter(sql, deletedMode);
         if (search) {
             return sql`
-                SELECT * FROM account
+                SELECT a.*,
+                       addr.house_no, addr.road, addr.sub_district, addr.district,
+                       addr.province, addr.zipcode
+                FROM account a
+                LEFT JOIN account_address addr ON addr.id_account = a.id_account
                 WHERE ${deleted}
                   AND (
-                    username_account ILIKE ${pattern}
-                    OR firstname ILIKE ${pattern}
-                    OR lastname ILIKE ${pattern}
-                    OR id_account::text = ${search}
+                    a.username_account ILIKE ${pattern}
+                    OR a.firstname ILIKE ${pattern}
+                    OR a.lastname ILIKE ${pattern}
+                    OR a.id_account::text = ${search}
                   )
-                ORDER BY id_account DESC
+                ORDER BY a.id_account DESC
             `;
         }
         return sql`
-            SELECT * FROM account
+            SELECT a.*,
+                   addr.house_no, addr.road, addr.sub_district, addr.district,
+                   addr.province, addr.zipcode
+            FROM account a
+            LEFT JOIN account_address addr ON addr.id_account = a.id_account
             WHERE ${deleted}
-            ORDER BY id_account DESC
+            ORDER BY a.id_account DESC
         `;
     });
 
@@ -1323,6 +1331,12 @@ function mapUserRow(data: Record<string, unknown>) {
         weight: data.weight,
         phone: data.phone_number,
         personal_disease: data.personal_disease,
+        house_no: data.house_no ?? '',
+        road: data.road ?? '',
+        sub_district: data.sub_district ?? '',
+        district: data.district ?? '',
+        province: data.province ?? '',
+        zipcode: data.zipcode ?? '',
         image: data.images_account ? data.images_account : 'default.png',
         is_deleted: Number(data.is_deleted || 0),
         deleted_at: data.deleted_at ?? null,

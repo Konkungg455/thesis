@@ -500,6 +500,73 @@ html.dark .mobile-title {
     position: relative;
 }
 .message-bubble:hover .msg-actions { opacity: 1; pointer-events: auto; }
+.message-bubble.can-modify .msg-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* แถบปุ่มแก้ไข/ลบ — อยู่ในกรอบบับเบิล ไม่โดน overflow ตัด */
+.msg-actions-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.28);
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: max-height 0.18s ease, opacity 0.15s ease, margin 0.18s ease, padding 0.18s ease;
+}
+.message-bubble.can-modify:hover .msg-actions-bar,
+.message-bubble.can-modify.msg-actions-open .msg-actions-bar {
+    max-height: 48px;
+    opacity: 1;
+    pointer-events: auto;
+}
+.pharma .msg-actions-bar,
+.message-bubble.patient .msg-actions-bar {
+    border-bottom-color: rgba(15, 23, 42, 0.1);
+}
+.message-bubble.can-modify {
+    padding-top: 10px;
+}
+
+.msg-act-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 30px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.14);
+    cursor: pointer;
+    font-size: 0.76rem;
+    font-weight: 700;
+    line-height: 1.2;
+    transition: transform 0.15s, background 0.15s, color 0.15s;
+}
+.msg-act-label {
+    display: inline-block;
+    white-space: nowrap;
+}
+.msg-act-btn.edit { color: #1d4ed8; }
+.msg-act-btn.delete { color: #b91c1c; }
+.msg-act-btn:hover { transform: translateY(-1px); }
+.msg-act-btn.edit:hover { background: #eff6ff; }
+.msg-act-btn.delete:hover { background: #fef2f2; }
+.me .msg-act-btn,
+.message-bubble.doctor .msg-act-btn {
+    background: #ffffff;
+    border-color: rgba(255, 255, 255, 0.85);
+}
+
 .msg-actions {
     position: absolute;
     top: -10px;
@@ -516,22 +583,6 @@ html.dark .mobile-title {
     transition: opacity 0.15s;
     z-index: 2;
 }
-.msg-act-btn {
-    background: transparent;
-    border: none;
-    color: #475569;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 0.72rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s, color 0.15s;
-}
-.msg-act-btn:hover { background: #f1f5f9; color: #00469c; }
-.msg-act-btn.delete:hover { background: #fee2e2; color: #b91c1c; }
 
 .edited-mark {
     font-size: 0.7rem;
