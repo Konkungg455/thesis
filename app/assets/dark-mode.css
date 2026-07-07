@@ -360,7 +360,7 @@ html.dark table {
 }
 
 html.dark .card,
-html.dark [class*="card"],
+html.dark [class*="card"]:not([class*="card-top"]):not([class*="card-body"]),
 html.dark [class*="panel"],
 html.dark [class*="modal"],
 html.dark [class*="dialog"],
@@ -3621,6 +3621,14 @@ html.dark body #__nuxt .admin-layout .overview-view .stat-footnote {
 
 html.dark body #__nuxt .admin-layout .overview-view .stat-footnote.light {
   color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .stat-card-top,
+html.dark body #__nuxt .admin-layout .overview-view .stat-label {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 html.dark body #__nuxt .admin-layout .overview-view .main-stat {
