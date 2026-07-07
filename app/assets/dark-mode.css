@@ -1339,6 +1339,7 @@ html.dark body #__nuxt .tele-section .tele-heading__text {
   background: none !important;
   -webkit-background-clip: unset !important;
   background-clip: unset !important;
+  -webkit-text-fill-color: #f8fafc !important;
   color: #f8fafc !important;
 }
 
@@ -1358,19 +1359,19 @@ html.dark body #__nuxt .tele-section .tele-brand::after {
 }
 
 html.dark body #__nuxt .tele-section .step {
-  background: #111827 !important;
-  border-color: rgba(125, 211, 252, 0.28) !important;
-  color: #e2e8f0 !important;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28) !important;
+  background: #ffffff !important;
+  border-color: #e4eefb !important;
+  color: #0d47a1 !important;
+  box-shadow: 0 8px 22px rgba(13, 71, 161, 0.08) !important;
 }
 
 html.dark body #__nuxt .tele-section .step:hover {
-  border-color: rgba(125, 211, 252, 0.45) !important;
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.36) !important;
+  border-color: #bcdcff !important;
+  box-shadow: 0 16px 34px rgba(13, 71, 161, 0.15) !important;
 }
 
 html.dark body #__nuxt .tele-section .step p {
-  color: #e2e8f0 !important;
+  color: #0d47a1 !important;
 }
 
 /* Pharmacist workspace pages */
@@ -2578,6 +2579,26 @@ html.dark body #__nuxt .presc-search > i {
   color: #94a3b8 !important;
 }
 
+html.dark body #__nuxt .mgmt-search-topic {
+  background: linear-gradient(135deg, #0b1437 0%, #1e3a8a 100%) !important;
+  border-color: rgba(56, 189, 248, 0.28) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28) !important;
+}
+
+html.dark body #__nuxt .mgmt-search-topic > i {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+html.dark body #__nuxt .mgmt-search-topic select {
+  color: #f8fafc !important;
+  background-color: transparent !important;
+}
+
+html.dark body #__nuxt .mgmt-search-topic select option {
+  color: #0f172a !important;
+  background: #fff !important;
+}
+
 html.dark body #__nuxt .mgmt-hero-title,
 html.dark body #__nuxt .mgmt-card-name,
 html.dark body #__nuxt .mgmt-card-name span,
@@ -2760,6 +2781,20 @@ html.dark body #__nuxt .date-cell {
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .date-cell span {
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .symptom-cell,
+html.dark body #__nuxt .symptom-cell span {
+  color: #99f6e4 !important;
+}
+
+html.dark body #__nuxt .symptom-cell i {
+  color: #2dd4bf !important;
 }
 
 html.dark body #__nuxt .date-cell i,
@@ -3490,9 +3525,59 @@ html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-value
 }
 
 html.dark body #__nuxt .modal-overlay .service-detail-card .service-close-x {
-  background: #e2e8f0 !important;
-  border: 1px solid rgba(255, 255, 255, 0.75) !important;
-  color: #334155 !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-body {
+  background: #0f172a !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-hero {
+  background: linear-gradient(135deg, #1e293b 0%, #172554 100%) !important;
+  border: 1px solid rgba(125, 211, 252, 0.3) !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-hero .service-detail-label {
+  color: #93c5fd !important;
+  opacity: 1 !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-hero-text strong {
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-status.service-status-badge.status-completed {
+  background: rgba(22, 163, 74, 0.42) !important;
+  border-color: rgba(74, 222, 128, 0.6) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-status.service-status-badge.status-pending {
+  background: rgba(217, 119, 6, 0.42) !important;
+  border-color: rgba(251, 191, 36, 0.6) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-status.service-status-badge.status-in_progress {
+  background: rgba(2, 132, 199, 0.42) !important;
+  border-color: rgba(56, 189, 248, 0.6) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-status.service-status-badge.status-cancelled {
+  background: rgba(220, 38, 38, 0.42) !important;
+  border-color: rgba(248, 113, 113, 0.6) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-status i {
+  color: inherit !important;
+}
+
+html.dark body #__nuxt .modal-overlay .service-detail-card .service-detail-value.mono {
+  color: #c4b5fd !important;
 }
 
 /* Admin overview — dark mode: hero + พื้นหลัง + contrast อ่านง่าย */
@@ -3541,19 +3626,65 @@ html.dark body #__nuxt .admin-layout .overview-view .stat-footnote.light {
 html.dark body #__nuxt .admin-layout .overview-view .dark-stat {
   background: linear-gradient(135deg, #0b1437 0%, #1e40af 100%) !important;
   border-color: rgba(96, 165, 250, 0.35) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .main-stat {
+  background: linear-gradient(180deg, #1e293b 0%, #172554 100%) !important;
+  border-color: rgba(96, 165, 250, 0.32) !important;
+  color: #f8fafc !important;
 }
 
 html.dark body #__nuxt .admin-layout .overview-view .accent-stat {
   background: linear-gradient(135deg, #1e1b4b 0%, #312e81 55%, #1e3a8a 100%) !important;
   border-color: rgba(129, 140, 248, 0.35) !important;
+  color: #e0e7ff !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .teal-stat {
+  background: linear-gradient(135deg, #042f2e 0%, #115e59 55%, #0f766e 100%) !important;
+  border-color: rgba(45, 212, 191, 0.35) !important;
+  color: #ccfbf1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .amber-stat {
+  background: linear-gradient(135deg, #451a03 0%, #92400e 55%, #b45309 100%) !important;
+  border-color: rgba(251, 191, 36, 0.38) !important;
+  color: #fef3c7 !important;
 }
 
 html.dark body #__nuxt .admin-layout .overview-view .accent-stat .stat-value {
   color: #e0e7ff !important;
 }
 
+html.dark body #__nuxt .admin-layout .overview-view .teal-stat .stat-value {
+  color: #99f6e4 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .amber-stat .stat-value {
+  color: #fef08a !important;
+}
+
 html.dark body #__nuxt .admin-layout .overview-view .accent-stat .stat-footnote {
   color: #a5b4fc !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .teal-stat .stat-footnote {
+  color: #5eead4 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .amber-stat .stat-footnote {
+  color: #fde68a !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .stat-icon-teal {
+  background: rgba(45, 212, 191, 0.2) !important;
+  color: #5eead4 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .stat-icon-amber {
+  background: rgba(251, 191, 36, 0.22) !important;
+  color: #fde68a !important;
 }
 
 html.dark body #__nuxt .admin-layout .overview-view .stat-icon-users {
@@ -3630,7 +3761,6 @@ html.dark body #__nuxt .admin-layout .overview-view .chart-period-select option 
 }
 
 /* Final override: admin overview contrast */
-html.dark body #__nuxt .admin-layout .overview-view .stat-card,
 html.dark body #__nuxt .admin-layout .overview-view .chart-card,
 html.dark body #__nuxt .admin-layout .overview-view .top-list-card {
   background: #111827 !important;
@@ -3678,11 +3808,56 @@ html.dark body #__nuxt .admin-layout .overview-view .rank-name strong {
 }
 
 html.dark body #__nuxt .admin-layout .overview-view .rank-count {
-  color: #fef3c7 !important;
-  font-weight: 900 !important;
+  color: #e0e7ff !important;
+  font-weight: 800 !important;
+  background: rgba(129, 140, 248, 0.22) !important;
+  border: 1px solid rgba(129, 140, 248, 0.38) !important;
 }
 
-html.dark body #__nuxt .admin-layout .overview-view .rank-profile small,
+html.dark body #__nuxt .admin-layout .overview-view .rank-row-gold .rank-count {
+  color: #fef3c7 !important;
+  background: rgba(251, 191, 36, 0.22) !important;
+  border-color: rgba(251, 191, 36, 0.45) !important;
+}
+
 html.dark body #__nuxt .admin-layout .overview-view .rank-name small {
   color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-pharma-line {
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-row-gold .rank-pharma-line {
+  background: rgba(251, 191, 36, 0.12) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-pharma-name {
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-pharma-count {
+  color: #e0e7ff !important;
+  background: rgba(129, 140, 248, 0.28) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-row-gold .rank-pharma-count {
+  color: #fef3c7 !important;
+  background: rgba(251, 191, 36, 0.28) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-progress {
+  background: rgba(148, 163, 184, 0.32) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-progress-fill {
+  background: linear-gradient(90deg, #6366f1 0%, #a78bfa 100%) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-row-gold .rank-progress-fill {
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-store-icon {
+  color: #c4b5fd !important;
 }

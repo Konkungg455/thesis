@@ -1,5 +1,5 @@
 /**
- * ตั้งประวัติใบสั่งยา (/history) ของเภสัชกรให้มี N รายการที่แสดงได้จริง (auto_created = 0)
+ * ตั้งประวัติใบสรุปรายการยา (/history) ของเภสัชกรให้มี N รายการที่แสดงได้จริง (auto_created = 0)
  * ใช้: npm run db:seed-pharma-history -- --pharma-name="นายสมชาย รักงาม" --count=40
  */
 import postgres from 'postgres';

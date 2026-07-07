@@ -355,7 +355,7 @@ const submit = async () => {
                 <div class="auth-field full payment-section">
                     <label>
                         ช่องทางชำระเงิน
-                        <small style="color:#94a3b8;">(ไม่บังคับ — ใช้แนบไปกับอีเมลใบสั่งยา)</small>
+                        <small style="color:#94a3b8;">(ไม่บังคับ — ใช้แนบไปกับอีเมลใบสรุปรายการยา)</small>
                     </label>
                     <input v-model="form.bank_name" type="text" placeholder="ธนาคาร เช่น กสิกรไทย / ไทยพาณิชย์" />
                     <input v-model="form.bank_account_name" type="text" placeholder="ชื่อบัญชี" />
@@ -366,7 +366,7 @@ const submit = async () => {
                     <input type="file" accept="image/*" @change="onQrPaymentChange" />
                     <small style="display:block;color:#64748b;margin-top:6px;font-size:12px;line-height:1.5;">
                         <i class="fa-solid fa-circle-info"></i>
-                        ถ้าอัปโหลด QR Payment ระบบจะแนบรูปนี้ไปกับอีเมลใบสั่งยาให้ผู้ใช้งาน
+                        ถ้าอัปโหลด QR Payment ระบบจะแนบรูปนี้ไปกับอีเมลใบสรุปรายการยาให้ผู้ใช้งาน
                     </small>
                 </div>
 

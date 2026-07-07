@@ -1,10 +1,13 @@
 <script setup>
 /**
- * 🚩 /admin/prescriptions_admin — ติดตามการบันทึกใบสั่งยา PDF
+ * 🚩 /admin/prescriptions_admin — ติดตามการบันทึกใบสรุปรายการยา PDF
  */
 import { ref, computed, onMounted, watch } from 'vue'
+import { formatMedDetailsWithQty } from '@/utils/prescription'
 
 definePageMeta({ middleware: 'admin-only' })
+
+const formatMedSummary = (item) => formatMedDetailsWithQty(item?.med_details, item?.med_qty)
 
 const historyData = ref([])
 const searchQuery = ref('')
@@ -33,7 +36,9 @@ const filteredList = computed(() => {
     item.pharmacist_name?.toLowerCase().includes(q) ||
     item.doctor_name?.toLowerCase().includes(q) ||
     item.pharmacist_username?.toLowerCase().includes(q) ||
-    item.med_details?.toLowerCase().includes(q)
+    item.med_details?.toLowerCase().includes(q) ||
+    item.med_qty?.toLowerCase().includes(q) ||
+    formatMedSummary(item).toLowerCase().includes(q)
   )
 })
 
@@ -86,8 +91,8 @@ onMounted(() => {
               <i class="fa-solid fa-file-prescription"></i>
             </div>
             <div>
-              <h2 class="presc-hero-title">ติดตามการบันทึกยา PDF</h2>
-              <p class="presc-hero-subtitle">ดูประวัติการบันทึกใบสั่งยาของเภสัชกรทุกท่านในระบบ</p>
+              <h2 class="presc-hero-title">ติดตามใบสรุปรายการยา PDF</h2>
+              <p class="presc-hero-subtitle">ดูประวัติการบันทึกใบสรุปรายการยาของเภสัชกรทุกท่านในระบบ</p>
             </div>
           </div>
           <div class="presc-hero-stats">
@@ -109,7 +114,7 @@ onMounted(() => {
           <div class="presc-search">
             <i class="fa-solid fa-magnifying-glass"></i>
             <input type="text" v-model="searchQuery"
-              placeholder="ค้นหาชื่อผู้ป่วย / HN / ชื่อเภสัชกร / ชื่อยา...">
+              placeholder="ค้นหาชื่อผู้ใช้บริการ / ชื่อเภสัชกร / ชื่อยา...">
             <button v-if="searchQuery" class="presc-search-clear" @click="searchQuery = ''" title="ล้างคำค้น">
               <i class="fa-solid fa-xmark"></i>
             </button>
@@ -122,15 +127,15 @@ onMounted(() => {
         <!-- ===== Table ===== -->
         <div v-if="isLoading" class="presc-loading">
           <i class="fa-solid fa-spinner fa-spin"></i>
-          <span>กำลังโหลดข้อมูลใบสั่งยา...</span>
+          <span>กำลังโหลดข้อมูลใบสรุปรายการยา...</span>
         </div>
 
         <div v-else-if="filteredList.length === 0" class="presc-empty">
           <div class="presc-empty-icon">
             <i class="fa-solid fa-folder-open"></i>
           </div>
-          <h3>{{ searchQuery ? 'ไม่พบรายการที่ตรงกับคำค้น' : 'ยังไม่มีประวัติการบันทึกใบสั่งยา' }}</h3>
-          <p>{{ searchQuery ? 'ลองเปลี่ยนคำค้นใหม่ หรือเคลียร์คำค้นเพื่อดูรายการทั้งหมด' : 'เมื่อเภสัชกรบันทึกใบสั่งยา รายการจะปรากฏที่นี่' }}</p>
+          <h3>{{ searchQuery ? 'ไม่พบรายการที่ตรงกับคำค้น' : 'ยังไม่มีประวัติการบันทึกใบสรุปรายการยา' }}</h3>
+          <p>{{ searchQuery ? 'ลองเปลี่ยนคำค้นใหม่ หรือเคลียร์คำค้นเพื่อดูรายการทั้งหมด' : 'เมื่อเภสัชกรบันทึกใบสรุปรายการยา รายการจะปรากฏที่นี่' }}</p>
         </div>
 
         <div v-else class="presc-table-card">
@@ -139,7 +144,7 @@ onMounted(() => {
               <tr>
                 <th class="th-no">ลำดับ</th>
                 <th>วันที่ - เวลา</th>
-                <th>ผู้ป่วย (HN)</th>
+                <th>ผู้ใช้บริการ</th>
                 <th>รายการยา</th>
                 <th>อาการป่วย</th>
                 <th>เภสัชกรผู้บันทึก</th>
@@ -160,16 +165,12 @@ onMounted(() => {
                 <td>
                   <div class="patient-cell">
                     <strong>{{ item.patient_full_name || item.patient_name || '-' }}</strong>
-                    <small>
-                      <i class="fa-solid fa-id-card-clip"></i>
-                      HN: {{ item.hn_no || '-' }}
-                    </small>
                   </div>
                 </td>
                 <td>
-                  <div class="med-cell" :title="item.med_details">
+                  <div class="med-cell" :title="formatMedSummary(item)">
                     <i class="fa-solid fa-pills"></i>
-                    <span>{{ item.med_details || '-' }}</span>
+                    <span>{{ formatMedSummary(item) || '-' }}</span>
                   </div>
                 </td>
                 <td>
@@ -195,9 +196,9 @@ onMounted(() => {
                   </div>
                 </td>
                 <td class="td-action">
-                  <button @click="viewPDF(item.id)" class="btn-view-pdf" title="เปิดดูใบสั่งยา PDF">
+                  <button @click="viewPDF(item.id)" class="btn-view-pdf" title="เปิดดูใบสรุปรายการยา PDF">
                     <i class="fa-solid fa-file-pdf"></i>
-                    ดูใบสั่งยา
+                    ดูใบสรุปรายการยา
                   </button>
                 </td>
               </tr>

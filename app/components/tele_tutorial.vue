@@ -13,7 +13,7 @@
                 </span>
             </h1>
             <p class="subtitle">
-                ของ <span class="tele-brand">Telebotpharcy</span>
+                ของ <span class="tele-brand">Telebotpharmacy</span>
             </p>
 
             <div class="steps">

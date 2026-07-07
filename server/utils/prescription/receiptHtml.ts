@@ -116,7 +116,7 @@ function buildPrescriptionLineRowsHtml(d: PrescriptionRow, maxRows: number): str
         const name = String(names[i] ?? '').trim();
         const qu = qtyUnits[i] ?? '';
         const total = String(prices[i] ?? '').trim();
-        const [qty = '', unit = ''] = String(qu).split('|', 2).map((s) => s.trim());
+        const [qty = ''] = String(qu).split('|', 2).map((s) => s.trim());
         const totalNum = rxParseNum(total);
         const qtyNum = rxParseNum(qty);
         const unitPrice = qtyNum > 0 && totalNum > 0 ? totalNum / qtyNum : 0;
@@ -125,7 +125,6 @@ function buildPrescriptionLineRowsHtml(d: PrescriptionRow, maxRows: number): str
             + `<td class="text-center">${i + 1}</td>`
             + `<td>${name !== '' ? rxEsc(name) : '-'}</td>`
             + `<td class="text-center">${qty !== '' ? rxEsc(qty) : '-'}</td>`
-            + `<td class="text-center">${unit !== '' ? rxEsc(unit) : '-'}</td>`
             + `<td class="text-right">${unitPrice > 0 ? unitPrice.toFixed(2) : '0.00'}</td>`
             + `<td class="text-right">${totalNum > 0 ? totalNum.toFixed(2) : '0.00'}</td>`
             + '</tr>';
@@ -216,7 +215,6 @@ function buildPrescriptionReceiptInnerHtml(d: PrescriptionRow, amounts: ReturnTy
         <th class="col-no">ลำดับ</th>
         <th class="col-name">รายการ</th>
         <th class="col-qty">จำนวน</th>
-        <th class="col-unit">หน่วย</th>
         <th class="col-price">ราคาต่อหน่วย</th>
         <th class="col-total">ราคารวม</th>
       </tr>

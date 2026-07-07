@@ -10,6 +10,7 @@ const { apiUrl } = useApiBase()
 
 const allData = ref([])
 const searchQuery = ref('')
+const searchTopic = ref('all')
 const isLoading = ref(false)
 const selectedData = ref(null)
 const showModal = ref(false)
@@ -38,6 +39,32 @@ const tabMeta = {
   placeholder: 'ค้นหาชื่อเภสัชกร / username...',
 }
 
+const SEARCH_TOPICS = [
+  { value: 'all', label: 'ทุกหัวข้อ', placeholder: 'ค้นหาชื่อเภสัชกร / username / อีเมล / เบอร์โทร / ร้านยา...' },
+  { value: 'name', label: 'ชื่อ-นามสกุล', placeholder: 'ค้นหาชื่อหรือนามสกุลเภสัชกร...' },
+  { value: 'username', label: 'Username', placeholder: 'ค้นหา username เภสัชกร...' },
+  { value: 'email', label: 'อีเมล', placeholder: 'ค้นหาอีเมลเภสัชกร...' },
+  { value: 'phone', label: 'เบอร์โทร', placeholder: 'ค้นหาเบอร์โทรเภสัชกร...' },
+  { value: 'store', label: 'ร้านยา', placeholder: 'ค้นหาชื่อร้านยาเภสัช...' },
+]
+
+const searchPlaceholder = computed(() =>
+  SEARCH_TOPICS.find((t) => t.value === searchTopic.value)?.placeholder || tabMeta.placeholder,
+)
+
+const matchesSearch = (item, q, topic) => {
+  const fields = {
+    all: [item.username, item.firstname, item.lastname, item.email, item.phone, item.store_name],
+    name: [`${item.firstname || ''} ${item.lastname || ''}`.trim()],
+    username: [item.username],
+    email: [item.email],
+    phone: [item.phone],
+    store: [item.store_name, item.work_place],
+  }
+  const list = fields[topic] || fields.all
+  return list.some((v) => String(v || '').toLowerCase().includes(q))
+}
+
 const handleFetch = async () => {
   isLoading.value = true
   try {
@@ -61,11 +88,7 @@ const handleFetch = async () => {
 const filteredList = computed(() => {
   const q = searchQuery.value.toLowerCase().trim()
   if (!q) return allData.value
-  return allData.value.filter(item =>
-    item.username?.toLowerCase().includes(q) ||
-    item.firstname?.toLowerCase().includes(q) ||
-    item.lastname?.toLowerCase().includes(q)
-  )
+  return allData.value.filter((item) => matchesSearch(item, q, searchTopic.value))
 })
 
 const {
@@ -81,7 +104,7 @@ const {
   resetPage,
 } = useTablePagination(filteredList)
 
-watch([searchQuery, deletedFilter], () => resetPage())
+watch([searchQuery, searchTopic, deletedFilter], () => resetPage())
 watch(deletedFilter, () => handleFetch())
 
 const openDetail = (item) => {
@@ -209,12 +232,22 @@ onMounted(() => {
 
         <!-- ===== Search ===== -->
         <div class="mgmt-search-wrap">
-          <div class="mgmt-search">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" v-model="searchQuery" :placeholder="tabMeta.placeholder">
-            <button v-if="searchQuery" class="mgmt-search-clear" @click="searchQuery = ''" title="ล้างคำค้น">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
+          <div class="mgmt-search-row">
+            <div class="mgmt-search">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" v-model="searchQuery" :placeholder="searchPlaceholder">
+              <button v-if="searchQuery" class="mgmt-search-clear" @click="searchQuery = ''" title="ล้างคำค้น">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div class="mgmt-search-topic">
+              <i class="fa-solid fa-filter" aria-hidden="true"></i>
+              <select v-model="searchTopic" aria-label="หัวข้อที่ต้องการค้นหา">
+                <option v-for="opt in SEARCH_TOPICS" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
           </div>
           <div v-if="searchQuery" class="mgmt-search-hint">
             พบ <strong>{{ filteredList.length }}</strong> รายการจากคำค้น "{{ searchQuery }}"

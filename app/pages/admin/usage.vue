@@ -16,6 +16,7 @@ const selectedService = ref(null)
 const showServiceModal = ref(false)
 const serviceTypeFilter = ref('all')
 const searchQuery = ref('')
+const searchTopic = ref('all')
 const isLoading = ref(false)
 const fetchError = ref('')
 const highlightCode = ref('')
@@ -25,13 +26,55 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 100]
 const pageSize = ref(20)
 const currentPage = ref(1)
 
-const SERVICE_TYPE_LABEL = { normal: 'ทั่วไป', gold_card: 'บัตรทอง' }
-const SERVICE_FORMAT_LABEL = { online: 'ออนไลน์', in_store: 'ที่ร้าน' }
 const SERVICE_STATUS_LABEL = {
   completed: 'รับบริการแล้ว',
   in_progress: 'กำลังให้บริการ',
   pending: 'รอรับบริการ',
   cancelled: 'ยกเลิกบริการ',
+}
+
+const getPharmacyStoreName = (item) => {
+  const name = String(item?.store_name || item?.work_place || '').trim()
+  return name || 'ยังไม่ระบุร้านยา'
+}
+
+const getPharmacistDisplayName = (item) => {
+  const raw = String(item?.pharmacist_name || '').trim()
+  if (!raw) return '-'
+  if (/^เภสัช\s*#/i.test(raw)) return raw
+  const name = raw.replace(/^ภก\.\s*/, '').trim()
+  return name ? `ภก. ${name}` : '-'
+}
+
+const SEARCH_TOPICS = [
+  { value: 'all', label: 'ทุกหัวข้อ', placeholder: 'ค้นหาการใช้บริการ ชื่อผู้ใช้ รหัสบริการ ชื่อเภสัช หรือร้านยาเภสัช...' },
+  { value: 'user', label: 'ผู้ใช้บริการ', placeholder: 'ค้นหาชื่อผู้ใช้บริการ...' },
+  { value: 'code', label: 'รหัสบริการ', placeholder: 'ค้นหารหัสบริการ เช่น SRV-001...' },
+  { value: 'pharma', label: 'เภสัช', placeholder: 'ค้นหาชื่อเภสัชกร...' },
+  { value: 'store', label: 'ร้านยาเภสัช', placeholder: 'ค้นหาชื่อร้านยาเภสัช...' },
+]
+
+const searchPlaceholder = computed(() =>
+  SEARCH_TOPICS.find((t) => t.value === searchTopic.value)?.placeholder
+  || SEARCH_TOPICS[0].placeholder,
+)
+
+const matchesSearch = (item, q, topic) => {
+  const fields = {
+    all: [
+      item.user_name,
+      item.service_code,
+      item.pharmacist_name,
+      getPharmacistDisplayName(item),
+      getPharmacyStoreName(item),
+    ],
+    user: [item.user_name],
+    code: [item.service_code],
+    pharma: [item.pharmacist_name, getPharmacistDisplayName(item)],
+    store: [item.store_name, item.work_place, getPharmacyStoreName(item)],
+  }
+  const list = fields[topic] || fields.all
+  return list.some((v) => String(v || '').toLowerCase().includes(q))
 }
 
 const handleFetch = async () => {
@@ -71,13 +114,7 @@ const filteredList = computed(() => {
   }
   const q = searchQuery.value.toLowerCase().trim()
   if (!q) return list
-  return list.filter(item =>
-    item.user_name?.toLowerCase().includes(q) ||
-    item.service_code?.toLowerCase().includes(q) ||
-    item.pharmacist_name?.toLowerCase().includes(q) ||
-    (SERVICE_TYPE_LABEL[item.service_type] || '').toLowerCase().includes(q) ||
-    (SERVICE_FORMAT_LABEL[item.service_format] || '').toLowerCase().includes(q)
-  )
+  return list.filter(item => matchesSearch(item, q, searchTopic.value))
 })
 
 // ===== Pagination derivatives =====
@@ -128,7 +165,7 @@ const goPrev = () => goToPage(currentPage.value - 1)
 const goNext = () => goToPage(currentPage.value + 1)
 
 // ถ้าตัวกรอง/ค้นหา/ขนาดหน้าเปลี่ยน ให้รีเซ็ตกลับหน้า 1
-watch([searchQuery, serviceTypeFilter, pageSize], () => {
+watch([searchQuery, searchTopic, serviceTypeFilter, pageSize], () => {
   currentPage.value = 1
 })
 
@@ -209,13 +246,22 @@ onMounted(async () => {
 
         <!-- ===== Search + Filter ===== -->
         <div class="mgmt-search-wrap">
-          <div class="mgmt-search">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" v-model="searchQuery"
-              placeholder="ค้นหาการใช้บริการ ชื่อผู้ใช้ รหัสบริการ หรือประเภท...">
-            <button v-if="searchQuery" class="mgmt-search-clear" @click="searchQuery = ''" title="ล้างคำค้น">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
+          <div class="mgmt-search-row">
+            <div class="mgmt-search">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" v-model="searchQuery" :placeholder="searchPlaceholder">
+              <button v-if="searchQuery" class="mgmt-search-clear" @click="searchQuery = ''" title="ล้างคำค้น">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div class="mgmt-search-topic">
+              <i class="fa-solid fa-filter" aria-hidden="true"></i>
+              <select v-model="searchTopic" aria-label="หัวข้อที่ต้องการค้นหา">
+                <option v-for="opt in SEARCH_TOPICS" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
           </div>
           <div v-if="searchQuery" class="mgmt-search-hint">
             พบ <strong>{{ filteredList.length }}</strong> รายการจากคำค้น "{{ searchQuery }}"
@@ -241,7 +287,7 @@ onMounted(async () => {
               <i :class="searchQuery ? 'fa-solid fa-search' : 'fa-solid fa-folder-open'"></i>
             </div>
             <h3>{{ searchQuery ? 'ไม่พบข้อมูลที่ตรงกับคำค้น' : (fetchError || 'ยังไม่มีรายการให้บริการ') }}</h3>
-            <p>{{ searchQuery ? 'ลองเปลี่ยนคำค้น หรือเปลี่ยนตัวกรองประเภท' : (fetchError ? 'ตรวจสอบ session admin และการเชื่อมต่อ Supabase' : 'เมื่อมีผู้ใช้จองปรึกษาเภสัชกร รายการจะมาจากตาราง consult_requests') }}</p>
+            <p>{{ searchQuery ? 'ลองเปลี่ยนคำค้นใหม่' : (fetchError ? 'ตรวจสอบ session admin และการเชื่อมต่อ Supabase' : 'เมื่อมีผู้ใช้จองปรึกษาเภสัชกร ระบบจะบันทึกลงตาราง service_usage อัตโนมัติ') }}</p>
           </div>
 
           <!-- ===== Header (เฉพาะจอใหญ่) ===== -->
@@ -252,14 +298,11 @@ onMounted(async () => {
             <div class="service-th th-code">
               <i class="fa-solid fa-barcode"></i> รหัสบริการ
             </div>
-            <div class="service-th th-type">
-              <i class="fa-solid fa-tag"></i> ประเภท
-            </div>
             <div class="service-th th-pharma">
-              <i class="fa-solid fa-user-doctor"></i> เภสัชกร
+              <i class="fa-solid fa-user-doctor"></i> เภสัช
             </div>
-            <div class="service-th th-format">
-              <i class="fa-solid fa-display"></i> รูปแบบ
+            <div class="service-th th-store">
+              <i class="fa-solid fa-store"></i> ร้านยาเภสัช
             </div>
             <div class="service-th th-action">
               จัดการ
@@ -282,21 +325,14 @@ onMounted(async () => {
                 <span class="service-cell-value mono">{{ item.service_code }}</span>
               </div>
               <div class="service-col">
-                <span class="service-cell-label">ประเภท</span>
-                <span class="service-type-badge" :class="`type-${item.service_type}`">
-                  <i :class="item.service_type === 'gold_card' ? 'fa-solid fa-id-card' : 'fa-solid fa-user-tag'"></i>
-                  {{ SERVICE_TYPE_LABEL[item.service_type] }}
-                </span>
+                <span class="service-cell-label">เภสัช</span>
+                <span class="service-cell-value">{{ getPharmacistDisplayName(item) }}</span>
               </div>
-              <div class="service-col">
-                <span class="service-cell-label">เภสัชกร</span>
-                <span class="service-cell-value">{{ item.pharmacist_name }}</span>
-              </div>
-              <div class="service-col">
-                <span class="service-cell-label">รูปแบบ</span>
-                <span class="service-format-badge" :class="`format-${item.service_format}`">
-                  <i :class="item.service_format === 'online' ? 'fa-solid fa-video' : 'fa-solid fa-store'"></i>
-                  {{ SERVICE_FORMAT_LABEL[item.service_format] }}
+              <div class="service-col service-col-store">
+                <span class="service-cell-label">ร้านยาเภสัช</span>
+                <span class="service-cell-value service-store-value" :class="{ 'is-empty': !String(item?.store_name || item?.work_place || '').trim() }">
+                  <i class="fa-solid fa-store"></i>
+                  {{ getPharmacyStoreName(item) }}
                 </span>
               </div>
               <div class="service-col service-col-action">
@@ -354,66 +390,59 @@ onMounted(async () => {
         <div v-if="showServiceModal && selectedService" class="modal-overlay" @click.self="closeServiceModal">
           <div class="service-detail-card shadow-lg">
             <div class="service-modal-head">
-              <h3>รายละเอียดการให้บริการ</h3>
-              <button class="close-x service-close-x" @click="closeServiceModal">×</button>
+              <div class="service-modal-head-text">
+                <span class="service-modal-eyebrow">
+                  <i class="fa-solid fa-clipboard-list"></i> รายละเอียดการให้บริการ
+                </span>
+                <h3>{{ selectedService.service_code }}</h3>
+              </div>
+              <button class="close-x service-close-x" @click="closeServiceModal" aria-label="ปิด">×</button>
             </div>
 
-            <div class="service-detail-grid">
-              <div class="service-detail-item">
-                <span class="service-detail-label">ผู้ใช้บริการ</span>
-                <span class="service-detail-value">{{ selectedService.user_name }}</span>
-              </div>
-              <div class="service-detail-item">
-                <span class="service-detail-label">รหัสบริการ</span>
-                <span class="service-detail-value mono">{{ selectedService.service_code }}</span>
-              </div>
-
-              <div class="service-detail-item">
-                <span class="service-detail-label">ประเภทการใช้บริการ</span>
-                <span class="service-detail-value">
-                  <span class="service-type-badge" :class="`type-${selectedService.service_type}`">
-                    <i :class="selectedService.service_type === 'gold_card' ? 'fa-solid fa-id-card' : 'fa-solid fa-user-tag'"></i>
-                    {{ SERVICE_TYPE_LABEL[selectedService.service_type] }}
+            <div class="service-detail-body">
+              <div class="service-detail-hero">
+                <div class="service-detail-hero-main">
+                  <span class="service-detail-avatar" aria-hidden="true">
+                    <i class="fa-solid fa-user"></i>
                   </span>
-                </span>
-              </div>
-              <div class="service-detail-item">
-                <span class="service-detail-label">ชื่อเภสัชกร</span>
-                <span class="service-detail-value">{{ selectedService.pharmacist_name }}</span>
-              </div>
-
-              <div class="service-detail-item">
-                <span class="service-detail-label">รูปแบบการใช้บริการ</span>
-                <span class="service-detail-value">
-                  <span class="service-format-badge" :class="`format-${selectedService.service_format}`">
-                    <i :class="selectedService.service_format === 'online' ? 'fa-solid fa-video' : 'fa-solid fa-store'"></i>
-                    {{ SERVICE_FORMAT_LABEL[selectedService.service_format] }}
-                  </span>
-                </span>
-              </div>
-              <div class="service-detail-item">
-                <span class="service-detail-label">สถานะบริการ</span>
-                <span class="service-detail-value">
-                  <span class="service-status-badge" :class="`status-${selectedService.service_status}`">
-                    <i :class="{
-                      'fa-solid fa-circle-check': selectedService.service_status === 'completed',
-                      'fa-solid fa-spinner': selectedService.service_status === 'in_progress',
-                      'fa-solid fa-hourglass-half': selectedService.service_status === 'pending',
-                      'fa-solid fa-circle-xmark': selectedService.service_status === 'cancelled'
-                    }"></i>
-                    {{ SERVICE_STATUS_LABEL[selectedService.service_status] }}
-                  </span>
+                  <div class="service-detail-hero-text">
+                    <span class="service-detail-label">ผู้ใช้บริการ</span>
+                    <strong>{{ selectedService.user_name }}</strong>
+                  </div>
+                </div>
+                <span class="service-status-badge service-detail-status" :class="`status-${selectedService.service_status}`">
+                  <i :class="{
+                    'fa-solid fa-circle-check': selectedService.service_status === 'completed',
+                    'fa-solid fa-spinner': selectedService.service_status === 'in_progress',
+                    'fa-solid fa-hourglass-half': selectedService.service_status === 'pending',
+                    'fa-solid fa-circle-xmark': selectedService.service_status === 'cancelled'
+                  }"></i>
+                  {{ SERVICE_STATUS_LABEL[selectedService.service_status] }}
                 </span>
               </div>
 
-              <div class="service-detail-item service-detail-full">
-                <span class="service-detail-label">วันที่</span>
-                <span class="service-detail-value">{{ formatThaiDate(selectedService.service_date) }}</span>
-              </div>
-
-              <div class="service-detail-item service-detail-full">
-                <span class="service-detail-label">หมายเหตุ</span>
-                <span class="service-detail-value service-detail-note">{{ selectedService.note || '-' }}</span>
+              <div class="service-detail-grid">
+                <div class="service-detail-item">
+                  <span class="service-detail-label"><i class="fa-solid fa-barcode"></i> รหัสบริการ</span>
+                  <span class="service-detail-value mono">{{ selectedService.service_code }}</span>
+                </div>
+                <div class="service-detail-item">
+                  <span class="service-detail-label"><i class="fa-regular fa-calendar"></i> วันที่</span>
+                  <span class="service-detail-value">{{ formatThaiDate(selectedService.service_date) }}</span>
+                </div>
+                <div class="service-detail-item">
+                  <span class="service-detail-label"><i class="fa-solid fa-user-doctor"></i> เภสัช</span>
+                  <span class="service-detail-value">{{ getPharmacistDisplayName(selectedService) }}</span>
+                </div>
+                <div class="service-detail-item">
+                  <span class="service-detail-label"><i class="fa-solid fa-store"></i> ร้านยาเภสัช</span>
+                  <span
+                    class="service-detail-value service-store-value"
+                    :class="{ 'is-empty': !String(selectedService?.store_name || selectedService?.work_place || '').trim() }"
+                  >
+                    {{ getPharmacyStoreName(selectedService) }}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -455,7 +484,7 @@ onMounted(async () => {
 /* ===== Service Table Header ===== */
 .service-table-header {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr 1.1fr 1fr auto;
+  grid-template-columns: 1.2fr 1fr 1fr 1.2fr auto;
   gap: 16px;
   align-items: center;
   padding: 14px 24px;
@@ -483,6 +512,28 @@ onMounted(async () => {
 .service-th.th-action {
   justify-self: end;
   padding-right: 0.5rem;
+}
+
+.service-store-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: normal;
+  line-height: 1.35;
+}
+
+.service-store-value i {
+  color: #6366f1;
+  flex-shrink: 0;
+}
+
+.service-store-value.is-empty {
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.service-store-value.is-empty i {
+  color: #cbd5e1;
 }
 
 /* รวมกับแถวข้อมูลที่เปลี่ยนเป็น 2 คอลัมน์ตั้งแต่ ≤1024px → ซ่อน header ตารางให้ตรงกัน ไม่เหลื่อม */
@@ -630,21 +681,64 @@ onMounted(async () => {
 }
 
 :global(html.dark) .service-detail-card .service-modal-head {
-  background: #111827 !important;
+  background: linear-gradient(135deg, #0b1437 0%, #1e3a8a 100%) !important;
   border-bottom: 1px solid rgba(148, 163, 184, 0.32) !important;
 }
 
-:global(html.dark) .service-detail-card .service-modal-head h3 {
+:global(html.dark) .service-detail-card .service-modal-head h3,
+:global(html.dark) .service-detail-card .service-modal-eyebrow {
   color: #ffffff !important;
 }
 
 :global(html.dark) .service-detail-card .service-close-x {
-  background: #e2e8f0 !important;
-  color: #334155 !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
 }
 
-:global(html.dark) .service-detail-card .service-detail-grid {
+:global(html.dark) .service-detail-card .service-detail-body {
   background: #0f172a !important;
+}
+
+:global(html.dark) .service-detail-card .service-detail-hero {
+  background: linear-gradient(135deg, #1e293b 0%, #172554 100%) !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+}
+
+:global(html.dark) .service-detail-card .service-detail-hero-text strong {
+  color: #ffffff !important;
+}
+
+:global(html.dark) .service-detail-card .service-detail-hero .service-detail-label {
+  color: #93c5fd !important;
+}
+
+:global(html.dark) .service-detail-card .service-detail-status.service-status-badge.status-completed {
+  background: rgba(22, 163, 74, 0.42) !important;
+  border-color: rgba(74, 222, 128, 0.6) !important;
+  color: #ffffff !important;
+}
+
+:global(html.dark) .service-detail-card .service-detail-status.service-status-badge.status-pending {
+  background: rgba(217, 119, 6, 0.42) !important;
+  border-color: rgba(251, 191, 36, 0.6) !important;
+  color: #ffffff !important;
+}
+
+:global(html.dark) .service-detail-card .service-detail-status.service-status-badge.status-in_progress {
+  background: rgba(2, 132, 199, 0.42) !important;
+  border-color: rgba(56, 189, 248, 0.6) !important;
+  color: #ffffff !important;
+}
+
+:global(html.dark) .service-detail-card .service-detail-status.service-status-badge.status-cancelled {
+  background: rgba(220, 38, 38, 0.42) !important;
+  border-color: rgba(248, 113, 113, 0.6) !important;
+  color: #ffffff !important;
+}
+
+:global(html.dark) .service-detail-card .service-detail-status i {
+  color: inherit !important;
 }
 
 :global(html.dark) .service-detail-card .service-detail-item {
@@ -657,8 +751,16 @@ onMounted(async () => {
   color: #dbeafe !important;
 }
 
+:global(html.dark) .service-detail-card .service-detail-label i {
+  color: #93c5fd !important;
+}
+
 :global(html.dark) .service-detail-card .service-detail-value,
 :global(html.dark) .service-detail-card .service-detail-note {
   color: #ffffff !important;
+}
+
+:global(html.dark) .service-detail-card .service-detail-value.mono {
+  color: #c4b5fd !important;
 }
 </style>

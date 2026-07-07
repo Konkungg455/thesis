@@ -251,7 +251,7 @@ export async function handleCompleteTracking(event: H3Event) {
     const rxId = Number(fields.id || 0);
 
     if (rxId <= 0) {
-        return { status: 'error', message: 'ไม่พบรหัสใบสั่งยา' };
+        return { status: 'error', message: 'ไม่พบรหัสใบสรุปรายการยา' };
     }
 
     const result = await dbQuery(async (sql) => {

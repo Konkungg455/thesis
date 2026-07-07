@@ -259,7 +259,7 @@ export async function handleGetPrescriptions(event: H3Event) {
     const auth = getAuthContext(event);
 
     if (!auth.isAdmin && !auth.id_account && !auth.id_pharma && !auth.id_store_accounts) {
-        return { status: 'error', message: 'กรุณาเข้าสู่ระบบก่อนดูข้อมูลใบสั่งยา', data: [] };
+        return { status: 'error', message: 'กรุณาเข้าสู่ระบบก่อนดูข้อมูลใบสรุปรายการยา', data: [] };
     }
 
     const rows = await dbQuery(async (sql) => {
@@ -577,20 +577,33 @@ export async function handleAdminReviewAdmin(event: H3Event) {
 
 export async function handleGetServiceUsage(_event: H3Event) {
     const rows = await dbQuery(async (sql) => sql`
-        SELECT id_service_usage, service_code, id_consult_request, id_account, id_pharma,
-               user_name, pharmacist_name, service_type, service_format, service_status,
-               consult_method, booking_type, delivery_prepaid, raw_status, note,
-               service_date, completed_at, created_at
-        FROM service_usage
-        ORDER BY id_service_usage DESC
+        SELECT su.id_service_usage, su.service_code, su.id_consult_request, su.id_account, su.id_pharma,
+               su.user_name, su.pharmacist_name, su.service_type, su.service_format, su.service_status,
+               su.consult_method, su.booking_type, su.delivery_prepaid, su.raw_status, su.note,
+               su.service_date, su.completed_at, su.created_at,
+               COALESCE(
+                   NULLIF(TRIM(d.store_name), ''),
+                   NULLIF(TRIM(p.store_name), ''),
+                   NULLIF(TRIM(sa.firstname), '')
+               ) AS store_name
+        FROM service_usage su
+        LEFT JOIN pharmacist_account p ON p.id_pharma = su.id_pharma
+        LEFT JOIN phamacy_store_details d ON d.id_store_accounts = p.id_store
+        LEFT JOIN phamacy_store_accounts sa ON sa.id_store_accounts = p.id_store
+        ORDER BY su.service_date DESC, su.id_service_usage DESC
         LIMIT 500
     `);
 
-    const data = (rows || []).map((row) => ({
+    if (!rows) {
+        return { status: 'error', message: 'ไม่สามารถโหลดข้อมูลการให้บริการได้ — ตรวจสอบการเชื่อมต่อฐานข้อมูล', data: [] };
+    }
+
+    const data = rows.map((row) => ({
         id: Number(row.id_service_usage),
         service_code: row.service_code,
         user_name: row.user_name || `ผู้ใช้ #${Number(row.id_account || 0)}`,
         pharmacist_name: row.pharmacist_name || `เภสัช #${Number(row.id_pharma || 0)}`,
+        store_name: String(row.store_name || '').trim(),
         service_type: row.service_type,
         service_format: row.service_format,
         service_status: row.service_status,

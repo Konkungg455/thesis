@@ -198,7 +198,7 @@ const submit = async () => {
                             <span class="section-dot"><i class="fa-solid fa-house"></i></span>
                             <div>
                                 <h3>ที่อยู่</h3>
-                                <small>ใช้สำหรับการรับยา/ออกใบเสร็จ</small>
+                                <small>ใช้สำหรับการรับยา / ออกใบสรุปรายการยา</small>
                             </div>
                         </div>
 

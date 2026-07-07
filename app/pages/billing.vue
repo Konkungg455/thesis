@@ -231,7 +231,7 @@ onMounted(async () => {
                 </div>
 
                 <NuxtLink to="/history" class="menu-item" @click="closeSidebar">
-                    <i class="fa-solid fa-file-medical"></i> ประวัติใบสั่งยา
+                    <i class="fa-solid fa-file-medical"></i> ประวัติใบสรุปรายการยา
                 </NuxtLink>
                 <NuxtLink to="/billing" class="menu-item active" @click="closeSidebar">
                     <i class="fa-solid fa-receipt"></i> รายการบัญชี

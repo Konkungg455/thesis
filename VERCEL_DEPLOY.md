@@ -30,7 +30,7 @@
 
 ใส่ครบทุกตัว แล้ว **Redeploy**
 
-### Database (จำเป็น — login, เภสัช, ใบสั่งยา)
+### Database (จำเป็น — login, เภสัช, ใบสรุปรายการยา)
 
 **อย่าใช้** `db.xxx.supabase.co` บน Vercel — เป็น IPv6 อย่างเดียว → `ENOTFOUND`
 

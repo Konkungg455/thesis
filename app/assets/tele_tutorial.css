@@ -19,7 +19,8 @@
     align-items: center;
     gap: 14px;
     margin: 0;
-    line-height: 1.15;
+    line-height: 1.45;
+    overflow: visible;
 }
 
 .tele-heading__text {
@@ -27,11 +28,18 @@
     font-size: clamp(1.85rem, 3.2vw, 2.65rem);
     font-weight: 800;
     letter-spacing: -0.025em;
-    line-height: 1.2;
+    line-height: 1.45;
+    display: inline-block;
+    padding-top: 0.2em;
+    padding-bottom: 0.08em;
+    overflow: visible;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
     background: linear-gradient(115deg, #0d47a1 0%, #1565c0 42%, #0288d1 100%);
     -webkit-background-clip: text;
     background-clip: text;
-    color: transparent;
+    -webkit-text-fill-color: transparent;
+    color: #1565c0;
 }
 
 .tele-heading__icon {

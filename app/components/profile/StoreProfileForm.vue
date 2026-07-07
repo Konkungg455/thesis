@@ -436,7 +436,7 @@ onMounted(loadProfile);
                     <!-- ===== ส่วนที่ 3: ช่องทางชำระเงิน ===== -->
                     <h3 class="section-head">
                         <i class="fa-solid fa-credit-card"></i> ช่องทางชำระเงิน
-                        <span class="optional-tag">ไม่บังคับ — ใช้แนบไปกับอีเมลใบสั่งยา</span>
+                        <span class="optional-tag">ไม่บังคับ — ใช้แนบไปกับอีเมลใบสรุปรายการยา</span>
                     </h3>
                     <div class="profile-grid">
                         <div class="profile-field">
@@ -463,7 +463,7 @@ onMounted(loadProfile);
                             <input type="file" accept="image/*" @change="onPickQrPayment" class="editable" />
                             <small class="hint">
                                 <i class="fa-solid fa-circle-info"></i>
-                                รองรับ jpg, png, webp ระบบจะแนบรูปนี้ในอีเมลใบสั่งยาให้ลูกค้า
+                                รองรับ jpg, png, webp ระบบจะแนบรูปนี้ในอีเมลใบสรุปรายการยาให้ลูกค้า
                             </small>
                         </div>
                     </div>

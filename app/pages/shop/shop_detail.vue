@@ -429,7 +429,7 @@ onMounted(async () => {
             </div>
             <div class="income-breakdown">
               <div class="brk-item">
-                <span><i class="fa-solid fa-file-prescription"></i> ใบสั่งยา</span>
+                <span><i class="fa-solid fa-file-prescription"></i> ใบสรุปรายการยา</span>
                 <strong>฿ {{ formatMoney(incomePrescriptions) }}</strong>
               </div>
               <div class="brk-item">
@@ -492,7 +492,7 @@ onMounted(async () => {
             <button class="btn-refresh ml-auto" @click="loadStatement" title="โหลดใหม่"><i class="fa-solid fa-rotate" :class="{ spin: isLoadingStmt }"></i></button>
           </div>
 
-          <!-- Tab: ประวัติธุรกรรม (ใบสั่งยา + สลิปอนุมัติ รวมกัน) -->
+          <!-- Tab: ประวัติธุรกรรม (ใบสรุปรายการยา + สลิปอนุมัติ รวมกัน) -->
           <div v-if="txTab === 'tx'">
             <div v-if="!transactions.length" class="empty-state-small">
               <i class="fa-solid fa-receipt"></i>
@@ -502,7 +502,7 @@ onMounted(async () => {
               <div class="tx-row-top">
                 <span class="tx-type-badge" :class="`type-${t.type}`">
                   <i :class="t.type === 'slip' ? 'fa-solid fa-money-check-dollar' : 'fa-solid fa-file-prescription'"></i>
-                  {{ t.type === 'slip' ? 'โอนเข้าบัญชี' : 'ใบสั่งยา' }}
+                  {{ t.type === 'slip' ? 'โอนเข้าบัญชี' : 'ใบสรุปรายการยา' }}
                 </span>
                 <img v-if="t.type === 'slip' && t.slip_image" :src="slipUrl(t.slip_image)" class="tx-slip-thumb" @click="openSlipPreview(t.slip_image)" title="ดูสลิป" />
               </div>

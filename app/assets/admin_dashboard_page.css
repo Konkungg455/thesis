@@ -7,7 +7,7 @@
 
 .admin-layout {
     min-height: 100vh;
-    background: #f0f2f5;
+    background: #ffffff;
     display: flex;
     flex-direction: column;
     margin: 0;
@@ -24,6 +24,12 @@
     min-width: 0;
     position: relative;
     min-height: calc(100vh - 200px);
+    background: #ffffff;
+}
+
+.view-container {
+    flex: 1;
+    background: #ffffff;
 }
 
 /* 3. Sidebar — ขนาดเหมือนของเภสัช (260px + light blue gradient) ยืดถึง footer */
@@ -780,7 +786,7 @@ textarea.input-readonly {
         padding: 10px 12px !important;
         gap: 8px;
     }
-    .rank-profile img {
+    .rank-avatar-wrap img {
         width: 36px !important;
         height: 36px !important;
     }

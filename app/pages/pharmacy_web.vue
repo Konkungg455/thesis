@@ -67,7 +67,7 @@ const sidebarPatientIds = ref([]);
 const patientSearchQuery = ref('');
 const MEDICINE_REQUEST_TEXT = 'ระบบ : ผู้ป่วยต้องการรับยา กรุณาออกใบปรึกษาให้ด้วย';
 
-// ===== Parse marker ใบสั่งยา [PRESCRIPTION_PDF:<id>] =====
+// ===== Parse marker ใบสรุปรายการยา [PRESCRIPTION_PDF:<id>] =====
 const PRESCRIPTION_MARKER = /\[PRESCRIPTION_PDF:(\d+)\]/;
 const parsePrescriptionMessage = (text) => {
     if (!text) return { prescriptionId: 0, cleanText: '' };
@@ -681,9 +681,9 @@ const fetchActiveConsultInfo = async () => {
         }
         // โหมดติดตามอาการ:
         //  - follow-up เดิม: consult ยัง accepted + is_followup=1
-        //  - 🆕 จากใบสั่งยา: consult รอบนี้ปรึกษาจบแล้ว แต่ยังอยู่ในกรอบติดตาม 3 วัน
+        //  - 🆕 จากใบสรุปรายการยา: consult รอบนี้ปรึกษาจบแล้ว แต่ยังอยู่ในกรอบติดตาม 3 วัน
         //  ⛔ ถ้าเป็นการ "รับเคสใหม่" (status='accepted') ต้องเป็นโหมดปรึกษา 15 นาทีเสมอ
-        //     ห้ามให้ใบสั่งยาเก่าของคนเดิมมา override เป็นโหมดติดตาม (ตรงกับ logic ฝั่งผู้ใช้)
+        //     ห้ามให้ใบสรุปรายการยาเก่าของคนเดิมมา override เป็นโหมดติดตาม (ตรงกับ logic ฝั่งผู้ใช้)
         const followup = Number(data.is_followup) === 1;
         const rxTrackingActive = Number(data.tracking_active) === 1 && String(data.status) !== 'accepted';
         const wasTracking = isTrackingMode.value;
@@ -1659,7 +1659,7 @@ const closePreview = () => { isShowPreview.value = false; };
                                         {{ parsePrescriptionMessage(msg.message_text).cleanText }}
                                         <span v-if="msg.edited_at" class="edited-mark">(แก้ไขแล้ว)</span>
                                     </div>
-                                    <!-- 📋 การ์ดใบสั่งยา -->
+                                    <!-- 📋 การ์ดใบสรุปรายการยา -->
                                     <div
                                         v-if="parsePrescriptionMessage(msg.message_text).prescriptionId > 0"
                                         class="prescription-card"
@@ -1667,7 +1667,7 @@ const closePreview = () => { isShowPreview.value = false; };
                                     >
                                         <div class="rx-icon"><i class="fa-solid fa-file-prescription"></i></div>
                                         <div class="rx-body">
-                                            <div class="rx-title">ใบสั่งยา (PDF)</div>
+                                            <div class="rx-title">ใบสรุปรายการยา (PDF)</div>
                                             <div class="rx-sub">คลิกเพื่อเปิด/พิมพ์</div>
                                         </div>
                                         <div class="rx-action">
@@ -1684,7 +1684,7 @@ const closePreview = () => { isShowPreview.value = false; };
                         <transition name="fade">
                             <div v-if="showEndConsultFab && !isTrackingMode" class="end-consult-fab-wrap">
                                 <button type="button" class="btn-end-consult" @click="endConsultation">
-                                    <i class="fa-solid fa-circle-check"></i> จบการสนทนา — ไปบันทึกใบสั่งยา (Summary)
+                                    <i class="fa-solid fa-circle-check"></i> จบการสนทนา — ไปบันทึกใบสรุปรายการยา (Summary)
                                 </button>
                             </div>
                         </transition>
@@ -1708,7 +1708,7 @@ const closePreview = () => { isShowPreview.value = false; };
                                 <i class="fa-solid fa-paper-plane"></i>
                                 <span class="btn-label">ส่ง</span>
                             </button>
-                            <button @click="goToSummary" class="btn-send1" title="พิมพ์ใบสั่งยา / ใบปรึกษา">
+                            <button @click="goToSummary" class="btn-send1" title="พิมพ์ใบสรุปรายการยา / ใบปรึกษา">
                                 <i class="fa-solid fa-file-invoice"></i>
                                 <span class="btn-label">ใบปรึกษา</span>
                             </button>
@@ -1801,7 +1801,7 @@ const closePreview = () => { isShowPreview.value = false; };
                     <div class="ec-actions ec-actions-result">
                         <button class="ec-btn ec-confirm" @click="finishToSummary">
                             <i class="fa-solid fa-file-invoice"></i>
-                            ไปบันทึกใบสั่งยา (Summary)
+                            ไปบันทึกใบสรุปรายการยา (Summary)
                         </button>
                     </div>
                     <p class="ec-close-hint">
@@ -2590,7 +2590,7 @@ const closePreview = () => { isShowPreview.value = false; };
     transform: translateY(-1px);
 }
 
-/* ===== 📋 การ์ดใบสั่งยา ===== */
+/* ===== 📋 การ์ดใบสรุปรายการยา ===== */
 .prescription-card {
     display: flex;
     align-items: center;

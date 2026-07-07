@@ -135,11 +135,10 @@ table.info-grid td { vertical-align: top; }
 .text-center { text-align: center; }
 
 .col-no { width: 6%; }
-.col-name { width: 39%; }
-.col-qty { width: 10%; }
-.col-unit { width: 10%; }
-.col-price { width: 17%; }
-.col-total { width: 18%; }
+.col-name { width: 44%; }
+.col-qty { width: 12%; }
+.col-price { width: 19%; }
+.col-total { width: 19%; }
 
 .totals-section {
   display: grid;

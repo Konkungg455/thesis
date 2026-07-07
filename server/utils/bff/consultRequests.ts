@@ -4,6 +4,7 @@ import { readMultipartRequest } from './formData';
 import { archiveAndClearChatBetween } from './consultArchives';
 import { isConsultNotifyWorthy } from './storeNotifications';
 import { ensureConsultTrackingRecord } from './consultTracking';
+import { syncServiceUsageForConsult } from './serviceUsage';
 
 let appointmentSchemaReady = false;
 
@@ -100,7 +101,7 @@ async function enrichUserConsultStatus(
             `;
         }
 
-        // สร้างใบสั่งยา auto เฉพาะเมื่อจบ consult แล้วยังไม่มี (ไม่ INSERT ทุก poll)
+        // สร้างใบสรุปรายการยา auto เฉพาะเมื่อจบ consult แล้วยังไม่มี (ไม่ INSERT ทุก poll)
         if (!presRows[0] && String(data.status || '') === 'completed' && rxConsultId > 0) {
             await ensureConsultTrackingRecord(sql, targetPId, uId, rxConsultId);
             presRows = await sql`
@@ -336,10 +337,11 @@ export async function handleCreateConsultRequest(event: H3Event) {
         const arch = await archiveAndClearChatBetween(sql, pId, uId);
         const consultId = closingConsultId || Number(arch.consultId || 0);
         if (consultId > 0) {
+            await syncServiceUsageForConsult(sql, consultId);
             await ensureConsultTrackingRecord(sql, pId, uId, consultId);
         }
 
-        await sql`
+        const inserted = await sql`
             INSERT INTO consult_requests (
                 id_account, id_pharma, status, created_at,
                 privilege, consult_method, booking_type, delivery_prepaid, bot_session_id,
@@ -349,7 +351,12 @@ export async function handleCreateConsultRequest(event: H3Event) {
                 ${privilege}, ${method}, ${bookingType}, ${deliveryPrepaid}, ${botSessionId},
                 ${appointmentDate}, ${appointmentTime}
             )
+            RETURNING id
         `;
+        const newConsultId = Number(inserted[0]?.id || 0);
+        if (newConsultId > 0) {
+            await syncServiceUsageForConsult(sql, newConsultId);
+        }
         return true;
     });
 
@@ -396,11 +403,7 @@ export async function handleUpdateConsultStatus(event: H3Event) {
             );
             const consultId = reqId;
             if (consultId > 0) {
-                await sql`
-                    UPDATE service_usage
-                    SET service_status = 'completed', completed_at = NOW()
-                    WHERE id_consult_request = ${consultId}
-                `;
+                await syncServiceUsageForConsult(sql, consultId);
                 await ensureConsultTrackingRecord(
                     sql,
                     Number(pair.id_pharma),
@@ -408,6 +411,8 @@ export async function handleUpdateConsultStatus(event: H3Event) {
                     consultId,
                 );
             }
+        } else {
+            await syncServiceUsageForConsult(sql, reqId);
         }
 
         return true;
@@ -425,11 +430,15 @@ export async function handleCancelUserWaiting(event: H3Event) {
     }
 
     await dbQuery(async (sql) => {
-        await sql`
+        const cancelled = await sql`
             UPDATE consult_requests
             SET status = 'cancelled'
             WHERE id_account = ${uId} AND status = 'waiting'
+            RETURNING id
         `;
+        for (const row of cancelled) {
+            await syncServiceUsageForConsult(sql, Number(row.id || 0));
+        }
     });
 
     return { status: 'success' };

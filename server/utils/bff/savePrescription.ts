@@ -1,6 +1,6 @@
 import type { H3Event } from 'h3';
 import { getAuthContext } from './sessionContext';
-import { sendPrescriptionEmailInternal } from '../../utils/prescription/email';
+import { sendPrescriptionEmailInternal, buildPrescriptionEmailPreviewInternal } from '../../utils/prescription/email';
 import { resolveAccountPatientName } from './patientInfo';
 
 type RxPayload = Record<string, unknown>;
@@ -180,7 +180,7 @@ export async function handleSavePrescription(event: H3Event) {
         let notifySent = false;
         if (idAccount > 0) {
             const totalLine = total ? `\nยอดรวม: ${total} บาท` : '';
-            const systemMessage = `ใบสั่งยาออกเรียบร้อยแล้ว\n`
+            const systemMessage = `ใบสรุปรายการยาออกเรียบร้อยแล้ว\n`
                 + `เลขที่บิล: ${billNo}\n`
                 + `วันที่: ${pDate || new Date().toISOString().slice(0, 10)}${totalLine}\n`
                 + `[PRESCRIPTION_PDF:${insertedId}]`;
@@ -262,7 +262,7 @@ export async function handleGetPrescriptionDetail(event: H3Event) {
     const isAuthor = auth.id_pharma != null && Number(row.id_pharma) === auth.id_pharma;
 
     if (!isAdmin && !isOwner && !isAuthor) {
-        return { status: 'error', message: 'คุณไม่มีสิทธิ์ดูใบสั่งยานี้' };
+        return { status: 'error', message: 'คุณไม่มีสิทธิ์ดูใบสรุปรายการยานี้' };
     }
 
     return { status: 'success', data: row };
@@ -290,7 +290,7 @@ export async function handleSendPrescriptionEmail(event: H3Event) {
     });
 
     if (!row) {
-        return { status: 'error', message: 'ไม่พบใบสั่งยา' };
+        return { status: 'error', message: 'ไม่พบใบสรุปรายการยา' };
     }
 
     const isAdmin = auth.isAdmin;
@@ -298,7 +298,7 @@ export async function handleSendPrescriptionEmail(event: H3Event) {
     const isAuthor = auth.id_pharma != null && Number(row.id_pharma) === auth.id_pharma;
 
     if (!isAdmin && !isOwner && !isAuthor) {
-        return { status: 'error', message: 'ไม่มีสิทธิ์ส่งใบสั่งยานี้' };
+        return { status: 'error', message: 'ไม่มีสิทธิ์ส่งใบสรุปรายการยานี้' };
     }
 
     const res = await dbQuery(async (sql) => sendPrescriptionEmailInternal(sql, id, to));
@@ -313,5 +313,52 @@ export async function handleSendPrescriptionEmail(event: H3Event) {
         sent_to: res.sent_to,
         payment_qr_attached: res.payment_qr_attached,
         payment_bank_included: res.payment_bank_included,
+    };
+}
+
+function canAccessPrescription(
+    auth: ReturnType<typeof getAuthContext>,
+    row: Record<string, unknown>,
+): boolean {
+    if (auth.isAdmin) return true;
+    if (auth.id_account != null && Number(row.id_account) === auth.id_account) return true;
+    if (auth.id_pharma != null && Number(row.id_pharma) === auth.id_pharma) return true;
+    return false;
+}
+
+export async function handlePreviewPrescriptionEmail(event: H3Event) {
+    const query = getQuery(event);
+    const auth = getAuthContext(event);
+
+    if (!auth.isAdmin && !auth.id_account && !auth.id_pharma && !auth.id_account_admin) {
+        return { status: 'error', message: 'กรุณาเข้าสู่ระบบก่อน' };
+    }
+
+    const id = Number(query.id ?? 0);
+    if (id <= 0) {
+        return { status: 'error', message: 'ระบุ prescription id ไม่ถูกต้อง' };
+    }
+
+    const row = await dbQuery(async (sql) => {
+        const rows = await sql`SELECT * FROM prescriptions WHERE id = ${id} LIMIT 1`;
+        return rows[0] as Record<string, unknown> | undefined;
+    });
+
+    if (!row) {
+        return { status: 'error', message: 'ไม่พบใบสรุปรายการยา' };
+    }
+
+    if (!canAccessPrescription(auth, row)) {
+        return { status: 'error', message: 'ไม่มีสิทธิ์ดูตัวอย่างอีเมลใบสรุปรายการยานี้' };
+    }
+
+    const preview = await dbQuery(async (sql) => buildPrescriptionEmailPreviewInternal(sql, id));
+    if (!preview) {
+        return { status: 'error', message: 'ไม่พบใบสรุปรายการยา' };
+    }
+
+    return {
+        status: 'success',
+        data: preview,
     };
 }

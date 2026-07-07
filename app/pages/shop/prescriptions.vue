@@ -1,6 +1,6 @@
 <script setup>
 /**
- * /shop/prescriptions — เจ้าของร้านยา ดูใบสั่งยา PDF ที่เภสัชกรในร้านบันทึก
+ * /shop/prescriptions — เจ้าของร้านยา ดูใบสรุปรายการยา PDF ที่เภสัชกรในร้านบันทึก
  */
 import { ref, computed, onMounted, watch } from 'vue'
 
@@ -107,13 +107,13 @@ onMounted(handleFetch)
                         <i class="fa-solid fa-file-prescription"></i>
                     </div>
                     <div>
-                        <h1>ใบสั่งยา PDF ของร้าน</h1>
-                        <p>ติดตามใบสั่งยาที่เภสัชกรในร้านของคุณบันทึก</p>
+                        <h1>ใบสรุปรายการยา PDF ของร้าน</h1>
+                        <p>ติดตามใบสรุปรายการยาที่เภสัชกรในร้านของคุณบันทึก</p>
                     </div>
                 </div>
                 <div class="shop-presc-stats">
                     <div class="shop-presc-stat">
-                        <span class="stat-label">ใบสั่งยาทั้งหมด</span>
+                        <span class="stat-label">ใบสรุปรายการยาทั้งหมด</span>
                         <span class="stat-value">{{ stats.total.toLocaleString('th-TH') }}</span>
                     </div>
                     <div class="shop-presc-stat">
@@ -131,7 +131,7 @@ onMounted(handleFetch)
                 <div class="filter-search">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input v-model="searchQuery"
-                           placeholder="ค้นหาชื่อผู้ป่วย / HN / ยา / เภสัชกร..." />
+                           placeholder="ค้นหาผู้ใช้บริการ / HN / ยา / เภสัชกร..." />
                     <button v-if="searchQuery" @click="searchQuery = ''" class="clear-btn">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
@@ -158,7 +158,7 @@ onMounted(handleFetch)
                 </div>
                 <div v-else-if="filteredList.length === 0" class="state-block">
                     <i class="fa-solid fa-folder-open"></i>
-                    <p>{{ searchQuery || pharmaFilter !== 'all' ? 'ไม่พบรายการที่ตรงกับเงื่อนไข' : 'ยังไม่มีใบสั่งยาในระบบ' }}</p>
+                    <p>{{ searchQuery || pharmaFilter !== 'all' ? 'ไม่พบรายการที่ตรงกับเงื่อนไข' : 'ยังไม่มีใบสรุปรายการยาในระบบ' }}</p>
                 </div>
 
                 <div v-else class="shop-presc-table-wrap">
@@ -167,7 +167,7 @@ onMounted(handleFetch)
                             <tr>
                                 <th class="th-no">#</th>
                                 <th>วันที่ - เวลา</th>
-                                <th>ผู้ป่วย (HN)</th>
+                                <th>ผู้ใช้บริการ</th>
                                 <th>เภสัชกรผู้บันทึก</th>
                                 <th>รายการยา</th>
                                 <th class="text-right">ยอดรวม</th>

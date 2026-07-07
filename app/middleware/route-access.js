@@ -35,7 +35,7 @@ export const ROLE_ALLOWED_PREFIXES = {
     user: [
         '/user',
         '/pharmacist',         // เลือกเภสัช / จองคิว
-        '/prescription-view',  // ดู PDF ใบสั่งยาของตัวเอง (backend ตรวจสิทธิ์)
+        '/prescription-view',  // ดู PDF ใบสรุปรายการยาของตัวเอง (backend ตรวจสิทธิ์)
     ],
     pharmacist: [
         '/pharmacy_web',
@@ -54,7 +54,7 @@ export const ROLE_ALLOWED_PREFIXES = {
     admin: [
         '/admin',
         '/admin_dashboard_page',
-        '/prescription-view', // ดู PDF ใบสั่งยา
+        '/prescription-view', // ดู PDF ใบสรุปรายการยา
     ],
 };
 

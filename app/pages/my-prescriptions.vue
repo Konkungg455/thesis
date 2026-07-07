@@ -1,6 +1,6 @@
 <script setup>
 /**
- * /my-prescriptions — ติดตามใบสั่งยา PDF ที่เภสัชกรบันทึกให้ผู้ใช้คนนี้
+ * /my-prescriptions — ติดตามใบสรุปรายการยา PDF ที่เภสัชกรบันทึกให้ผู้ใช้คนนี้
  */
 import { ref, computed, onMounted, watch } from 'vue'
 
@@ -21,7 +21,7 @@ const handleFetch = async () => {
             historyData.value = res.data
         } else {
             historyData.value = []
-            fetchError.value = res?.message || 'ไม่พบข้อมูลใบสั่งยา'
+            fetchError.value = res?.message || 'ไม่พบข้อมูลใบสรุปรายการยา'
         }
     } catch (err) {
         console.error(err)
@@ -76,12 +76,12 @@ onMounted(handleFetch)
                     <i class="fa-solid fa-file-prescription"></i>
                 </div>
                 <div class="presc-hero-text">
-                    <h1>ใบสั่งยาของฉัน</h1>
-                    <p>ติดตามและพิมพ์ซ้ำใบสั่งยา PDF ที่เภสัชกรบันทึกให้คุณ</p>
+                    <h1>ใบสรุปรายการยาของฉัน</h1>
+                    <p>ติดตามและพิมพ์ซ้ำใบสรุปรายการยา PDF ที่เภสัชกรบันทึกให้คุณ</p>
                 </div>
                 <div class="presc-hero-stats">
                     <div class="presc-stat-card">
-                        <span class="presc-stat-label">ใบสั่งยาทั้งหมด</span>
+                        <span class="presc-stat-label">ใบสรุปรายการยาทั้งหมด</span>
                         <span class="presc-stat-value">{{ historyData.length.toLocaleString('th-TH') }}</span>
                     </div>
                 </div>
@@ -101,7 +101,7 @@ onMounted(handleFetch)
             <section class="presc-content">
                 <div v-if="isLoading" class="state-block">
                     <i class="fa-solid fa-spinner fa-spin"></i>
-                    <p>กำลังโหลดใบสั่งยา...</p>
+                    <p>กำลังโหลดใบสรุปรายการยา...</p>
                 </div>
 
                 <div v-else-if="fetchError" class="state-block error-block">
@@ -111,7 +111,7 @@ onMounted(handleFetch)
 
                 <div v-else-if="filteredList.length === 0" class="state-block">
                     <i class="fa-solid fa-folder-open"></i>
-                    <p>{{ searchQuery ? 'ไม่พบรายการที่ตรงกับคำค้น' : 'ยังไม่มีใบสั่งยาที่บันทึก' }}</p>
+                    <p>{{ searchQuery ? 'ไม่พบรายการที่ตรงกับคำค้น' : 'ยังไม่มีใบสรุปรายการยาที่บันทึก' }}</p>
                 </div>
 
                 <div v-else class="presc-grid">

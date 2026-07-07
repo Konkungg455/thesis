@@ -1,5 +1,5 @@
 /**
- * ลดใบสั่งยาของเภสัชกรคนใดคนหนึ่งให้เหลือ N รายการ (เก็บล่าสุด)
+ * ลดใบสรุปรายการยาของเภสัชกรคนใดคนหนึ่งให้เหลือ N รายการ (เก็บล่าสุด)
  * ใช้: npm run db:trim-pharma-rx -- --pharma=1
  *      npm run db:trim-pharma-rx -- --pharma-name="สมชาย รักงาม" --keep=40
  */
@@ -121,7 +121,7 @@ try {
 
     console.log(JSON.stringify({
         status: 'success',
-        message: `${pharmacistLabel}: ใบสั่งยา ${before} → ${after} รายการ (ลบ ${deleted.length})`,
+        message: `${pharmacistLabel}: ใบสรุปรายการยา ${before} → ${after} รายการ (ลบ ${deleted.length})`,
         pharmacist: pharmacistLabel,
         id_pharma: targetPharmaId,
         keep: KEEP,

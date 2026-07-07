@@ -1,4 +1,4 @@
-/** หน้าที่ต้องเป็น Light Mode เสมอ (ใบสั่งยา / สรุป — ออกแบบสำหรับพิมพ์) */
+/** หน้าที่ต้องเป็น Light Mode เสมอ (ใบสรุปรายการยา / สรุป — ออกแบบสำหรับพิมพ์) */
 export const FORCE_LIGHT_ROUTES = ['/summary', '/prescription-view']
 
 export function isForceLightPath(path = '') {

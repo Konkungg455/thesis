@@ -92,7 +92,7 @@
                             <i class="fa-solid fa-user-pen"></i> แก้ไขข้อมูลส่วนตัว
                         </NuxtLink>
                         <NuxtLink to="/shop/prescriptions" class="menu-link" @click="closeAll">
-                            <i class="fa-solid fa-file-prescription"></i> ใบสั่งยา PDF ของร้าน
+                            <i class="fa-solid fa-file-prescription"></i> ใบสรุปรายการยา PDF ของร้าน
                         </NuxtLink>
                         <button @click="handleLogout" class="btn-logout-link">ออกจากระบบ</button>
                     </div>

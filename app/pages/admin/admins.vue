@@ -281,17 +281,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* light mode — พื้นหลังเนื้อหาเป็นสีขาว */
-:global(html:not(.dark) .admin-layout) {
-    background: #ffffff;
-}
-:global(html:not(.dark) .admin-layout .view-container) {
-    background: #ffffff;
-}
-:global(html:not(.dark) .admin-layout .main-content) {
-    background: #ffffff;
-}
-
+/* light mode — พื้นหลัง overview เป็นสีขาว (รายละเอียดใน Layout.vue + overview.css) */
 .admins-wrap { padding: 24px 24px 60px; max-width: 1400px; margin: 0 auto; width: 100%; }
 
 /* hero */

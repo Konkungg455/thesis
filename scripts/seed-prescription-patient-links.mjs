@@ -175,7 +175,7 @@ try {
 
     console.log(JSON.stringify({
         status: 'success',
-        message: `ผู้ป่วยในใบสั่งยา ${patientNames.length} ชื่อ · สร้างบัญชีใหม่ ${accountsCreated} · ผูกใบสั่งยา ${linked} รายการ · มีที่อยู่ ${withAddress} · ยังไม่มีที่อยู่ ${withoutAddress}`,
+        message: `ผู้ป่วยในใบสรุปรายการยา ${patientNames.length} ชื่อ · สร้างบัญชีใหม่ ${accountsCreated} · ผูกใบสรุปรายการยา ${linked} รายการ · มีที่อยู่ ${withAddress} · ยังไม่มีที่อยู่ ${withoutAddress}`,
         patient_names_total: patientNames.length,
         accounts_created: accountsCreated,
         prescriptions_linked: linked,

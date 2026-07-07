@@ -110,7 +110,7 @@ const fetchPrescriptionHistory = async () => {
 const trackingStatusLabel = (item) => {
     const hasRx = String(item?.med_details || '').trim() !== '' && Number(item?.auto_created || 0) !== 1;
     if (item?.tracking_status === 'completed' && hasRx) {
-        return 'ติดตามอาการเสร็จ · เขียนใบสั่งยาแล้ว';
+        return 'ติดตามอาการเสร็จ · เขียนใบสรุปรายการยาแล้ว';
     }
     if (item?.tracking_status === 'completed') {
         return 'เสร็จสิ้นแล้ว';
@@ -207,7 +207,7 @@ const viewPDF = (id) => {
     window.open(`/prescription-view?id=${id}`, '_blank');
 }
 
-// ✍️ ไปหน้าเขียนใบสั่งยา (Summary) สำหรับเคสที่จบบทสนทนาแล้วแต่ยังไม่ได้ออกใบสั่งยา
+// ✍️ ไปหน้าเขียนใบสรุปรายการยา (Summary) สำหรับเคสที่จบบทสนทนาแล้วแต่ยังไม่ได้ออกใบสรุปรายการยา
 const writePrescription = (item) => {
     const accountId = Number(item.id_account || item.id) || 0
     if (!accountId) return
@@ -669,7 +669,7 @@ const formatArchiveExpiry = (expiresAt) => {
                     <table v-else-if="filteredHistoryData.length > 0" class="history-table">
                         <thead>
                             <tr>
-                                <th>ชื่อผู้ป่วย</th>
+                                <th>ผู้ใช้บริการ</th>
                                 <th>รายการยา / หมายเหตุ</th>
                                 <th>อาการป่วย</th>
                                 <th>วันที่บันทึก</th>
@@ -744,12 +744,12 @@ const formatArchiveExpiry = (expiresAt) => {
                                             v-if="Number(item.auto_created) === 1"
                                             @click="writePrescription(item)"
                                             class="btn-write-rx"
-                                            title="ยังไม่ได้ออกใบสั่งยา — กดเพื่อเขียนใบสั่งยา"
+                                            title="ยังไม่ได้ออกใบสรุปรายการยา — กดเพื่อเขียนใบสรุปรายการยา"
                                         >
-                                            📝 เขียนใบสั่งยา
+                                            📝 เขียนใบสรุปรายการยา
                                         </button>
                                         <button v-else @click="viewPDF(item.id)" class="btn-pdf">
-                                            📄 ดูใบสั่งยา
+                                            📄 ดูใบสรุปรายการยา
                                         </button>
                                         <button
                                             v-if="item.tracking_status !== 'completed'"
@@ -844,10 +844,10 @@ const formatArchiveExpiry = (expiresAt) => {
                                     @click="writePrescription(item)"
                                     class="btn-write-rx"
                                 >
-                                    📝 เขียนใบสั่งยา
+                                    📝 เขียนใบสรุปรายการยา
                                 </button>
                                 <button v-else @click="viewPDF(item.id)" class="btn-pdf">
-                                    📄 ดูใบสั่งยา
+                                    📄 ดูใบสรุปรายการยา
                                 </button>
                                 <button
                                     v-if="item.tracking_status !== 'completed'"
@@ -1290,7 +1290,7 @@ const formatArchiveExpiry = (expiresAt) => {
     gap: 6px;
 }
 
-/* ✍️ ปุ่ม เขียนใบสั่งยา (เคสที่ยังไม่ได้ออกใบ) — ใช้ในการ์ดมือถือ */
+/* ✍️ ปุ่ม เขียนใบสรุปรายการยา (เคสที่ยังไม่ได้ออกใบ) — ใช้ในการ์ดมือถือ */
 .btn-write-rx {
     display: inline-flex;
     align-items: center;

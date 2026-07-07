@@ -5,6 +5,7 @@ import {
     handleGetPrescriptionDetail,
     handleSavePrescription,
     handleSendPrescriptionEmail,
+    handlePreviewPrescriptionEmail,
 } from './savePrescription';
 import { parsePositiveInt } from './sessionContext';
 
@@ -86,6 +87,10 @@ export async function dispatchBff(event: H3Event, pathname: string) {
         return handleSendPrescriptionEmail(event);
     }
 
+    if (pathLower === 'preview-prescription-email.php') {
+        return handlePreviewPrescriptionEmail(event);
+    }
+
     if (pathLower === 'complete-tracking.php' && method === 'POST') {
         return handleCompleteTracking(event);
     }
@@ -116,6 +121,10 @@ export async function dispatchBff(event: H3Event, pathname: string) {
 
     if (pathLower === 'get-service-usage.php') {
         return handleGetServiceUsage(event);
+    }
+
+    if (pathLower === 'get-admin-overview-activity.php') {
+        return handleGetAdminOverviewActivity(event);
     }
 
     if (pathLower === 'verify-pharma.php') {
@@ -321,7 +330,7 @@ async function handleGetUserSession(event: H3Event) {
             const row = rows[0];
             if (!row) return null;
             if (Number(row.is_deleted || 0) === 1) {
-                return { authenticated: false, status: 'deleted', message: 'บัญชีร้านยานี้ถูกลบ/ระงับการใช้งานชั่วคราว' };
+                return { authenticated: false, status: 'deleted', message: 'ระงับการใช้งานชั่วคราว' };
             }
             return {
                 authenticated: true,
@@ -348,7 +357,7 @@ async function handleGetUserSession(event: H3Event) {
             const row = rows[0];
             if (!row) return null;
             if (Number(row.is_deleted || 0) === 1) {
-                return { authenticated: false, status: 'deleted', message: 'บัญชีเภสัชกรนี้ถูกลบ/ระงับการใช้งานชั่วคราว' };
+                return { authenticated: false, status: 'deleted', message: 'ระงับการใช้งานชั่วคราว' };
             }
             return {
                 authenticated: true,
@@ -374,7 +383,7 @@ async function handleGetUserSession(event: H3Event) {
             const row = rows[0];
             if (!row) return null;
             if (Number(row.is_deleted || 0) === 1) {
-                return { authenticated: false, status: 'deleted', message: 'บัญชีผู้ดูแลระบบนี้ถูกลบ/ระงับการใช้งานชั่วคราว' };
+                return { authenticated: false, status: 'deleted', message: 'ระงับการใช้งานชั่วคราว' };
             }
             return {
                 authenticated: true,
@@ -405,7 +414,7 @@ async function handleGetUserSession(event: H3Event) {
             const row = rows[0];
             if (!row) return null;
             if (Number(row.is_deleted || 0) === 1) {
-                return { authenticated: false, status: 'deleted', message: 'บัญชีผู้ใช้งานนี้ถูกลบ/ระงับการใช้งานชั่วคราว' };
+                return { authenticated: false, status: 'deleted', message: 'ระงับการใช้งานชั่วคราว' };
             }
             return {
                 authenticated: true,
@@ -575,7 +584,7 @@ async function handleProcessLogin(event: H3Event, path: string) {
     }
 
     if (Number(result.is_deleted || 0) === 1) {
-        return { status: 'deleted', message: 'บัญชีนี้ถูกลบ/ระงับการใช้งานชั่วคราว' };
+        return { status: 'deleted', message: 'ระงับการใช้งานชั่วคราว' };
     }
 
     const hash = String(result[cfg.passCol] || '');

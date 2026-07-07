@@ -56,8 +56,8 @@ const fetchPrescriptionHistory = async () => {
     try {
         const res = await $fetch(apiUrl('get-prescriptions.php'), { credentials: 'include' });
         if (res.status === 'success') {
-            // 🚫 ไม่โชว์รายการ placeholder ที่ระบบสร้างตอนจบบทสนทนา (ยังไม่ได้เขียนใบสั่งยาจริง)
-            //    — หน้าติดตามคนไข้ (tracking) ยังเห็นได้ตามเดิม แต่หน้าประวัติใบสั่งยาโชว์เฉพาะใบที่บันทึกจริง
+            // 🚫 ไม่โชว์รายการ placeholder ที่ระบบสร้างตอนจบบทสนทนา (ยังไม่ได้เขียนใบสรุปรายการยาจริง)
+            //    — หน้าติดตามคนไข้ (tracking) ยังเห็นได้ตามเดิม แต่หน้าประวัติใบสรุปรายการยาโชว์เฉพาะใบที่บันทึกจริง
             historyData.value = (res.data || []).filter(item => Number(item.auto_created) !== 1);
         } else {
             historyData.value = [];
@@ -78,7 +78,7 @@ onMounted(() => {
 
 // ฟังก์ชันเปิดหน้า PDF/Print
 const viewPDF = (id) => {
-    // เปิดหน้าพิมพ์ใบสั่งยาโดยส่ง ID ไปทาง Query Parameter
+    // เปิดหน้าพิมพ์ใบสรุปรายการยาโดยส่ง ID ไปทาง Query Parameter
     window.open(`/prescription-view?id=${id}`, '_blank');
 }
 
@@ -141,7 +141,7 @@ watch(searchQuery, () => resetPage())
             <button class="hamburger" @click="toggleSidebar" aria-label="menu">
                 <i class="fa-solid fa-bars"></i>
             </button>
-            <div class="mobile-title">📜 ประวัติใบสั่งยา</div>
+            <div class="mobile-title">📜 ประวัติใบสรุปรายการยา</div>
         </div>
 
         <transition name="fade-bd">
@@ -152,14 +152,14 @@ watch(searchQuery, () => resetPage())
             <aside class="sidebar" :class="{ open: sidebarOpen }">
                 <div class="sidebar-brand">
                     <i class="fa-solid fa-file-medical"></i>
-                    <span>ประวัติใบสั่งยา</span>
+                    <span>ประวัติใบสรุปรายการยา</span>
                     <button class="sidebar-close" @click="closeSidebar" aria-label="ปิดเมนู">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
 
                 <NuxtLink to="/history" class="menu-item active" @click="closeSidebar">
-                    <i class="fa-solid fa-file-medical"></i> ประวัติใบสั่งยา
+                    <i class="fa-solid fa-file-medical"></i> ประวัติใบสรุปรายการยา
                 </NuxtLink>
                 <NuxtLink to="/billing" class="menu-item" @click="closeSidebar">
                     <i class="fa-solid fa-receipt"></i> รายการบัญชี
@@ -173,13 +173,13 @@ watch(searchQuery, () => resetPage())
                         <i class="fa-solid fa-file-medical"></i>
                     </div>
                     <div class="hero-content">
-                        <h2>ประวัติการบันทึกใบสั่งยา</h2>
-                        <p>เก็บใบสั่งยาทั้งหมดของคุณ — แตะ "ดูใบสั่งยา" เพื่อพิมพ์ซ้ำ</p>
+                        <h2>ประวัติการบันทึกใบสรุปรายการยา</h2>
+                        <p>เก็บใบสรุปรายการยาทั้งหมดของคุณ — แตะ "ดูใบสรุปรายการยา" เพื่อพิมพ์ซ้ำ</p>
                     </div>
                     <div class="hero-stats">
                         <div class="stat-box">
                             <div class="stat-num">{{ historyData.length }}</div>
-                            <div class="stat-label">ใบสั่งยาทั้งหมด</div>
+                            <div class="stat-label">ใบสรุปรายการยาทั้งหมด</div>
                         </div>
                     </div>
                 </div>
@@ -188,7 +188,7 @@ watch(searchQuery, () => resetPage())
                 <div class="search-toolbar">
                     <div class="history-search-input">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        <input v-model="searchQuery" placeholder="ค้นหาชื่อผู้ป่วย / HN / ยา / แพทย์ / ร้าน..." />
+                        <input v-model="searchQuery" placeholder="ค้นหาผู้ใช้บริการ / HN / ยา / แพทย์ / ร้าน..." />
                         <button v-if="searchQuery" class="clear-btn" @click="searchQuery = ''" aria-label="ล้างค้นหา">
                             <i class="fa-solid fa-xmark"></i>
                         </button>
@@ -201,7 +201,7 @@ watch(searchQuery, () => resetPage())
                 <div class="table-container shadow-card">
                     <div v-if="isLoading" class="loading-state">
                         <div class="spinner"></div>
-                        <p>กำลังโหลดประวัติการสั่งยา...</p>
+                        <p>กำลังโหลดประวัติใบสรุปรายการยา...</p>
                     </div>
 
                     <!-- Desktop Table -->
@@ -211,7 +211,7 @@ watch(searchQuery, () => resetPage())
                                 <th style="width: 70px;" class="text-center">ลำดับ</th>
                                 <th style="width: 160px;"><i class="fa-regular fa-clock"></i> วันที่-เวลา</th>
                                 <th style="width: 130px;"><i class="fa-regular fa-id-card"></i> รหัสลูกค้า</th>
-                                <th style="min-width: 300px;"><i class="fa-solid fa-user"></i> ชื่อผู้ป่วย</th>
+                                <th style="min-width: 300px;"><i class="fa-solid fa-user"></i> ผู้ใช้บริการ</th>
                                 <th><i class="fa-solid fa-prescription-bottle-medical"></i> รายการยา</th>
                                 <th style="min-width: 180px;"><i class="fa-solid fa-notes-medical"></i> อาการป่วย</th>
                                 <th style="width: 170px;"><i class="fa-solid fa-shop"></i> ร้านยา</th>
@@ -277,7 +277,7 @@ watch(searchQuery, () => resetPage())
                                 </td>
                                 <td class="text-center">
                                     <button @click="viewPDF(item.id)" class="btn-pdf">
-                                        <i class="fa-solid fa-file-pdf"></i> ดูใบสั่งยา
+                                        <i class="fa-solid fa-file-pdf"></i> ดูใบสรุปรายการยา
                                     </button>
                                 </td>
                             </tr>
@@ -335,7 +335,7 @@ watch(searchQuery, () => resetPage())
                             </div>
                             <div class="card-actions">
                                 <button @click="viewPDF(item.id)" class="btn-pdf">
-                                    <i class="fa-solid fa-file-pdf"></i> ดูใบสั่งยา
+                                    <i class="fa-solid fa-file-pdf"></i> ดูใบสรุปรายการยา
                                 </button>
                             </div>
                         </div>
@@ -345,9 +345,9 @@ watch(searchQuery, () => resetPage())
                         <div class="empty-icon">
                             <i class="fa-solid fa-folder-open"></i>
                         </div>
-                        <h3>{{ searchQuery ? 'ไม่พบรายการที่ตรงกับคำค้น' : 'ยังไม่มีประวัติการบันทึกใบสั่งยา' }}</h3>
+                        <h3>{{ searchQuery ? 'ไม่พบรายการที่ตรงกับคำค้น' : 'ยังไม่มีประวัติการบันทึกใบสรุปรายการยา' }}</h3>
                         <p v-if="searchQuery">ลองเปลี่ยนคำค้นใหม่ดูครับ</p>
-                        <p v-else>เริ่มต้นบันทึกใบสั่งยาแรกของคุณได้เลย</p>
+                        <p v-else>เริ่มต้นบันทึกใบสรุปรายการยาแรกของคุณได้เลย</p>
                     </div>
                 </div>
 

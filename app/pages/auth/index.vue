@@ -24,7 +24,7 @@ definePageMeta({
                     </div>
                     <div class="auth-hub-text">
                         <strong>ผู้ใช้งาน</strong>
-                        <span>ปรึกษาอาการ / สั่งยาออนไลน์</span>
+                        <span>ปรึกษาอาการ / รับใบสรุปรายการยาออนไลน์</span>
                     </div>
                 </NuxtLink>
 

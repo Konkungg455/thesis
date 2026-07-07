@@ -348,11 +348,11 @@ const savePrescription = async ({ redirectAfterSave = true, silent = false } = {
       const billNo = res.bill_no || ''
       if (!silent) {
         const chatLine = res.notified_patient
-          ? `\n📤 ส่งเลขที่บิล + ลิงก์ใบสั่งยา (PDF) ให้ผู้ป่วยทางแชทแล้ว`
+          ? `\n📤 ส่งเลขที่บิล + ลิงก์ใบสรุปรายการยา (PDF) ให้ผู้ป่วยทางแชทแล้ว`
           : ''
         let emailLine = ''
         if (res.email_sent) {
-          emailLine = `\n📧 ส่งใบสั่งยา (PDF) ทางอีเมลให้ลูกค้าแล้ว (${res.email_to || ''})`
+          emailLine = `\n📧 ส่งใบสรุปรายการยา (PDF) ทางอีเมลให้ลูกค้าแล้ว (${res.email_to || ''})`
           if (res.payment_bank_included) {
             emailLine += `\n💳 แนบเลขบัญชีธนาคารให้ลูกค้าแล้ว`
           }
@@ -396,7 +396,7 @@ const savePrescription = async ({ redirectAfterSave = true, silent = false } = {
 
 /**
  * saveAndPrint
- *  - บันทึกใบสั่งยาเงียบๆ → ได้ inserted_id
+ *  - บันทึกใบสรุปรายการยาเงียบๆ → ได้ inserted_id
  *  - เปิดหน้า /prescription-view?id=<inserted_id> ใน tab ใหม่ (auto-print)
  *  - เด้งกลับหน้า pharmacy_web พร้อม flag consult_done=1
  */
@@ -410,7 +410,7 @@ const saveAndPrint = async () => {
   if (import.meta.client) {
     window.open(`/prescription-view?id=${insertedId}`, '_blank', 'noopener,noreferrer')
     if (emailSent) {
-      alert(`📧 ส่งใบสั่งยา (PDF) ทางอีเมลให้ลูกค้าแล้ว (${emailTo})`)
+      alert(`📧 ส่งใบสรุปรายการยา (PDF) ทางอีเมลให้ลูกค้าแล้ว (${emailTo})`)
     } else if (emailError) {
       alert(`⚠️ บันทึกและพิมพ์แล้ว แต่ส่งอีเมลไม่สำเร็จ: ${emailError}`)
     }

@@ -1,14 +1,14 @@
 /**
  * pharmacist-only.js
  * จำกัดเฉพาะ "เภสัชกร" (role=pharmacist)
- *  - หน้า PDF ใบสั่งยา (/prescription-view) ยังให้ admin เปิดดูได้
+ *  - หน้า PDF ใบสรุปรายการยา (/prescription-view) ยังให้ admin เปิดดูได้
  *  - หน้าอื่นในกลุ่มนี้ (tracking/history/dashboard/billing/Summary/pharmacy_web)
  *    → เฉพาะเภสัชกรเท่านั้น
  */
 import { readAuthFromStorage, redirectToLogin, redirectToOwnHome, ROLE_LOGIN } from './role-helper.js';
 import { normalizeRole } from './route-access.js';
 
-// path ที่ admin ยังเปิดดูได้ (เช่น PDF ใบสั่งยา)
+// path ที่ admin ยังเปิดดูได้ (เช่น PDF ใบสรุปรายการยา)
 const ADMIN_ALSO_ALLOWED = ['/prescription-view'];
 
 export default defineNuxtRouteMiddleware((to) => {

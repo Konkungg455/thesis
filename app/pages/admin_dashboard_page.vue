@@ -1,24 +1,38 @@
 <script setup>
 /**
  * 🚩 admin_dashboard_page.vue — ถือเป็น "หน้าแรก (Home)" ของผู้ดูแลระบบ
- *    เนื้อหาคือ Overview (สถิติรวม, กราฟใบสั่งยา 7 วัน, อันดับเภสัชกร)
+ *    เนื้อหาคือ Overview (สถิติรวม, กราฟใบสรุปรายการยา 7 วัน, อันดับเภสัชกร)
  *    ส่วน tab อื่น ๆ ถูกแยกไปไว้ในโฟลเดอร์ /app/pages/admin/
  */
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 
 definePageMeta({ middleware: 'admin-only' })
 
 const isLoading = ref(false)
-const historyData = ref([])       // ใบสั่งยา (สำหรับกราฟ + อันดับเภสัชกร)
+const historyData = ref([])       // ใบสรุปรายการยา (สำหรับกราฟ + อันดับเภสัชกร)
 const overviewUsers = ref([])     // ผู้ใช้บริการ (ตัด role admin ออก)
 const overviewPharmas = ref([])   // เภสัชกรทั้งหมด
 const chartPeriod = ref('week')   // day | week | month | year
+const rankView = ref('pharma')    // pharma | store
+const onlineActivity = ref({
+  active_users: 0,
+  active_pharmas: 0,
+  online_users_now: 0,
+  online_pharmas_now: 0,
+})
+
+const ONLINE_PERIOD_LABELS = {
+  day: 'วันนี้',
+  week: '7 วันล่าสุด',
+  month: '30 วันล่าสุด',
+  year: '12 เดือนล่าสุด',
+}
 
 const CHART_PERIOD_OPTIONS = [
-  { value: 'day', label: 'วัน', statLabel: 'ใบสั่งยาวันนี้', title: 'วันนี้ (รายชั่วโมง)', empty: 'ยังไม่มีการบันทึกใบสั่งยาวันนี้' },
-  { value: 'week', label: 'สัปดาห์', statLabel: 'ใบสั่งยา 7 วันล่าสุด', title: '7 วันล่าสุด', empty: 'ยังไม่มีการบันทึกใบสั่งยาในช่วง 7 วันที่ผ่านมา' },
-  { value: 'month', label: 'เดือน', statLabel: 'ใบสั่งยา 30 วันล่าสุด', title: '30 วันล่าสุด', empty: 'ยังไม่มีการบันทึกใบสั่งยาในช่วง 30 วันที่ผ่านมา' },
-  { value: 'year', label: 'ปี', statLabel: 'ใบสั่งยา 12 เดือนล่าสุด', title: '12 เดือนล่าสุด', empty: 'ยังไม่มีการบันทึกใบสั่งยาในช่วง 12 เดือนที่ผ่านมา' },
+  { value: 'day', label: 'วัน', statLabel: 'ใบสรุปรายการยาวันนี้', title: 'วันนี้ (รายชั่วโมง)', empty: 'ยังไม่มีการบันทึกใบสรุปรายการยาวันนี้' },
+  { value: 'week', label: 'สัปดาห์', statLabel: 'ใบสรุปรายการยา 7 วันล่าสุด', title: '7 วันล่าสุด', empty: 'ยังไม่มีการบันทึกใบสรุปรายการยาในช่วง 7 วันที่ผ่านมา' },
+  { value: 'month', label: 'เดือน', statLabel: 'ใบสรุปรายการยา 30 วันล่าสุด', title: '30 วันล่าสุด', empty: 'ยังไม่มีการบันทึกใบสรุปรายการยาในช่วง 30 วันที่ผ่านมา' },
+  { value: 'year', label: 'ปี', statLabel: 'ใบสรุปรายการยา 12 เดือนล่าสุด', title: '12 เดือนล่าสุด', empty: 'ยังไม่มีการบันทึกใบสรุปรายการยาในช่วง 12 เดือนที่ผ่านมา' },
 ]
 
 const TH_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']
@@ -31,6 +45,10 @@ const parseCreatedAt = (item) => {
 
 const activePeriodMeta = computed(() =>
   CHART_PERIOD_OPTIONS.find(o => o.value === chartPeriod.value) || CHART_PERIOD_OPTIONS[1]
+)
+
+const onlinePeriodLabel = computed(() =>
+  ONLINE_PERIOD_LABELS[chartPeriod.value] || ONLINE_PERIOD_LABELS.week
 )
 
 const getPeriodRange = (period) => {
@@ -105,11 +123,36 @@ const fetchOverview = async () => {
   }
 }
 
+const fetchOnlineActivity = async () => {
+  const { $apiUrl } = useNuxtApp()
+  try {
+    const res = await $fetch($apiUrl(`get-admin-overview-activity.php?period=${chartPeriod.value}`), {
+      credentials: 'include',
+    })
+    if (res?.status === 'success' && res.data) {
+      onlineActivity.value = {
+        active_users: Number(res.data.active_users || 0),
+        active_pharmas: Number(res.data.active_pharmas || 0),
+        online_users_now: Number(res.data.online_users_now || 0),
+        online_pharmas_now: Number(res.data.online_pharmas_now || 0),
+      }
+    }
+  } catch (err) {
+    console.error('Fetch online activity error:', err)
+    onlineActivity.value = {
+      active_users: 0,
+      active_pharmas: 0,
+      online_users_now: 0,
+      online_pharmas_now: 0,
+    }
+  }
+}
+
 // 🚩 [Overview] สถิติจริงจาก DB
 const totalUserCount = computed(() => overviewUsers.value.length)
 const totalPharmaCount = computed(() => overviewPharmas.value.filter(p => p.status_verify == 1).length)
 
-// 🚩 [Overview] ข้อมูลกราฟแท่งจำนวนใบสั่งยา — เลือกช่วง วัน / สัปดาห์ / เดือน / ปี
+// 🚩 [Overview] ข้อมูลกราฟแท่งจำนวนใบสรุปรายการยา — เลือกช่วง วัน / สัปดาห์ / เดือน / ปี
 const chartPeriodData = computed(() => {
   const period = chartPeriod.value
   const today = new Date()
@@ -191,23 +234,51 @@ const chartColumnClass = computed(() => ({
   'bar-chart-bars--year': chartPeriod.value === 'year',
 }))
 
-// 🚩 [Overview] อันดับเภสัชกรที่บันทึกใบสั่งยามากที่สุด (Top 5) — ตามช่วงเวลาที่เลือก
+const resolvePharmaRankKey = (item) => String(
+  item.id_pharma || item.pharmacist_username || item.pharmacist_name || item.doctor_name || ''
+).trim()
+
+const resolvePharmaDisplayName = (item, profiles) => {
+  const rawName = item.pharmacist_name
+    || (item.doctor_name || '').replace(/^ภก\.\s*/, '').trim()
+    || item.pharmacist_username
+    || 'ไม่ระบุชื่อ'
+  const idPharma = item.id_pharma || null
+  const username = item.pharmacist_username || ''
+  const profile = profiles.find(p =>
+    (idPharma && String(p.id_pharma || p.id) === String(idPharma)) ||
+    (username && p.username && p.username === username)
+  )
+  if (profile) {
+    const full = `ภก. ${(profile.firstname || '').trim()} ${(profile.lastname || '').trim()}`.trim()
+    if (full !== 'ภก.') return full
+  }
+  return rawName.startsWith('ภก.') ? rawName : `ภก. ${rawName}`
+}
+
+const resolveStoreName = (item, profiles) => {
+  const direct = String(item.store_name || item.work_place || '').trim()
+  if (direct) return direct
+  const id = item.id_pharma
+  if (!id || !profiles.length) return ''
+  const profile = profiles.find(p => String(p.id_pharma || p.id) === String(id))
+  return String(profile?.store_name || profile?.work_place || '').trim()
+}
+
+// 🚩 [Overview] อันดับเภสัชกรที่บันทึกใบสรุปรายการยามากที่สุด (Top 5) — ตามช่วงเวลาที่เลือก
 const topPharmacists = computed(() => {
   const map = new Map()
   periodFilteredData.value.forEach(item => {
-    const key = String(
-      item.id_pharma || item.pharmacist_username || item.pharmacist_name || item.doctor_name || ''
-    ).trim()
+    const key = resolvePharmaRankKey(item)
     if (!key) return
 
     if (!map.has(key)) {
-      const rawName = item.pharmacist_name
-        || (item.doctor_name || '').replace(/^ภก\.\s*/, '').trim()
-        || item.pharmacist_username
-        || 'ไม่ระบุชื่อ'
       map.set(key, {
         key,
-        name: rawName,
+        name: item.pharmacist_name
+          || (item.doctor_name || '').replace(/^ภก\.\s*/, '').trim()
+          || item.pharmacist_username
+          || 'ไม่ระบุชื่อ',
         username: item.pharmacist_username || '',
         id_pharma: item.id_pharma || null,
         count: 0,
@@ -253,12 +324,66 @@ const topPharmacists = computed(() => {
 })
 
 const maxRankCount = computed(() => {
-  const top = topPharmacists.value[0]?.count || 0
+  const top = activeRankList.value[0]?.count || 0
   return top > 0 ? top : 1
+})
+
+const topStores = computed(() => {
+  const map = new Map()
+  const profiles = overviewPharmas.value
+
+  periodFilteredData.value.forEach((item) => {
+    const storeName = resolveStoreName(item, profiles)
+    if (!storeName) return
+    const storeKey = storeName.toLowerCase()
+    if (!map.has(storeKey)) {
+      map.set(storeKey, { key: storeKey, name: storeName, count: 0, pharmaMap: new Map() })
+    }
+    const store = map.get(storeKey)
+    store.count += 1
+
+    const pharmaKey = resolvePharmaRankKey(item) || `rx-${store.count}`
+    if (!store.pharmaMap.has(pharmaKey)) {
+      store.pharmaMap.set(pharmaKey, {
+        key: pharmaKey,
+        displayName: resolvePharmaDisplayName(item, profiles),
+        count: 0,
+      })
+    }
+    store.pharmaMap.get(pharmaKey).count += 1
+  })
+
+  return [...map.values()]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+    .map((entry, idx) => ({
+      key: entry.key,
+      name: entry.name,
+      count: entry.count,
+      displayName: entry.name,
+      pharmaBreakdown: [...entry.pharmaMap.values()].sort((a, b) => b.count - a.count),
+      image: null,
+      rank: idx + 1,
+    }))
+})
+
+const activeRankList = computed(() =>
+  rankView.value === 'store' ? topStores.value : topPharmacists.value
+)
+
+const rankListTitle = computed(() =>
+  rankView.value === 'store'
+    ? 'ร้านยาที่ออกใบสรุปรายการยามากที่สุด'
+    : 'เภสัชกรที่บันทึกใบสรุปรายการยามากที่สุด'
+)
+
+watch(chartPeriod, () => {
+  fetchOnlineActivity()
 })
 
 onMounted(() => {
   fetchOverview()
+  fetchOnlineActivity()
 })
 </script>
 
@@ -269,7 +394,7 @@ onMounted(() => {
         <div class="overview-hero-text">
           <span class="overview-eyebrow"><i class="fa-solid fa-chart-line"></i> Admin Overview</span>
           <h2 class="overview-title">ภาพรวมระบบ Telepharmacy</h2>
-          <p class="overview-subtitle">สถิติผู้ใช้ เภสัชกร และใบสั่งยาจากฐานข้อมูลจริง</p>
+          <p class="overview-subtitle">สถิติผู้ใช้ เภสัชกร และใบสรุปรายการยาจากฐานข้อมูลจริง</p>
         </div>
       </header>
 
@@ -280,7 +405,7 @@ onMounted(() => {
             <span class="stat-label">ผู้ใช้บริการในระบบ</span>
           </div>
           <span class="stat-value">{{ totalUserCount.toLocaleString('th-TH') }}</span>
-          <span class="stat-footnote">บัญชีผู้ป่วยที่ลงทะเบียน</span>
+          <span class="stat-footnote">บัญชีผู้ใช้บริการที่ลงทะเบียน</span>
         </div>
         <div class="stat-card dark-stat">
           <div class="stat-card-top">
@@ -298,13 +423,33 @@ onMounted(() => {
           <span class="stat-value">{{ totalChartCount.toLocaleString('th-TH') }}</span>
           <span class="stat-footnote">บันทึกจากระบบ Telepharmacy</span>
         </div>
+        <div class="stat-card teal-stat">
+          <div class="stat-card-top">
+            <span class="stat-icon stat-icon-teal"><i class="fa-solid fa-signal"></i></span>
+            <span class="stat-label">ผู้ใช้บริการที่ใช้งาน ({{ onlinePeriodLabel }})</span>
+          </div>
+          <span class="stat-value">{{ onlineActivity.active_users.toLocaleString('th-TH') }}</span>
+          <span class="stat-footnote">
+            ออนไลน์ขณะนี้ {{ onlineActivity.online_users_now.toLocaleString('th-TH') }} คน
+          </span>
+        </div>
+        <div class="stat-card amber-stat">
+          <div class="stat-card-top">
+            <span class="stat-icon stat-icon-amber"><i class="fa-solid fa-user-doctor"></i></span>
+            <span class="stat-label">เภสัชกรที่ใช้งาน ({{ onlinePeriodLabel }})</span>
+          </div>
+          <span class="stat-value">{{ onlineActivity.active_pharmas.toLocaleString('th-TH') }}</span>
+          <span class="stat-footnote">
+            ออนไลน์ขณะนี้ {{ onlineActivity.online_pharmas_now.toLocaleString('th-TH') }} คน
+          </span>
+        </div>
       </div>
 
       <div class="dashboard-content">
         <div class="chart-card shadow-sm">
           <div class="chart-header">
             <div class="chart-header-text">
-              <h3><i class="fa-solid fa-chart-column"></i> จำนวนใบสั่งยาที่บันทึก ({{ activePeriodMeta.title }})</h3>
+              <h3><i class="fa-solid fa-chart-column"></i> จำนวนใบสรุปรายการยาที่บันทึก ({{ activePeriodMeta.title }})</h3>
               <p>ข้อมูลจริงจากระบบ • รวมทั้งหมด <strong>{{ totalChartCount }}</strong> ใบ</p>
             </div>
             <div class="chart-period-tools">
@@ -316,7 +461,7 @@ onMounted(() => {
                   </option>
                 </select>
               </div>
-              <button type="button" class="chart-period-refresh" :disabled="isLoading" @click="fetchOverview" title="รีเฟรชข้อมูล">
+              <button type="button" class="chart-period-refresh" :disabled="isLoading" @click="fetchOverview(); fetchOnlineActivity()" title="รีเฟรชข้อมูล">
                 <i class="fa-solid fa-rotate-right" :class="{ 'fa-spin': isLoading }"></i>
               </button>
             </div>
@@ -363,45 +508,83 @@ onMounted(() => {
 
         <div class="top-list-card shadow-sm">
           <div class="top-list-header">
-            <h3><i class="fa-solid fa-trophy"></i> เภสัชกรที่บันทึกใบสั่งยามากที่สุด</h3>
-            <span class="top-list-badge">Top 5</span>
+            <h3><i class="fa-solid fa-trophy"></i> {{ rankListTitle }}</h3>
+            <div class="top-list-tools">
+              <div class="rank-view-toggle" role="group" aria-label="สลับมุมมองอันดับ">
+                <button
+                  type="button"
+                  class="rank-view-btn"
+                  :class="{ active: rankView === 'pharma' }"
+                  @click="rankView = 'pharma'"
+                >
+                  <i class="fa-solid fa-user-doctor"></i> เภสัชกร
+                </button>
+                <button
+                  type="button"
+                  class="rank-view-btn"
+                  :class="{ active: rankView === 'store' }"
+                  @click="rankView = 'store'"
+                >
+                  <i class="fa-solid fa-store"></i> ร้านยาเภสัช
+                </button>
+              </div>
+              <span class="top-list-badge">Top 5</span>
+            </div>
           </div>
           <div v-if="isLoading" class="empty-state-mini">
             <div class="loading-ring small"></div>
             <span>กำลังโหลด...</span>
           </div>
-          <div v-else-if="topPharmacists.length === 0" class="empty-state-mini">
+          <div v-else-if="activeRankList.length === 0" class="empty-state-mini">
             <i class="fa-regular fa-clipboard"></i>
-            <span>ยังไม่มีข้อมูลการบันทึกใบสั่งยา</span>
+            <span>ยังไม่มีข้อมูลการบันทึกใบสรุปรายการยาในช่วงเวลาที่เลือก</span>
           </div>
           <div v-else class="pharma-rank-container">
             <div
-              v-for="(pharma, idx) in topPharmacists"
-              :key="pharma.key"
+              v-for="(entry, idx) in activeRankList"
+              :key="entry.key"
               class="rank-row"
-              :class="{ 'rank-row-gold': idx === 0 }"
+              :class="{
+                'rank-row-gold': idx === 0,
+                'rank-row-store': rankView === 'store' && entry.pharmaBreakdown?.length
+              }"
             >
-              <div class="rank-profile">
+              <div class="rank-row-body">
                 <span class="rank-medal" :class="`medal-${idx + 1}`">{{ idx + 1 }}</span>
-                <div class="rank-avatar-wrap">
+                <div class="rank-avatar-wrap" :class="{ 'rank-avatar-store': rankView === 'store' }">
                   <img
-                    :src="pharma.image"
-                    alt="pharma"
+                    v-if="entry.image"
+                    :src="entry.image"
+                    alt="profile"
                     @error="(e) => e.target.src = useNuxtApp().$imagesPharma('default.png')"
                   >
+                  <i v-else class="fa-solid fa-store rank-store-icon"></i>
                 </div>
                 <div class="rank-name">
-                  <strong>{{ pharma.displayName }}</strong>
-                  <small>{{ pharma.subText || '—' }}</small>
-                  <div class="rank-progress">
+                  <strong>{{ entry.displayName }}</strong>
+                  <div
+                    v-if="rankView === 'store' && entry.pharmaBreakdown?.length"
+                    class="rank-pharma-breakdown"
+                  >
                     <div
-                      class="rank-progress-fill"
-                      :style="{ width: Math.round((pharma.count / maxRankCount) * 100) + '%' }"
-                    ></div>
+                      v-for="pharma in entry.pharmaBreakdown"
+                      :key="pharma.key"
+                      class="rank-pharma-line"
+                    >
+                      <span class="rank-pharma-name">{{ pharma.displayName }}</span>
+                      <span class="rank-pharma-count">{{ pharma.count }} ใบ</span>
+                    </div>
                   </div>
+                  <small v-else>{{ entry.subText || '—' }}</small>
                 </div>
+                <span class="rank-count">{{ entry.count }} ใบ</span>
               </div>
-              <span class="rank-count">{{ pharma.count }} ใบ</span>
+              <div class="rank-progress">
+                <div
+                  class="rank-progress-fill"
+                  :style="{ width: Math.round((entry.count / maxRankCount) * 100) + '%' }"
+                ></div>
+              </div>
             </div>
           </div>
         </div>

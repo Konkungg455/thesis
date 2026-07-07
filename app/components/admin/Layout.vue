@@ -37,7 +37,7 @@ const MENU_ITEMS = computed(() => {
     { id: 'pharma',        label: 'เภสัชกร',                   icon: 'fa-capsules',          path: '/admin/pharmacist_user' },
     { id: 'user',          label: 'ผู้ใช้บริการ',                  icon: 'fa-user-injured',      path: '/admin/user_user' },
     { id: 'partner',       label: 'ร้านยาพาร์ทเนอร์',           icon: 'fa-store',             path: '/admin/phacmacy_shop' },
-    { id: 'prescriptions', label: 'ติดตามการบันทึกยา PDF',   icon: 'fa-file-prescription', path: '/admin/prescriptions_admin' },
+    { id: 'prescriptions', label: 'ติดตามใบสรุปรายการยา PDF',   icon: 'fa-file-prescription', path: '/admin/prescriptions_admin' },
     { id: 'pending',       label: 'รอดำเนินการ',              icon: 'fa-address-card',      path: '/admin/continue_pharmacist' },
     { id: 'service',       label: 'การใช้บริการ',             icon: 'fa-clipboard-list',    path: '/admin/usage' },
   ]
@@ -54,7 +54,7 @@ const tabLabelMap = {
   pharma: 'เภสัชกร',
   user: 'ผู้ใช้บริการ',
   partner: 'ร้านยาพาร์ทเนอร์',
-  prescriptions: 'ติดตามการบันทึกยา PDF',
+  prescriptions: 'ติดตามใบสรุปรายการยา PDF',
   pending: 'รอดำเนินการ',
   service: 'การใช้บริการ',
   admins: 'จัดการแอดมิน',
@@ -177,4 +177,14 @@ defineExpose({ pendingCount, refreshPending: fetchPendingCount })
 <style scoped>
 @import "@/assets/admin_dashboard_page.css";
 @import "@/assets/admin-shared.css";
+</style>
+
+<style>
+/* Light mode — พื้นหลังทุกหน้า admin เป็นสีขาว */
+html:not(.dark) body #__nuxt .admin-layout,
+html:not(.dark) body #__nuxt .admin-layout .main-content,
+html:not(.dark) body #__nuxt .admin-layout .view-container {
+    background: #ffffff;
+    background-color: #ffffff;
+}
 </style>

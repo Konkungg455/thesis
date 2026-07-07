@@ -23,7 +23,7 @@
                     <NuxtLink to="/Contact_Pharmacy" @click="closeAll">ติดต่อเจ้าหน้าที่</NuxtLink>
                 </li>
                 <li>
-                    <NuxtLink to="/history" @click="closeAll">ประวัติการสั่งยา</NuxtLink>
+                    <NuxtLink to="/history" @click="closeAll">ประวัติใบสรุปรายการยา</NuxtLink>
                 </li>
                 <li>
                     <NuxtLink to="/tracking" @click="closeAll">ติดตามอาการคนไข้</NuxtLink>

@@ -1,7 +1,7 @@
 /**
  * ตั้งรายการ /tracking ของเภสัชกร: 40 รายการ
  * - นนทพัทธ์ เผือกประพันธุ์ 1 รายการ active (กำลังติดตาม)
- * - อีก 39 รายการ completed + เขียนใบสั่งยาแล้ว
+ * - อีก 39 รายการ completed + เขียนใบสรุปรายการยาแล้ว
  *
  * ใช้: npm run db:setup-pharma-tracking -- --pharma-name="นายสมชาย รักงาม"
  */
@@ -208,7 +208,7 @@ try {
 
     console.log(JSON.stringify({
         status: 'success',
-        message: `${pharmacistLabel}: /tracking แสดงได้ ${trackingList} รายการ (${activeN} กำลังติดตาม, ${completedN} เสร็จ+มีใบสั่งยา) · นนทพัทธ์ ${nontapatOnTracking} · ไม่มีอยากเทค`,
+        message: `${pharmacistLabel}: /tracking แสดงได้ ${trackingList} รายการ (${activeN} กำลังติดตาม, ${completedN} เสร็จ+มีใบสรุปรายการยา) · นนทพัทธ์ ${nontapatOnTracking} · ไม่มีอยากเทค`,
         pharmacist: pharmacistLabel,
         id_pharma: targetPharmaId,
         removed_blocked: removedBlocked.length,

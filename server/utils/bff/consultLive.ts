@@ -3,6 +3,7 @@ import { getAuthContext } from './sessionContext';
 import { readMultipartRequest } from './formData';
 import { archiveAndClearChatBetween } from './consultArchives';
 import { ensureConsultTrackingRecord } from './consultTracking';
+import { syncServiceUsageForConsult } from './serviceUsage';
 
 export async function handleListMyPatients(event: H3Event) {
     const auth = getAuthContext(event);
@@ -222,11 +223,7 @@ export async function handleCompleteConsult(event: H3Event) {
         const serviceCode = String(info.serviceCode || '');
 
         if (consultId > 0) {
-            await sql`
-                UPDATE service_usage
-                SET service_status = 'completed', completed_at = NOW()
-                WHERE id_consult_request = ${consultId}
-            `;
+            await syncServiceUsageForConsult(sql, consultId);
             await ensureConsultTrackingRecord(sql, pId, uId, consultId);
         }
 

@@ -60,7 +60,7 @@ onMounted(fetchSymptoms);
                     <table v-else-if="patients.length > 0" class="history-table">
                         <thead>
                             <tr>
-                                <th>ชื่อผู้ป่วย</th>
+                                <th>ผู้ใช้บริการ</th>
                                 <th>โทรศัพท์</th>
                                 <th>โรคประจำตัว / อาการ</th>
                                 <th>เพศ / อายุ</th>

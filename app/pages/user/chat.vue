@@ -119,7 +119,7 @@ const fetchPharmaInfo = async () => {
     }
 };
 
-// ===== Parse marker ใบสั่งยา [PRESCRIPTION_PDF:<id>] =====
+// ===== Parse marker ใบสรุปรายการยา [PRESCRIPTION_PDF:<id>] =====
 const PRESCRIPTION_MARKER = /\[PRESCRIPTION_PDF:(\d+)\]/;
 
 const parsePrescriptionMessage = (text) => {
@@ -638,7 +638,7 @@ const checkForFollowup = async () => {
 
         // อัปเดต flag โหมดติดตามอาการ (3 วัน) จาก backend
         //  - โหมด follow-up เดิม: consult ยัง accepted + is_followup=1
-        //  - 🆕 โหมดติดตามจากใบสั่งยา: consult รอบนี้ completed แล้ว แต่ยังมีใบสั่งยา
+        //  - 🆕 โหมดติดตามจากใบสรุปรายการยา: consult รอบนี้ completed แล้ว แต่ยังมีใบสรุปรายการยา
         //        ที่กำลังติดตามอยู่ในกรอบ 3 วัน → ห้องยังใช้งานได้ ไม่บังคับไปรีวิว
         const followupAccepted = newStatus === 'accepted' && Number(data.is_followup) === 1;
         const rxTrackingActive = Number(data.tracking_active) === 1 && newStatus !== 'accepted';
@@ -656,7 +656,7 @@ const checkForFollowup = async () => {
             tickConsultCountdown();
         }
 
-        // 🆕 อยู่ในกรอบติดตาม 3 วันจากใบสั่งยา → ปลดล็อกห้อง ไม่ล็อก/ไม่เด้งไปรีวิว
+        // 🆕 อยู่ในกรอบติดตาม 3 วันจากใบสรุปรายการยา → ปลดล็อกห้อง ไม่ล็อก/ไม่เด้งไปรีวิว
         //     (แม้ consult รอบนี้จะ completed และยังไม่ได้เขียนรีวิวก็ตาม)
         if (rxTrackingActive) {
             cancelAutoRedirect();
@@ -1613,7 +1613,7 @@ const closePreview = () => {
                                     {{ parsePrescriptionMessage(msg.message_text).cleanText }}
                                     <span v-if="msg.edited_at" class="edited-mark">(แก้ไขแล้ว)</span>
                                 </div>
-                                <!-- 📋 การ์ดใบสั่งยา (ถ้าข้อความมี marker [PRESCRIPTION_PDF:<id>]) -->
+                                <!-- 📋 การ์ดใบสรุปรายการยา (ถ้าข้อความมี marker [PRESCRIPTION_PDF:<id>]) -->
                                 <div
                                     v-if="parsePrescriptionMessage(msg.message_text).prescriptionId > 0"
                                     class="prescription-card"
@@ -1621,7 +1621,7 @@ const closePreview = () => {
                                 >
                                     <div class="rx-icon"><i class="fa-solid fa-file-prescription"></i></div>
                                     <div class="rx-body">
-                                        <div class="rx-title">ใบสั่งยา (PDF)</div>
+                                        <div class="rx-title">ใบสรุปรายการยา (PDF)</div>
                                         <div class="rx-sub">คลิกเพื่อเปิด/บันทึก</div>
                                     </div>
                                     <div class="rx-action">
@@ -1681,7 +1681,7 @@ const closePreview = () => {
                     <p class="med-req-desc">
                         ระบบจะส่งข้อความแจ้งเภสัชกรว่าคุณ
                         <strong>ต้องการรับยา</strong>
-                        เภสัชกรจะดำเนินการออกใบปรึกษาและใบสั่งยาให้คุณ
+                        เภสัชกรจะดำเนินการออกใบปรึกษาและใบสรุปรายการยาให้คุณ
                     </p>
                     <div class="med-req-preview">
                         <i class="fa-solid fa-quote-left"></i>
@@ -2775,7 +2775,7 @@ const closePreview = () => {
   .ec-btn-exit { order: 1; }
 }
 
-/* ===== 📋 การ์ดใบสั่งยา (แสดงเมื่อข้อความมี marker [PRESCRIPTION_PDF:<id>]) ===== */
+/* ===== 📋 การ์ดใบสรุปรายการยา (แสดงเมื่อข้อความมี marker [PRESCRIPTION_PDF:<id>]) ===== */
 .prescription-card {
     display: flex;
     align-items: center;
