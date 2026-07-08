@@ -14,7 +14,7 @@ const PROFILE_AVATAR_SOURCE = 'default-profile-avatar.png';
 const PHARMACIST_AVATAR_SOURCE = 'default-pharmacist-avatar.png';
 const PHARMACIST_LICENSE_SOURCE = 'default-pharmacist-license.png';
 const STORE_LICENSE_SOURCE = 'default-store-license.png';
-const MEDIA_VERSION = '20260703a';
+const MEDIA_VERSION = '20260708b';
 
 function resolveSupabaseObject(folder, filename) {
     const normalizedFolder = folder.replace(/^\/+|\/+$/g, '');
@@ -159,12 +159,10 @@ async function patchDemoStoreLicenses() {
         const rows = await sql.unsafe(`
             UPDATE phamacy_store_accounts
             SET license_file = '${DEFAULT_STORE_LICENSE}'
-            WHERE COALESCE(TRIM(license_file), '') = ''
-               OR license_file IN ('license_69c517754e074.png', 'default.png')
-               OR ${DEMO_STORE_EMAIL_SQL}
+            WHERE COALESCE(is_deleted, 0) = 0
             RETURNING id_store_accounts
         `);
-        console.log(`อัปเดต license_file ร้านยา ${rows.length} รายการ → ${DEFAULT_STORE_LICENSE}`);
+        console.log(`อัปเดต license_file ร้านยาทั้งหมด ${rows.length} รายการ → ${DEFAULT_STORE_LICENSE}`);
     } finally {
         await sql.end({ timeout: 2 });
     }
@@ -177,12 +175,9 @@ async function patchDemoPharmacistLicenses() {
         const rows = await sql.unsafe(`
             UPDATE pharmacist_account
             SET license_image = '${DEFAULT_PHARMACIST_LICENSE}'
-            WHERE COALESCE(TRIM(license_image), '') = ''
-               OR license_image IN ('default.png', 'license_69ce44ed3b232.png')
-               OR ${DEMO_PHARMA_EMAIL_SQL}
             RETURNING id_pharma
         `);
-        console.log(`อัปเดต license_image เภสัช ${rows.length} รายการ → ${DEFAULT_PHARMACIST_LICENSE}`);
+        console.log(`อัปเดต license_image เภสัชทั้งหมด ${rows.length} รายการ → ${DEFAULT_PHARMACIST_LICENSE}`);
     } finally {
         await sql.end({ timeout: 2 });
     }

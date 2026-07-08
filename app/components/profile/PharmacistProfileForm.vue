@@ -83,6 +83,21 @@ const genderLabel = computed(() => {
     return profile.value.gender_pharma === 'M' ? 'ชาย' : 'หญิง';
 });
 
+const storeFieldReadonly = computed(() => {
+    if (!profile.value) return false;
+    const hasApproved = profile.value.id_store != null && profile.value.id_store !== '';
+    const hasPending = profile.value.pending_store_id != null && profile.value.pending_store_id !== '';
+    return hasApproved || hasPending;
+});
+
+const currentStoreLabel = computed(() => {
+    if (!profile.value) return '';
+    if (profile.value.current_store_name) return profile.value.current_store_name;
+    if (profile.value.pending_store_name) return profile.value.pending_store_name;
+    const store = stores.value.find((s) => String(s.id) === idStore.value);
+    return store?.name || '—';
+});
+
 const loadProfile = async () => {
     loading.value = true;
     errorMessage.value = '';
@@ -347,13 +362,20 @@ onMounted(loadProfile);
 
                     <div class="profile-field full">
                         <label>ร้านยาที่ทำงานอยู่ <span class="req">*</span></label>
-                        <select v-model="idStore" class="editable">
+                        <input
+                            v-if="storeFieldReadonly"
+                            type="text"
+                            class="readonly"
+                            :value="currentStoreLabel"
+                            readonly
+                        />
+                        <select v-else v-model="idStore" class="editable">
                             <option value="">— ไม่มี (ลาออกจากร้าน) —</option>
                             <option v-for="s in stores" :key="s.id" :value="String(s.id)">
                                 {{ s.name }}
                             </option>
                         </select>
-                        <small class="hint">
+                        <small v-if="!storeFieldReadonly" class="hint">
                             <i class="fa-solid fa-circle-info"></i>
                             หากเปลี่ยนร้าน ระบบจะส่งคำขออนุมัติให้เจ้าของร้านใหม่โดยอัตโนมัติ
                         </small>

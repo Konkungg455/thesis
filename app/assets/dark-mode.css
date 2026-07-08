@@ -3652,17 +3652,17 @@ html.dark body #__nuxt .admin-layout .overview-view .accent-stat {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28) !important;
 }
 
-html.dark body #__nuxt .admin-layout .overview-view .teal-stat {
-  background: linear-gradient(135deg, #134e4a 0%, #0f766e 55%, #14b8a6 100%) !important;
-  border-color: rgba(94, 234, 212, 0.45) !important;
-  color: #ecfdf5 !important;
+html.dark body #__nuxt .admin-layout .overview-view .purple-stat {
+  background: linear-gradient(135deg, #3b0764 0%, #6b21a8 55%, #a855f7 100%) !important;
+  border-color: rgba(216, 180, 254, 0.45) !important;
+  color: #faf5ff !important;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28) !important;
 }
 
-html.dark body #__nuxt .admin-layout .overview-view .amber-stat {
-  background: linear-gradient(135deg, #78350f 0%, #b45309 55%, #d97706 100%) !important;
-  border-color: rgba(253, 224, 71, 0.45) !important;
-  color: #fffbeb !important;
+html.dark body #__nuxt .admin-layout .overview-view .green-stat {
+  background: linear-gradient(135deg, #14532d 0%, #15803d 55%, #22c55e 100%) !important;
+  border-color: rgba(134, 239, 172, 0.45) !important;
+  color: #f0fdf4 !important;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28) !important;
 }
 
@@ -3670,11 +3670,11 @@ html.dark body #__nuxt .admin-layout .overview-view .accent-stat .stat-value {
   color: #ffffff !important;
 }
 
-html.dark body #__nuxt .admin-layout .overview-view .teal-stat .stat-value {
+html.dark body #__nuxt .admin-layout .overview-view .purple-stat .stat-value {
   color: #ffffff !important;
 }
 
-html.dark body #__nuxt .admin-layout .overview-view .amber-stat .stat-value {
+html.dark body #__nuxt .admin-layout .overview-view .green-stat .stat-value {
   color: #ffffff !important;
 }
 
@@ -3691,12 +3691,12 @@ html.dark body #__nuxt .admin-layout .overview-view .accent-stat .stat-footnote 
   color: #ddd6fe !important;
 }
 
-html.dark body #__nuxt .admin-layout .overview-view .teal-stat .stat-footnote {
-  color: #a7f3d0 !important;
+html.dark body #__nuxt .admin-layout .overview-view .purple-stat .stat-footnote {
+  color: #e9d5ff !important;
 }
 
-html.dark body #__nuxt .admin-layout .overview-view .amber-stat .stat-footnote {
-  color: #fde68a !important;
+html.dark body #__nuxt .admin-layout .overview-view .green-stat .stat-footnote {
+  color: #bbf7d0 !important;
 }
 
 html.dark body #__nuxt .admin-layout .overview-view .stat-icon-pharma {
@@ -3704,14 +3704,14 @@ html.dark body #__nuxt .admin-layout .overview-view .stat-icon-pharma {
   color: #fde68a !important;
 }
 
-html.dark body #__nuxt .admin-layout .overview-view .stat-icon-teal {
+html.dark body #__nuxt .admin-layout .overview-view .stat-icon-purple {
   background: rgba(255, 255, 255, 0.16) !important;
-  color: #ccfbf1 !important;
+  color: #e9d5ff !important;
 }
 
-html.dark body #__nuxt .admin-layout .overview-view .stat-icon-amber {
+html.dark body #__nuxt .admin-layout .overview-view .stat-icon-green {
   background: rgba(255, 255, 255, 0.16) !important;
-  color: #fef08a !important;
+  color: #bbf7d0 !important;
 }
 
 html.dark body #__nuxt .admin-layout .overview-view .stat-icon-users {

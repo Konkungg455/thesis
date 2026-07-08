@@ -1,15 +1,12 @@
 export const LOGIN_MAX_ATTEMPTS = 5;
 export const LOGIN_LOCK_MINUTES = 5;
 
-const ROLE_LABELS: Record<string, string> = {
-    user: 'ผู้ใช้งาน',
-    pharmacist: 'เภสัชกร',
-    store: 'เจ้าของร้าน',
-    admin: 'ผู้ดูแลระบบ',
-};
+export const MSG_EMAIL_NOT_FOUND = 'ไม่พบอีเมลในระบบ';
+export const MSG_ACCOUNT_LOCKED = 'รหัสคุณโดนระงับใน 5 นาที';
 
-function labelForRole(role: string): string {
-    return ROLE_LABELS[role] || role;
+export function formatWrongPasswordMessage(attemptsLeft: number): string {
+    const left = Math.max(1, attemptsLeft);
+    return `กรุณากรอกให้ถูกต้อง อย่ากรอกผิดเกิน ${left} ครั้ง`;
 }
 
 function minutesUntil(until: Date): number {
@@ -84,18 +81,23 @@ export async function checkLoginLockout(role: string, email: string): Promise<Lo
     const minutes = minutesUntil(until);
     return {
         status: 'locked',
-        message: `ล็อกอินผิดเกินจำนวนที่กำหนด — บัญชี${labelForRole(role)}ถูกระงับชั่วคราว กรุณาลองใหม่ในอีก ${minutes} นาที`,
+        message: MSG_ACCOUNT_LOCKED,
         locked_minutes: minutes,
     };
 }
 
+export type LoginFailureResponse = LoginLockResponse | {
+    status: 'error';
+    message: string;
+    attempts_left: number;
+};
+
 export async function recordLoginFailure(
     role: string,
     email: string,
-    baseMessage: string,
-): Promise<LoginLockResponse | { status: 'error'; message: string; attempts_left: number }> {
+): Promise<LoginFailureResponse | null> {
     if (!isDbConfigured()) {
-        return { status: 'error', message: baseMessage, attempts_left: LOGIN_MAX_ATTEMPTS - 1 };
+        return null;
     }
 
     await ensureLoginLockoutTable();
@@ -116,7 +118,7 @@ export async function recordLoginFailure(
         await dbQuery(async (sql) => sql.unsafe(lockSql, [role, email, LOGIN_MAX_ATTEMPTS]));
         return {
             status: 'locked',
-            message: `ล็อกอินผิดเกินจำนวนที่กำหนด — บัญชี${labelForRole(role)}ถูกระงับชั่วคราว ${LOGIN_LOCK_MINUTES} นาที กรุณาลองใหม่ภายหลัง`,
+            message: MSG_ACCOUNT_LOCKED,
             locked_minutes: LOGIN_LOCK_MINUTES,
         };
     }
@@ -130,10 +132,10 @@ export async function recordLoginFailure(
             updated_at = NOW()
     `);
 
-    const attemptsLeft = LOGIN_MAX_ATTEMPTS - newAttempts;
+    const attemptsLeft = LOGIN_MAX_ATTEMPTS - newAttempts + 1;
     return {
         status: 'error',
-        message: `${baseMessage} — เหลืออีก ${attemptsLeft} ครั้งก่อนบัญชี${labelForRole(role)}ถูกระงับ ${LOGIN_LOCK_MINUTES} นาที`,
+        message: formatWrongPasswordMessage(attemptsLeft),
         attempts_left: attemptsLeft,
     };
 }

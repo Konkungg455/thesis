@@ -580,7 +580,9 @@ async function handleProcessLogin(event: H3Event, path: string) {
                 message: dbUnavailableMessage(),
             };
         }
-        return recordLoginFailure(cfg.role, email, 'ไม่พบอีเมลนี้ในระบบ');
+        const locked = await recordLoginFailure(cfg.role, email);
+        if (locked) return locked;
+        return { status: 'error', message: MSG_EMAIL_NOT_FOUND };
     }
 
     if (Number(result.is_deleted || 0) === 1) {
@@ -594,7 +596,10 @@ async function handleProcessLogin(event: H3Event, path: string) {
     });
 
     if (!ok) {
-        return recordLoginFailure(cfg.role, email, 'รหัสผ่านไม่ถูกต้อง');
+        const failure = await recordLoginFailure(cfg.role, email);
+        if (failure?.status === 'locked') return failure;
+        if (failure?.status === 'error') return failure;
+        return { status: 'error', message: formatWrongPasswordMessage(LOGIN_MAX_ATTEMPTS) };
     }
 
     await clearLoginLockout(cfg.role, email);

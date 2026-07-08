@@ -423,9 +423,9 @@ onMounted(() => {
           <span class="stat-value">{{ totalChartCount.toLocaleString('th-TH') }}</span>
           <span class="stat-footnote">บันทึกจากระบบ Telepharmacy</span>
         </div>
-        <div class="stat-card teal-stat">
+        <div class="stat-card purple-stat">
           <div class="stat-card-top">
-            <span class="stat-icon stat-icon-teal"><i class="fa-solid fa-signal"></i></span>
+            <span class="stat-icon stat-icon-purple"><i class="fa-solid fa-signal"></i></span>
             <span class="stat-label">ผู้ใช้บริการที่ใช้งาน ({{ onlinePeriodLabel }})</span>
           </div>
           <span class="stat-value">{{ onlineActivity.active_users.toLocaleString('th-TH') }}</span>
@@ -433,9 +433,9 @@ onMounted(() => {
             ออนไลน์ขณะนี้ {{ onlineActivity.online_users_now.toLocaleString('th-TH') }} คน
           </span>
         </div>
-        <div class="stat-card amber-stat">
+        <div class="stat-card green-stat">
           <div class="stat-card-top">
-            <span class="stat-icon stat-icon-amber"><i class="fa-solid fa-user-doctor"></i></span>
+            <span class="stat-icon stat-icon-green"><i class="fa-solid fa-user-doctor"></i></span>
             <span class="stat-label">เภสัชกรที่ใช้งาน ({{ onlinePeriodLabel }})</span>
           </div>
           <span class="stat-value">{{ onlineActivity.active_pharmas.toLocaleString('th-TH') }}</span>
