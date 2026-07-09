@@ -50,7 +50,7 @@
             <i class="fa-solid fa-store"></i> ร้านยาในระบบของเรา
             <small class="result-count">
               ({{ filteredPartners.length }} ร้าน
-              <span v-if="userPos && maxDistanceKm > 0">ภายใน {{ maxDistanceKm }} กม.</span>)
+              <span v-if="userPos && maxDistanceKm > 0">ไม่เกิน {{ maxDistanceKm }} กม.</span>)
             </small>
           </h2>
 
@@ -62,12 +62,12 @@
               </label>
               <select v-model.number="maxDistanceKm" class="filter-select" @change="reloadWithDistance">
                 <option :value="0">ทั้งหมด (ไม่จำกัดระยะ)</option>
-                <option :value="2">ภายใน 2 กม.</option>
-                <option :value="5">ภายใน 5 กม.</option>
-                <option :value="10">ภายใน 10 กม.</option>
-                <option :value="25">ภายใน 25 กม.</option>
-                <option :value="50">ภายใน 50 กม.</option>
-                <option :value="100">ภายใน 100 กม.</option>
+                <option :value="2">ไม่เกิน 2 กม.</option>
+                <option :value="5">ไม่เกิน 5 กม.</option>
+                <option :value="10">ไม่เกิน 10 กม.</option>
+                <option :value="25">ไม่เกิน 25 กม.</option>
+                <option :value="50">ไม่เกิน 50 กม.</option>
+                <option :value="100">ไม่เกิน 100 กม.</option>
               </select>
             </div>
             <div v-else class="distance-filter denied-state">
@@ -115,7 +115,7 @@
 
           <div v-else-if="userPos && maxDistanceKm > 0" class="empty-filter-state">
             <i class="fa-solid fa-map-location-dot"></i>
-            <p>ไม่พบร้านยาในรัศมี {{ maxDistanceKm }} กม. ลองขยายระยะการค้นหา</p>
+            <p>ไม่พบร้านยาในระยะไม่เกิน {{ maxDistanceKm }} กม. ลองขยายระยะการค้นหา</p>
           </div>
         </div>
       </transition>
@@ -201,7 +201,7 @@ const loadPartners = async (pos = null, radiusKm = null) => {
     partnersLoading.value = true
     try {
         const radius = radiusKm ?? (maxDistanceKm.value > 0 ? maxDistanceKm.value : 0)
-        let url = apiUrl('get-nearby-pharmacies.php?limit=50')
+        let url = apiUrl('get-nearby-pharmacies.php')
         if (pos) {
             url += `&lat=${pos.lat}&lng=${pos.lng}`
             if (radius > 0) {

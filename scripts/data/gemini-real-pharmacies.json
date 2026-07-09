@@ -9,9 +9,9 @@
     "province": "เพชรบุรี",
     "zipcode": "76120",
     "store_phone": "032471828",
-    "latitude": 12.8003,
-    "longitude": 99.9658,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30fd037268e6025f:0x5ff1937c69e82486"
+    "latitude": 12.7977746,
+    "longitude": 99.9703258,
+    "google_maps_url": "https://maps.app.goo.gl/FDSegvJqKy9XxGUK6"
   },
   {
     "list_no": 3,
@@ -23,9 +23,9 @@
     "province": "เพชรบุรี",
     "zipcode": "76120",
     "store_phone": "",
-    "latitude": 12.8012,
-    "longitude": 99.9665,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30fd034a11e5c053:0xce3faf1ad9e97460"
+    "latitude": 12.7952291,
+    "longitude": 99.9695298,
+    "google_maps_url": "https://maps.app.goo.gl/ip1U8aU5Ckzp9Q3HA"
   },
   {
     "list_no": 4,
@@ -37,13 +37,13 @@
     "province": "เพชรบุรี",
     "zipcode": "76120",
     "store_phone": "032470636",
-    "latitude": 12.8021,
-    "longitude": 99.9672,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30fd1cb03b50edd3:0x37e9e186480668ec"
+    "latitude": 12.80924,
+    "longitude": 99.9791601,
+    "google_maps_url": "https://maps.app.goo.gl/iDfKrVbG3WEhxQ5r8"
   },
   {
     "list_no": 5,
-    "store_name": "ศิริเวช 1 (Sirivej Pharmacy)",
+    "store_name": "ศิริเวช 1",
     "house_no": "256/52",
     "road": "รังสิต-ปทุ",
     "sub_district": "ประชาธิปัตย์",
@@ -51,23 +51,23 @@
     "province": "ปทุมธานี",
     "zipcode": "12130",
     "store_phone": "0651639563",
-    "latitude": 13.9876301,
-    "longitude": 100.6137167,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30e281dc40bf42e1:0x678858f3f86e2cf5"
+    "latitude": 13.9876911,
+    "longitude": 100.6136972,
+    "google_maps_url": "https://maps.app.goo.gl/WC5SEJokhZCqtji66"
   },
   {
     "list_no": 6,
-    "store_name": "เอ็กซ์ต้า พลัส สะพานฟ้า รังสิตคลอง 1",
-    "house_no": "152",
-    "road": "รังสิต-นคร",
-    "sub_district": "ประชาธิปัตย์",
-    "district": "ธัญบุรี",
-    "province": "ปทุมธานี",
-    "zipcode": "12130",
-    "store_phone": "0845082774",
-    "latitude": 13.9871108,
-    "longitude": 100.6132959,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x311d7f0042651a0b:0xcb18daccdb3c7092"
+    "store_name": "ร้านขายยา Zenwa Pharmacy",
+    "house_no": "120/3",
+    "road": "แจ้งวัฒนะ",
+    "sub_district": "บ้านใหม่",
+    "district": "ปากเกร็ด",
+    "province": "นนทบุรี",
+    "zipcode": "11120",
+    "store_phone": "029620003",
+    "latitude": 13.9127466,
+    "longitude": 100.5526082,
+    "google_maps_url": "https://maps.app.goo.gl/gFHFnfbMziELPpyC6"
   },
   {
     "list_no": 7,
@@ -79,13 +79,13 @@
     "province": "ปทุมธานี",
     "zipcode": "12130",
     "store_phone": "0831742955",
-    "latitude": 13.9895,
-    "longitude": 100.6172,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x311d7e00fa1acf63:0xda2f464c6b1f7997"
+    "latitude": 13.9616328,
+    "longitude": 100.6228591,
+    "google_maps_url": "https://maps.app.goo.gl/1QzfixkvyHHGvUhv6"
   },
   {
     "list_no": 9,
-    "store_name": "เอ็กซ์ต้า พลัส เดอะ เลค เมืองทองธานี",
+    "store_name": "ร้านยา เอ็กซ์ต้า พลัส สาขาเดอะเลค เมืองทองธานี",
     "house_no": "504",
     "road": "แจ้งวัฒนะ",
     "sub_district": "บ้านใหม่",
@@ -93,9 +93,9 @@
     "province": "นนทบุรี",
     "zipcode": "11120",
     "store_phone": "0918081554",
-    "latitude": 13.9106353,
-    "longitude": 100.552453,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30e283002b5ed32d:0xe4bb1e4284fca857"
+    "latitude": 13.9205651,
+    "longitude": 100.5392464,
+    "google_maps_url": "https://maps.app.goo.gl/woTpKQqSMAvqCap77"
   },
   {
     "list_no": 10,
@@ -107,9 +107,9 @@
     "province": "นนทบุรี",
     "zipcode": "11120",
     "store_phone": "025745635",
-    "latitude": 13.9055927,
-    "longitude": 100.5381359,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30e2837b28303055:0x90f292e4402dc5ee"
+    "latitude": 13.9055406,
+    "longitude": 100.5380871,
+    "google_maps_url": "https://maps.app.goo.gl/LMYU1JHcD6fSrkzE8"
   },
   {
     "list_no": 11,
@@ -121,23 +121,23 @@
     "province": "นนทบุรี",
     "zipcode": "11120",
     "store_phone": "025745635",
-    "latitude": 13.9055927,
-    "longitude": 100.5381359,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30e2837b28303055:0x90f292e4402dc5ee"
+    "latitude": 13.9055406,
+    "longitude": 100.5380871,
+    "google_maps_url": "https://maps.app.goo.gl/LMYU1JHcD6fSrkzE8"
   },
   {
     "list_no": 12,
-    "store_name": "เอ็กซ์ต้า พลัส ธาราสแควร์",
-    "house_no": "ม.2",
-    "road": "แจ้งวัฒนะ",
-    "sub_district": "คลองเกลือ",
-    "district": "ปากเกร็ด",
-    "province": "นนทบุรี",
-    "zipcode": "11120",
+    "store_name": "ร้านยา eXta plus สาขาตลาดเพิ่มทรัพย์",
+    "house_no": "-",
+    "road": "ถ.พระราม3",
+    "sub_district": "บางโพงพาง",
+    "district": "ยานนาวา",
+    "province": "กรุงเทพมหานคร",
+    "zipcode": "10120",
     "store_phone": "0918081707",
-    "latitude": 13.9109,
-    "longitude": 100.5529,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30e2830036460065:0x5cd2cb91d241d588"
+    "latitude": 13.6842487,
+    "longitude": 100.5261429,
+    "google_maps_url": "https://maps.app.goo.gl/xDAgPWe64jzuX3AF9"
   },
   {
     "list_no": 13,
@@ -149,9 +149,9 @@
     "province": "นนทบุรี",
     "zipcode": "11120",
     "store_phone": "0918082839",
-    "latitude": 13.9127466,
-    "longitude": 100.5526082,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30e285000e1e99e7:0xeba69b1fbc5e9e7"
+    "latitude": 13.9006827,
+    "longitude": 100.5296093,
+    "google_maps_url": "https://maps.app.goo.gl/Vidbm9Ac9s8bgTUd7"
   },
   {
     "list_no": 14,
@@ -163,9 +163,9 @@
     "province": "นครปฐม",
     "zipcode": "73000",
     "store_phone": "0841448989",
-    "latitude": 13.8196,
-    "longitude": 100.0624,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30e2e5cdbf4a5c99:0xdbe2ba0dc430cf1d"
+    "latitude": 13.8142239,
+    "longitude": 100.0400524,
+    "google_maps_url": "https://maps.app.goo.gl/7kwgSH2QhDvecUbP8"
   },
   {
     "list_no": 15,
@@ -177,9 +177,9 @@
     "province": "นครปฐม",
     "zipcode": "73000",
     "store_phone": "0959694796",
-    "latitude": 13.8191,
-    "longitude": 100.0618,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30e2e500655a14b9:0xb6201c59a6f5d2d2"
+    "latitude": 13.8152634,
+    "longitude": 100.0140376,
+    "google_maps_url": "https://maps.app.goo.gl/Ae6zyvrZUPeNWrFY8"
   },
   {
     "list_no": 16,
@@ -191,9 +191,9 @@
     "province": "นครปฐม",
     "zipcode": "73000",
     "store_phone": "0955947061",
-    "latitude": 13.8185,
-    "longitude": 100.0609,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30e2e7a173bb4c59:0xae67fd3a48717641"
+    "latitude": 13.7879831,
+    "longitude": 100.0494175,
+    "google_maps_url": "https://maps.app.goo.gl/MLTRwgsQxwcWtHrWA"
   },
   {
     "list_no": 17,
@@ -205,9 +205,9 @@
     "province": "นครปฐม",
     "zipcode": "73000",
     "store_phone": "0989216682",
-    "latitude": 13.8182,
-    "longitude": 100.0605,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30e2e52609623e3b:0xe9f374dfd6bada42"
+    "latitude": 13.8149775,
+    "longitude": 100.0447594,
+    "google_maps_url": "https://maps.app.goo.gl/PavrVdtHAcT8zVQ16"
   },
   {
     "list_no": 16,
@@ -219,9 +219,9 @@
     "province": "นครปฐม",
     "zipcode": "73000",
     "store_phone": "0955947061",
-    "latitude": 13.8185,
-    "longitude": 100.0609,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30e2e7a173bb4c59:0xae67fd3a48717641"
+    "latitude": 13.7879831,
+    "longitude": 100.0494175,
+    "google_maps_url": "https://maps.app.goo.gl/MLTRwgsQxwcWtHrWA"
   },
   {
     "list_no": 17,
@@ -233,8 +233,8 @@
     "province": "นครปฐม",
     "zipcode": "73000",
     "store_phone": "0989216682",
-    "latitude": 13.8182,
-    "longitude": 100.0605,
-    "google_maps_url": "https://www.google.com/maps/place//data=!4m2!3m1!1s0x30e2e52609623e3b:0xe9f374dfd6bada42"
+    "latitude": 13.8149775,
+    "longitude": 100.0447594,
+    "google_maps_url": "https://maps.app.goo.gl/PavrVdtHAcT8zVQ16"
   }
 ]

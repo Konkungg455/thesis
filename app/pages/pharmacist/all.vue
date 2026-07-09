@@ -154,7 +154,7 @@ const formatDistance = (km) => {
             <p v-if="!isLoading">
                 พบเภสัชกรทั้งหมด <strong>{{ filteredPharmacists.length }}</strong> ท่าน
                 <span v-if="userPos && maxDistanceKm > 0">
-                    (ภายในรัศมี {{ maxDistanceKm }} กม.)
+                    (ไม่เกิน {{ maxDistanceKm }} กม.)
                 </span>
             </p>
             <p v-else>กำลังโหลดรายชื่อเภสัชกร...</p>
@@ -212,12 +212,12 @@ const formatDistance = (km) => {
                 </label>
                 <select v-model.number="maxDistanceKm" class="filter-select">
                     <option :value="0">ทั้งหมด (ไม่จำกัดระยะ)</option>
-                    <option :value="2">ภายใน 2 กม.</option>
-                    <option :value="5">ภายใน 5 กม.</option>
-                    <option :value="10">ภายใน 10 กม.</option>
-                    <option :value="25">ภายใน 25 กม.</option>
-                    <option :value="50">ภายใน 50 กม.</option>
-                    <option :value="100">ภายใน 100 กม.</option>
+                    <option :value="2">ไม่เกิน 2 กม.</option>
+                    <option :value="5">ไม่เกิน 5 กม.</option>
+                    <option :value="10">ไม่เกิน 10 กม.</option>
+                    <option :value="25">ไม่เกิน 25 กม.</option>
+                    <option :value="50">ไม่เกิน 50 กม.</option>
+                    <option :value="100">ไม่เกิน 100 กม.</option>
                 </select>
             </div>
             <div v-else class="distance-filter denied-state">
@@ -273,7 +273,7 @@ const formatDistance = (km) => {
                     <div class="footer-card">
                         <span class="tag-label" :title="staff.store_name || ''">
                             <i class="fa-solid fa-store"></i>
-                            {{ staff.store_name || 'ยังไม่มีร้านยา' }}
+                            <span class="tag-text">{{ staff.store_name || 'ยังไม่มีร้านยา' }}</span>
                         </span>
                         <span class="btn-more">ดูรายละเอียด ></span>
                     </div>
@@ -287,7 +287,7 @@ const formatDistance = (km) => {
             <p v-else-if="statusFilter === 'break'">ไม่มีเภสัชกรที่อยู่ในช่วงพักตอนนี้</p>
             <p v-else-if="statusFilter === 'closed_today'">ทุกคนเปิดทำการในวันนี้</p>
             <p v-else-if="userPos && maxDistanceKm > 0">
-                ไม่พบเภสัชกรในรัศมี {{ maxDistanceKm }} กม. ลองขยายระยะการค้นหา
+                ไม่พบเภสัชกรในระยะไม่เกิน {{ maxDistanceKm }} กม. ลองขยายระยะการค้นหา
             </p>
             <p v-else>ยังไม่มีเภสัชกรในระบบ</p>
         </div>
@@ -571,26 +571,76 @@ const formatDistance = (km) => {
 }
 
 .footer-card {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    margin-top: 10px;
-    gap: 8px;
+    margin-top: 12px;
+    gap: 10px;
 }
 
 .tag-label {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 6px;
-    max-width: 60%;
-    white-space: nowrap;
+    gap: 7px;
+    min-width: 0;
+    max-width: 100%;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 14px;
+    font-size: 12.5px;
+    line-height: 1.3;
+}
+
+.tag-label i {
+    flex: 0 0 auto;
+    font-size: 0.78rem;
+    margin-top: 1px;
+}
+
+.tag-text {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    background: rgba(255, 255, 255, 0.2);
-    color: #fff;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 13px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+}
+
+.btn-more {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    padding: 7px 12px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    transition: all 0.2s ease;
+}
+
+.staff-card:hover .btn-more {
+    background: rgba(255, 255, 255, 0.22);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+@media (max-width: 786px) {
+    .footer-card {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+        gap: 9px;
+    }
+
+    .btn-more {
+        width: 100%;
+        min-height: 38px;
+    }
 }
 
 /* ============ Empty / Loading ============ */

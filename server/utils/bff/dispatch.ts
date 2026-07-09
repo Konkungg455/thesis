@@ -544,9 +544,6 @@ async function handleProcessLogin(event: H3Event, path: string) {
         return { status: 'error', message: 'ไม่รองรับ endpoint นี้' };
     }
 
-    const locked = await checkLoginLockout(cfg.role, email);
-    if (locked) return locked;
-
     const selectByPath: Record<string, string> = {
         'process-login.php': `SELECT id_account, password_account, salt_account, is_deleted,
             username_account, images_account, role_account
@@ -580,10 +577,11 @@ async function handleProcessLogin(event: H3Event, path: string) {
                 message: dbUnavailableMessage(),
             };
         }
-        const locked = await recordLoginFailure(cfg.role, email);
-        if (locked) return locked;
         return { status: 'error', message: MSG_EMAIL_NOT_FOUND };
     }
+
+    const locked = await checkLoginLockout(cfg.role, email);
+    if (locked) return locked;
 
     if (Number(result.is_deleted || 0) === 1) {
         return { status: 'deleted', message: 'ระงับการใช้งานชั่วคราว' };
@@ -748,7 +746,7 @@ async function handleGetNearbyPharmacies(event: H3Event) {
     const q = getQuery(event);
     const lat = q.lat !== undefined && q.lat !== '' ? Number(q.lat) : NaN;
     const lng = q.lng !== undefined && q.lng !== '' ? Number(q.lng) : NaN;
-    const limit = Math.max(1, Math.min(100, Number(q.limit || 20) || 20));
+    const limitRaw = q.limit !== undefined && q.limit !== '' ? Number(q.limit) : null;
     const radiusKm = q.radius_km !== undefined && q.radius_km !== ''
         ? Number(q.radius_km) : 0;
     const hasUserPos = Number.isFinite(lat) && Number.isFinite(lng)
@@ -827,8 +825,10 @@ async function handleGetNearbyPharmacies(event: H3Event) {
         filtered = stores.filter((s) => s.distance != null && s.distance <= radiusKm);
     }
 
-    const limited = filtered.slice(0, limit);
-    return { status: 'success', total: limited.length, stores: limited };
+    const out = limitRaw == null
+        ? filtered
+        : filtered.slice(0, Math.max(1, Math.min(100, limitRaw || 100)));
+    return { status: 'success', total: out.length, stores: out };
 }
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
