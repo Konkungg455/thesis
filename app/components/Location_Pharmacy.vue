@@ -113,7 +113,7 @@
             </div>
           </div>
 
-          <div v-else-if="userPos && maxDistanceKm > 0 && !usedDistanceFallback" class="empty-filter-state">
+          <div v-else-if="userPos && maxDistanceKm > 0 && displayPartners.length === 0" class="empty-filter-state">
             <i class="fa-solid fa-map-location-dot"></i>
             <p>ไม่พบร้านยาในระยะไม่เกิน {{ maxDistanceKm }} กม. ลองขยายระยะการค้นหา</p>
           </div>
@@ -171,7 +171,6 @@ const partnersLoading = ref(false)
 const userPos = ref(null)
 const locationStatus = ref('idle') // idle | locating | granted | denied | unavailable
 const maxDistanceKm = ref(10)      // 0 = ไม่จำกัด, ค่าเริ่มต้น 10 กม.
-const usedDistanceFallback = ref(false)
 const countdown = ref(60)
 const searchStatus = ref(null)
 let timerInterval = null
@@ -186,9 +185,7 @@ const filteredPartners = computed(() => {
     })
 })
 
-const displayPartners = computed(() => (
-    usedDistanceFallback.value ? partners.value : filteredPartners.value
-))
+const displayPartners = computed(() => filteredPartners.value)
 
 const getUserPosition = () =>
     new Promise((resolve) => {
@@ -214,53 +211,41 @@ const getUserPosition = () =>
         )
     })
 
-const loadPartners = async (pos = null, radiusKm = null) => {
+const loadPartners = async (pos = null) => {
     partnersLoading.value = true
-    usedDistanceFallback.value = false
     try {
-        const radius = radiusKm ?? (maxDistanceKm.value > 0 ? maxDistanceKm.value : 0)
-        const buildUrl = (withRadius) => {
-            const params = {}
-            if (pos) {
-                params.lat = pos.lat
-                params.lng = pos.lng
-                if (withRadius > 0) params.radius_km = withRadius
-            }
-            return appendQuery(apiUrl('get-nearby-pharmacies.php'), params)
+        const params = {}
+        if (pos) {
+            params.lat = pos.lat
+            params.lng = pos.lng
         }
-
-        let res = await $fetch(buildUrl(radius), { credentials: 'include' })
-        let stores = res?.status === 'success' ? (res.stores || []) : []
-
-        // ไม่มีร้านในระยะที่เลือก → โหลดร้านในระบบทั้งหมดเรียงตามระยะทาง
-        if (pos && radius > 0 && stores.length === 0) {
-            res = await $fetch(buildUrl(0), { credentials: 'include' })
-            stores = res?.status === 'success' ? (res.stores || []) : []
-            usedDistanceFallback.value = stores.length > 0
-        }
-
+        const res = await $fetch(
+            appendQuery(apiUrl('get-nearby-pharmacies.php'), params),
+            { credentials: 'include' },
+        )
+        const stores = res?.status === 'success' ? (res.stores || []) : []
         partners.value = stores.map((s) => ({
             ...s,
             distance_km: s.distance ?? null,
-            store_phone: s.phone || ''
+            store_phone: s.phone || '',
         }))
     } catch (e) {
         console.warn('โหลดร้านยาในระบบไม่สำเร็จ', e)
+        partners.value = []
     } finally {
         partnersLoading.value = false
     }
 }
 
-const reloadWithDistance = async () => {
-    if (!userPos.value) return
-    usedDistanceFallback.value = false
-    await loadPartners(userPos.value, maxDistanceKm.value)
+const reloadWithDistance = () => {
+    updateSearchStatus(displayPartners.value.length, pharmacies.value.length)
 }
 
 const requestLocation = async () => {
     userPos.value = await getUserPosition()
     if (userPos.value) {
-        await loadPartners(userPos.value, maxDistanceKm.value)
+        await loadPartners(userPos.value)
+        updateSearchStatus(displayPartners.value.length, pharmacies.value.length)
     }
 }
 
@@ -294,61 +279,69 @@ const stopTimer = () => {
 }
 
 const runGooglePlacesSearch = (userPos) =>
-    new Promise((resolve) => {
-        if (typeof google === 'undefined' || !google.maps?.places) {
-            resolve(0)
-            return
-        }
-        try {
-            const dummyMap = new google.maps.Map(document.createElement('div'))
-            const service = new google.maps.places.PlacesService(dummyMap)
-            const request = {
-                location: userPos,
-                radius: 5000,
-                type: ['pharmacy'],
-                keyword: 'ร้านขายยา'
+    Promise.race([
+        new Promise((resolve) => {
+            if (typeof google === 'undefined' || !google.maps?.places) {
+                resolve(0)
+                return
             }
-            service.nearbySearch(request, (results, status) => {
-                if (status === google.maps.places.PlacesServiceStatus.OK && results?.length > 0) {
-                    pharmacies.value = results.map((place) => {
-                        const dist = google.maps.geometry.spherical.computeDistanceBetween(
-                            new google.maps.LatLng(userPos.lat, userPos.lng),
-                            place.geometry.location
-                        )
-                        return {
-                            id: place.place_id,
-                            name: place.name,
-                            address: place.vicinity,
-                            distance: (dist / 1000).toFixed(1)
-                        }
-                    })
-                        .sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance))
-                        .slice(0, 3)
-                    resolve(pharmacies.value.length)
-                    return
+            try {
+                const dummyMap = new google.maps.Map(document.createElement('div'))
+                const service = new google.maps.places.PlacesService(dummyMap)
+                const request = {
+                    location: userPos,
+                    radius: 5000,
+                    type: ['pharmacy'],
+                    keyword: 'ร้านขายยา',
                 }
+                service.nearbySearch(request, (results, status) => {
+                    if (status === google.maps.places.PlacesServiceStatus.OK && results?.length > 0) {
+                        pharmacies.value = results.map((place) => {
+                            const dist = google.maps.geometry.spherical.computeDistanceBetween(
+                                new google.maps.LatLng(userPos.lat, userPos.lng),
+                                place.geometry.location,
+                            )
+                            return {
+                                id: place.place_id,
+                                name: place.name,
+                                address: place.vicinity,
+                                distance: (dist / 1000).toFixed(1),
+                            }
+                        })
+                            .sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance))
+                            .slice(0, 3)
+                        resolve(pharmacies.value.length)
+                        return
+                    }
+                    pharmacies.value = []
+                    resolve(0)
+                })
+            } catch (e) {
+                console.warn('Google Places search failed:', e)
                 pharmacies.value = []
                 resolve(0)
-            })
-        } catch (e) {
-            console.warn('Google Places search failed:', e)
-            pharmacies.value = []
-            resolve(0)
-        }
-    })
+            }
+        }),
+        new Promise((resolve) => {
+            setTimeout(() => resolve(0), 8000)
+        }),
+    ])
 
 const updateSearchStatus = (partnerCount, googleCount) => {
     if (partnerCount > 0) {
-        if (usedDistanceFallback.value && maxDistanceKm.value > 0) {
-            searchStatus.value = {
-                text: `ไม่พบร้านยาในระยะไม่เกิน ${maxDistanceKm.value} กม. — แสดงร้านยาในระบบทั้งหมด ${partnerCount} ร้านด้านล่าง`,
-                type: 'info'
-            }
-            return
-        }
+        const radiusLabel = userPos.value && maxDistanceKm.value > 0
+            ? ` (ไม่เกิน ${maxDistanceKm.value} กม.)`
+            : ''
         searchStatus.value = {
-            text: `พบร้านยาในระบบ ${partnerCount} ร้าน — เรียงตามระยะทางจากตำแหน่งของคุณ`,
-            type: 'success'
+            text: `พบร้านยาในระบบ ${partnerCount} ร้าน${radiusLabel} — เรียงตามระยะทางจากตำแหน่งของคุณ`,
+            type: 'success',
+        }
+        return
+    }
+    if (partners.value.length > 0 && userPos.value && maxDistanceKm.value > 0) {
+        searchStatus.value = {
+            text: `ไม่พบร้านยาในระยะไม่เกิน ${maxDistanceKm.value} กม. — ลองขยายระยะการค้นหา`,
+            type: 'info',
         }
         return
     }
@@ -405,11 +398,12 @@ const handleSearch = async () => {
     searchStatus.value = { text: 'กำลังค้นหาร้านยาในระบบของเรา...', type: 'info' }
 
     // 1) ดึงร้านในระบบ (มี google_maps_url)
-    await loadPartners(pos, maxDistanceKm.value)
+    await loadPartners(pos)
+
+    updateSearchStatus(displayPartners.value.length, 0)
 
     const googleCount = await runGooglePlacesSearch(pos)
-    const partnerCount = displayPartners.value.length
-    updateSearchStatus(partnerCount, googleCount)
+    updateSearchStatus(displayPartners.value.length, googleCount)
   }, (error) => {
     stopTimer()
     let errorMsg = 'หาไม่ได้: กรุณาเปิด GPS และอนุญาตสิทธิ์ตำแหน่ง'
@@ -428,9 +422,12 @@ const openMap = (placeId, name) => {
 onMounted(async () => {
     userPos.value = await getUserPosition()
     if (userPos.value) {
-        await loadPartners(userPos.value, maxDistanceKm.value)
+        await loadPartners(userPos.value)
     } else {
         await loadPartners(null)
+    }
+    if (displayPartners.value.length > 0) {
+        updateSearchStatus(displayPartners.value.length, 0)
     }
 })
 
