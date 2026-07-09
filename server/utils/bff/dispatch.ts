@@ -749,6 +749,8 @@ async function handleGetNearbyPharmacies(event: H3Event) {
     const lat = q.lat !== undefined && q.lat !== '' ? Number(q.lat) : NaN;
     const lng = q.lng !== undefined && q.lng !== '' ? Number(q.lng) : NaN;
     const limit = Math.max(1, Math.min(100, Number(q.limit || 20) || 20));
+    const radiusKm = q.radius_km !== undefined && q.radius_km !== ''
+        ? Number(q.radius_km) : 0;
     const hasUserPos = Number.isFinite(lat) && Number.isFinite(lng)
         && (lat !== 0 || lng !== 0);
 
@@ -820,7 +822,12 @@ async function handleGetNearbyPharmacies(event: H3Event) {
         });
     }
 
-    const limited = stores.slice(0, limit);
+    let filtered = stores;
+    if (hasUserPos && Number.isFinite(radiusKm) && radiusKm > 0) {
+        filtered = stores.filter((s) => s.distance != null && s.distance <= radiusKm);
+    }
+
+    const limited = filtered.slice(0, limit);
     return { status: 'success', total: limited.length, stores: limited };
 }
 

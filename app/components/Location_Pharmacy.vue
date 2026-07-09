@@ -45,13 +45,46 @@
 
       <!-- ===== ร้านยาในระบบของเรา (มีลิงก์ Google Maps แนบ) ===== -->
       <transition name="fade">
-        <div v-if="partners.length > 0" class="results-container partner-results">
+        <div v-if="partners.length > 0 || partnersLoading" class="results-container partner-results">
           <h2 class="section-subtitle">
             <i class="fa-solid fa-store"></i> ร้านยาในระบบของเรา
-            <small class="result-count">({{ partners.length }} ร้าน)</small>
+            <small class="result-count">
+              ({{ filteredPartners.length }} ร้าน
+              <span v-if="userPos && maxDistanceKm > 0">ภายใน {{ maxDistanceKm }} กม.</span>)
+            </small>
           </h2>
-          <div class="pharmacy-grid">
-            <div v-for="(shop, index) in partners" :key="`p-${shop.id}`" class="pharmacy-card partner-card">
+
+          <div class="distance-filter-bar">
+            <div v-if="userPos" class="distance-filter">
+              <label>
+                <i class="fa-solid fa-location-crosshairs"></i>
+                ระยะทางจากคุณ:
+              </label>
+              <select v-model.number="maxDistanceKm" class="filter-select" @change="reloadWithDistance">
+                <option :value="0">ทั้งหมด (ไม่จำกัดระยะ)</option>
+                <option :value="2">ภายใน 2 กม.</option>
+                <option :value="5">ภายใน 5 กม.</option>
+                <option :value="10">ภายใน 10 กม.</option>
+                <option :value="25">ภายใน 25 กม.</option>
+                <option :value="50">ภายใน 50 กม.</option>
+                <option :value="100">ภายใน 100 กม.</option>
+              </select>
+            </div>
+            <div v-else class="distance-filter denied-state">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>เปิด GPS เพื่อกรองตามระยะทาง</span>
+              <button type="button" class="btn-retry-loc" @click="requestLocation">
+                <i class="fa-solid fa-arrows-rotate"></i> ลองใหม่
+              </button>
+            </div>
+          </div>
+
+          <div v-if="partnersLoading" class="loading-inline">
+            <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดร้านยาใกล้คุณ...
+          </div>
+
+          <div v-else-if="filteredPartners.length > 0" class="pharmacy-grid">
+            <div v-for="(shop, index) in filteredPartners" :key="`p-${shop.id}`" class="pharmacy-card partner-card">
               <div v-if="index === 0 && shop.distance_km != null" class="card-badge nearest">
                 <i class="fa-solid fa-circle-check"></i> ใกล้คุณที่สุด
               </div>
@@ -78,6 +111,11 @@
                 </button>
               </div>
             </div>
+          </div>
+
+          <div v-else-if="userPos && maxDistanceKm > 0" class="empty-filter-state">
+            <i class="fa-solid fa-map-location-dot"></i>
+            <p>ไม่พบร้านยาในรัศมี {{ maxDistanceKm }} กม. ลองขยายระยะการค้นหา</p>
           </div>
         </div>
       </transition>
@@ -108,7 +146,7 @@
 </template>
 
 <script setup>
-import { ref, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { loadGoogleMaps } from '~/composables/useGoogleMaps'
 import { openGoogleMapsNavigation } from '#shared/utils/googleMapsLinks'
 
@@ -118,16 +156,57 @@ const loading = ref(false)
 const pharmacies = ref([])      // ผลลัพธ์ Google Places nearbySearch (ทั่วไป)
 const partners = ref([])        // ร้านยาในระบบของเรา (มีลิงก์ Google Maps)
 const partnersLoading = ref(false)
+const userPos = ref(null)
+const locationStatus = ref('idle') // idle | locating | granted | denied | unavailable
+const maxDistanceKm = ref(10)      // 0 = ไม่จำกัด, ค่าเริ่มต้น 10 กม.
 const countdown = ref(60)
 const searchStatus = ref(null)
 let timerInterval = null
 
-const loadPartners = async (userPos = null) => {
+const filteredPartners = computed(() => {
+    if (!userPos.value || maxDistanceKm.value <= 0) {
+        return partners.value
+    }
+    return partners.value.filter((shop) => {
+        if (shop.distance_km === null || shop.distance_km === undefined) return false
+        return Number(shop.distance_km) <= Number(maxDistanceKm.value)
+    })
+})
+
+const getUserPosition = () =>
+    new Promise((resolve) => {
+        if (typeof navigator === 'undefined' || !navigator.geolocation) {
+            locationStatus.value = 'unavailable'
+            resolve(null)
+            return
+        }
+        locationStatus.value = 'locating'
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                locationStatus.value = 'granted'
+                resolve({
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                })
+            },
+            () => {
+                locationStatus.value = 'denied'
+                resolve(null)
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+        )
+    })
+
+const loadPartners = async (pos = null, radiusKm = null) => {
     partnersLoading.value = true
     try {
-        let url = apiUrl('get-nearby-pharmacies.php?limit=20')
-        if (userPos) {
-            url += `&lat=${userPos.lat}&lng=${userPos.lng}`
+        const radius = radiusKm ?? (maxDistanceKm.value > 0 ? maxDistanceKm.value : 0)
+        let url = apiUrl('get-nearby-pharmacies.php?limit=50')
+        if (pos) {
+            url += `&lat=${pos.lat}&lng=${pos.lng}`
+            if (radius > 0) {
+                url += `&radius_km=${radius}`
+            }
         }
         const res = await $fetch(url, { credentials: 'include' })
         if (res.status === 'success') {
@@ -141,6 +220,18 @@ const loadPartners = async (userPos = null) => {
         console.warn('โหลดร้านยาในระบบไม่สำเร็จ', e)
     } finally {
         partnersLoading.value = false
+    }
+}
+
+const reloadWithDistance = async () => {
+    if (!userPos.value) return
+    await loadPartners(userPos.value, maxDistanceKm.value)
+}
+
+const requestLocation = async () => {
+    userPos.value = await getUserPosition()
+    if (userPos.value) {
+        await loadPartners(userPos.value, maxDistanceKm.value)
     }
 }
 
@@ -238,20 +329,21 @@ const handleSearch = async () => {
   }
 
   navigator.geolocation.getCurrentPosition(async (position) => {
-    const userPos = {
+    const pos = {
       lat: position.coords.latitude,
       lng: position.coords.longitude
     };
+    userPos.value = pos;
     stopTimer()
     searchStatus.value = { text: 'กำลังค้นหาร้านยาในระบบของเรา...', type: 'info' }
 
     // 1) ดึงร้านในระบบ (มี google_maps_url)
-    await loadPartners(userPos)
+    await loadPartners(pos, maxDistanceKm.value)
 
     // 2) ค้นหาร้านยาทั่วไปจาก Google Places (ถ้า library โหลดได้)
-    runGooglePlacesSearch(userPos)
+    runGooglePlacesSearch(pos)
 
-    const totalPartners = partners.value.length
+    const totalPartners = filteredPartners.value.length
     if (totalPartners > 0) {
       searchStatus.value = {
         text: `พบร้านยาในระบบ ${totalPartners} ร้าน — เรียงตามระยะทางจากตำแหน่งของคุณ`,
@@ -277,6 +369,13 @@ const handleSearch = async () => {
 const openMap = (placeId, name) => {
     openGoogleMapsNavigation({ placeId, name })
 }
+
+onMounted(async () => {
+    userPos.value = await getUserPosition()
+    if (userPos.value) {
+        await loadPartners(userPos.value, maxDistanceKm.value)
+    }
+})
 
 onUnmounted(() => stopTimer())
 </script>
@@ -419,6 +518,98 @@ onUnmounted(() => stopTimer())
     color: #94a3b8 !important;
     font-size: 13px !important;
     font-weight: 400 !important;
+}
+
+.distance-filter-bar {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.distance-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 18px;
+    background: #f1f6ff;
+    border: 1px solid #cfe1ff;
+    border-radius: 999px;
+    color: #00469c;
+    font-weight: 500;
+    box-shadow: 0 2px 6px rgba(0, 70, 156, 0.08);
+}
+
+.distance-filter label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95rem;
+}
+
+.filter-select {
+    border: 1px solid #cfe1ff;
+    background: #ffffff;
+    color: #00469c;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    outline: none;
+}
+
+.filter-select:focus {
+    border-color: #00469c;
+    box-shadow: 0 0 0 3px rgba(0, 70, 156, 0.15);
+}
+
+.distance-filter.denied-state {
+    background: #fff7ed;
+    border-color: #fed7aa;
+    color: #9a3412;
+    font-weight: 500;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 18px;
+    border-radius: 999px;
+}
+
+.btn-retry-loc {
+    border: none;
+    background: #f97316;
+    color: white;
+    padding: 6px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-retry-loc:hover {
+    background: #ea580c;
+}
+
+.loading-inline {
+    text-align: center;
+    color: #00469c;
+    padding: 24px 0;
+    font-weight: 600;
+}
+
+.empty-filter-state {
+    text-align: center;
+    padding: 32px 16px;
+    color: #64748b;
+}
+
+.empty-filter-state i {
+    font-size: 2rem;
+    color: #cbd5e1;
+    margin-bottom: 10px;
 }
 
 .fade-enter-active, .fade-leave-active { transition: all 0.5s ease; }
