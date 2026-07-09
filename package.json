@@ -25,6 +25,7 @@
     "db:trim-tracking": "node scripts/trim-tracking.mjs",
     "db:seed-reviews": "node scripts/seed-reviews.mjs",
     "db:seed-pharmacy": "node scripts/seed-pharmacy-stores.mjs",
+    "db:seed-mock-mtt-pharmacies": "node scripts/seed-mock-mtt-pharmacies.mjs",
     "db:seed-store-schedules": "node scripts/seed-store-schedules.mjs",
     "db:seed-prescriptions": "node scripts/seed-prescriptions.mjs",
     "db:trim-pharma-rx": "node scripts/trim-pharma-prescriptions.mjs",
