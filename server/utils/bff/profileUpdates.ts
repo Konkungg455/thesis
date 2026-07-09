@@ -505,18 +505,37 @@ export async function handleReviewBillingSlip(event: H3Event) {
     }
 
     const status = action === 'approve' ? 'approved' : 'rejected';
-    const ok = await dbQuery(async (sql) => {
+    const reviewed = await dbQuery(async (sql) => {
         const rows = await sql`
             UPDATE pharmacy_billing_slips
             SET status = ${status}, reviewed_at = NOW()
             WHERE id = ${id} AND id_store = ${storeId}
-            RETURNING id
+            RETURNING id, id_pharma, note
         `;
-        return rows.length > 0;
+        return rows[0] as { id: number; id_pharma: number; note: string | null } | undefined;
     });
 
-    if (!ok) {
+    if (!reviewed?.id) {
         return { status: 'error', message: 'ไม่พบสลิปหรืออัปเดตไม่สำเร็จ' };
+    }
+
+    if (action === 'approve') {
+        const marker = String(reviewed.note || '').match(/\[BILLING_CTX:patient=(\d+);rx=(\d+)\]/);
+        const patientId = Number(marker?.[1] || 0);
+        const rxId = Number(marker?.[2] || 0);
+        const pharmaId = Number(reviewed.id_pharma || 0);
+        if (patientId > 0 && pharmaId > 0) {
+            const paymentDoneMessage = rxId > 0
+                ? `การชำระเงินของคุณสำเร็จแล้วนะ\nอ้างอิงใบสรุปรายการยา #${rxId}`
+                : 'การชำระเงินของคุณสำเร็จแล้วนะ';
+            await dbQuery(async (sql) => {
+                await sql`
+                    INSERT INTO chat_messages (sender_id, receiver_id, sender_role, message_text, file_path)
+                    VALUES (${pharmaId}, ${patientId}, 'pharma', ${paymentDoneMessage}, NULL)
+                `;
+                return true;
+            });
+        }
     }
     return { status: 'success', message: 'อัปเดตสลิปแล้ว' };
 }

@@ -21,6 +21,17 @@ function rxEsc(v: unknown): string {
         .replace(/"/g, '&quot;');
 }
 
+type RxLineItem = {
+    name: string;
+    qty: string;
+    totalNum: number;
+};
+
+function isPlaceholderText(v: unknown): boolean {
+    const t = String(v ?? '').trim();
+    return t === '' || t === '-' || t === '—';
+}
+
 function getReceiptPrintCss(): string {
     try {
         return readFileSync(join(process.cwd(), 'server/assets/receipt-print.css'), 'utf8');
@@ -87,38 +98,51 @@ td.totals-words-text {
 }
 `;
 
-function computePrescriptionAmounts(d: PrescriptionRow) {
+function parsePrescriptionLineItems(d: PrescriptionRow): RxLineItem[] {
     const names = String(d.med_details ?? '').split('\n');
     const qtyUnits = String(d.med_qty ?? '').split('\n');
     const prices = String(d.med_price ?? '').split('\n');
-    const maxRows = Math.max(names.length, qtyUnits.length, prices.length, 10);
 
-    let subtotal = 0;
+    const maxRows = Math.max(names.length, qtyUnits.length, prices.length);
+    const items: RxLineItem[] = [];
     for (let i = 0; i < maxRows; i++) {
-        subtotal += rxParseNum(prices[i] ?? 0);
+        const name = String(names[i] ?? '').trim();
+        const qu = qtyUnits[i] ?? '';
+        const totalNum = rxParseNum(prices[i] ?? 0);
+        const [qty = ''] = String(qu).split('|', 2).map((s) => s.trim());
+        const hasName = !isPlaceholderText(name);
+        const hasQty = !isPlaceholderText(qty) && rxParseNum(qty) > 0;
+        if (!hasName && !hasQty && totalNum <= 0) continue;
+        items.push({
+            name: hasName ? name : '',
+            qty: hasQty ? qty : '',
+            totalNum,
+        });
     }
+    return items;
+}
+
+function computePrescriptionAmounts(d: PrescriptionRow, items: RxLineItem[]) {
+    let subtotal = 0;
+    for (const item of items) subtotal += item.totalNum;
     const discount = rxParseNum(d.discount_amount ?? 0);
     let grand = rxParseNum(d.total_amount ?? 0);
     if (grand <= 0) {
         grand = Math.max(0, subtotal - discount);
     }
 
-    return { subtotal, discount, grand, max_rows: maxRows };
+    return { subtotal, discount, grand };
 }
 
-function buildPrescriptionLineRowsHtml(d: PrescriptionRow, maxRows: number): string {
-    const names = String(d.med_details ?? '').split('\n');
-    const qtyUnits = String(d.med_qty ?? '').split('\n');
-    const prices = String(d.med_price ?? '').split('\n');
-
+function buildPrescriptionLineRowsHtml(items: RxLineItem[]): string {
     let rowsHtml = '';
-    for (let i = 0; i < maxRows; i++) {
-        const name = String(names[i] ?? '').trim();
-        const qu = qtyUnits[i] ?? '';
-        const total = String(prices[i] ?? '').trim();
-        const [qty = ''] = String(qu).split('|', 2).map((s) => s.trim());
-        const totalNum = rxParseNum(total);
-        const qtyNum = rxParseNum(qty);
+    const source = items.length ? items : [{ name: '-', qty: '-', totalNum: 0 }];
+    for (let i = 0; i < source.length; i++) {
+        const item = source[i];
+        const name = String(item.name || '').trim();
+        const qty = String(item.qty || '').trim();
+        const totalNum = rxParseNum(item.totalNum);
+        const qtyNum = rxParseNum(item.qty);
         const unitPrice = qtyNum > 0 && totalNum > 0 ? totalNum / qtyNum : 0;
 
         rowsHtml += '<tr>'
@@ -177,7 +201,8 @@ function buildPrescriptionReceiptInnerHtml(d: PrescriptionRow, amounts: ReturnTy
     const dateTx = rxEsc(String(d.prescription_date ?? '').trim() || '-');
     const words = rxEsc(String(d.amount_in_words ?? '').trim() || '(...........................................)');
     const billNoEsc = rxEsc(billNo);
-    const rowsHtml = buildPrescriptionLineRowsHtml(d, amounts.max_rows);
+    const items = parsePrescriptionLineItems(d);
+    const rowsHtml = buildPrescriptionLineRowsHtml(items);
     const subtotal = amounts.subtotal.toFixed(2);
     const discount = amounts.discount.toFixed(2);
     const grand = amounts.grand.toFixed(2);
@@ -227,7 +252,8 @@ function buildPrescriptionReceiptInnerHtml(d: PrescriptionRow, amounts: ReturnTy
 }
 
 export function buildPrescriptionHtml(d: PrescriptionRow): string {
-    const amounts = computePrescriptionAmounts(d);
+    const items = parsePrescriptionLineItems(d);
+    const amounts = computePrescriptionAmounts(d, items);
     const innerHtml = buildPrescriptionReceiptInnerHtml(d, amounts);
     const sharedCss = getReceiptPrintCss();
     const extraCss = RECEIPT_DOMPDF_EXTRA_CSS;

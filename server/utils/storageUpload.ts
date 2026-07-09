@@ -6,12 +6,27 @@ function localRoot(): string {
     return String(process.env.MEDIA_ROOT || '').trim();
 }
 
+function isSupabaseReady(): boolean {
+    const maybeFn = (globalThis as { isSupabaseConfigured?: () => boolean }).isSupabaseConfigured;
+    if (typeof maybeFn === 'function') {
+        try {
+            return !!maybeFn();
+        } catch {
+            // fallback to env-based check below
+        }
+    }
+    return Boolean(
+        String(process.env.SUPABASE_URL || '').trim()
+        && String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim(),
+    );
+}
+
 /** ใช้ดิสก์ local เฉพาะเมื่อตั้ง MEDIA_ROOT เอง — ค่าเริ่มต้นใช้ Supabase Storage */
 export function canUseLocalMediaStorage(): boolean {
     if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
         return false;
     }
-    if (isSupabaseConfigured() || String(process.env.DATABASE_URL || '').trim()) {
+    if (isSupabaseReady() || String(process.env.DATABASE_URL || '').trim()) {
         return false;
     }
     const root = localRoot();
@@ -39,7 +54,7 @@ async function uploadToSupabase(
     data: Buffer,
     contentType: string,
 ): Promise<{ filename: string; publicUrl: string | null } | null> {
-    if (!isSupabaseConfigured()) return null;
+    if (!isSupabaseReady()) return null;
 
     const { bucket, objectPath } = resolveSupabaseObject(folder, filename);
     const supabase = useSupabaseServer();
@@ -86,7 +101,7 @@ export async function deleteMediaFile(folder: string, filename: string): Promise
 
     const { bucket, objectPath } = resolveSupabaseObject(folder, filename);
 
-    if (isSupabaseConfigured()) {
+    if (isSupabaseReady()) {
         try {
             await useSupabaseServer().storage.from(bucket).remove([objectPath]);
         } catch {
@@ -131,7 +146,7 @@ export async function downloadMediaFile(
         }
     }
 
-    if (isSupabaseConfigured()) {
+    if (isSupabaseReady()) {
         const { bucket, objectPath } = resolveSupabaseObject(normalizedFolder, name);
         try {
             const supabase = useSupabaseServer();

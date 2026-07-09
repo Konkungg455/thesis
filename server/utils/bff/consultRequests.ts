@@ -118,13 +118,12 @@ async function enrichUserConsultStatus(
             const base = pr.last_followup_at || pr.created_at || null;
             data.tracking_base = base;
             data.tracking_status = String(pr.tracking_status || '');
-            const isDone = data.tracking_status === 'completed';
             const within = base
                 ? Date.now() < new Date(String(base)).getTime() + 3 * 24 * 60 * 60 * 1000
                 : false;
-            data.tracking_active = !isDone && within ? 1 : 0;
-            // จบการติดตามจริง ๆ เท่านั้น — ไม่ใช่แค่ "มี tracking_base"
-            data.tracking_ended = (isDone || !within) && !!base ? 1 : 0;
+            data.tracking_active = within ? 1 : 0;
+            // สิ้นสุดการติดตามในแชท = ครบ 3 วันเท่านั้น
+            data.tracking_ended = !within && !!base ? 1 : 0;
         }
     }
 

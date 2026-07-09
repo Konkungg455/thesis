@@ -9,9 +9,10 @@ function parseMedLines(medDetails: unknown, medQty: unknown): { name: string; qt
 
     for (let i = 0; i < max; i++) {
         const name = String(names[i] ?? '').trim();
-        if (!name) continue;
+        if (!name || name === '-' || name === '—') continue;
         const [qty = ''] = String(qtyUnits[i] ?? '').split('|');
-        lines.push({ name, qty: String(qty).trim() });
+        const q = String(qty).trim();
+        lines.push({ name, qty: q === '-' || q === '—' ? '' : q });
     }
 
     return lines;

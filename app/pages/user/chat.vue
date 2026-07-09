@@ -119,18 +119,7 @@ const fetchPharmaInfo = async () => {
     }
 };
 
-// ===== Parse marker ใบสรุปรายการยา [PRESCRIPTION_PDF:<id>] =====
-const PRESCRIPTION_MARKER = /\[PRESCRIPTION_PDF:(\d+)\]/;
-
-const parsePrescriptionMessage = (text) => {
-    if (!text) return { prescriptionId: 0, cleanText: '' };
-    const m = String(text).match(PRESCRIPTION_MARKER);
-    if (!m) return { prescriptionId: 0, cleanText: text };
-    return {
-        prescriptionId: Number(m[1]) || 0,
-        cleanText: String(text).replace(PRESCRIPTION_MARKER, '').trim(),
-    };
-};
+import { parsePrescriptionMessage } from '~/utils/prescription';
 
 const openPrescriptionPdf = (prescriptionId) => {
     if (!prescriptionId || !import.meta.client) return;
@@ -642,10 +631,7 @@ const checkForFollowup = async () => {
         //        ที่กำลังติดตามอยู่ในกรอบ 3 วัน → ห้องยังใช้งานได้ ไม่บังคับไปรีวิว
         const followupAccepted = newStatus === 'accepted' && Number(data.is_followup) === 1;
         const rxTrackingActive = Number(data.tracking_active) === 1 && newStatus !== 'accepted';
-        const trackingPeriodEnded = Number(data.tracking_ended) === 1
-            || (newStatus === 'completed'
-                && Number(data.tracking_active) !== 1
-                && String(data.tracking_status || '') === 'completed');
+        const trackingPeriodEnded = Number(data.tracking_ended) === 1;
         const wasTracking = isTrackingMode.value;
         isTrackingMode.value = followupAccepted || rxTrackingActive;
         trackingStartedAt.value = followupAccepted
@@ -1609,24 +1595,31 @@ const closePreview = () => {
                                 </div>
                             </div>
                             <template v-else>
-                                <div v-if="parsePrescriptionMessage(msg.message_text).cleanText" class="text">
-                                    {{ parsePrescriptionMessage(msg.message_text).cleanText }}
+                                <template v-if="parsePrescriptionMessage(msg.message_text).prescriptionId > 0">
+                                    <div v-if="parsePrescriptionMessage(msg.message_text).headerText" class="text">
+                                        {{ parsePrescriptionMessage(msg.message_text).headerText }}
+                                        <span v-if="msg.edited_at" class="edited-mark">(แก้ไขแล้ว)</span>
+                                    </div>
+                                    <div
+                                        class="prescription-card"
+                                        @click="openPrescriptionPdf(parsePrescriptionMessage(msg.message_text).prescriptionId)"
+                                    >
+                                        <div class="rx-icon"><i class="fa-solid fa-file-prescription"></i></div>
+                                        <div class="rx-body">
+                                            <div class="rx-title">ใบสรุปรายการยา (PDF)</div>
+                                            <div class="rx-sub">คลิกเพื่อเปิด/บันทึก</div>
+                                        </div>
+                                        <div class="rx-action">
+                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                        </div>
+                                    </div>
+                                    <div v-if="parsePrescriptionMessage(msg.message_text).footerText" class="text rx-payment-note">
+                                        {{ parsePrescriptionMessage(msg.message_text).footerText }}
+                                    </div>
+                                </template>
+                                <div v-else class="text">
+                                    {{ msg.message_text }}
                                     <span v-if="msg.edited_at" class="edited-mark">(แก้ไขแล้ว)</span>
-                                </div>
-                                <!-- 📋 การ์ดใบสรุปรายการยา (ถ้าข้อความมี marker [PRESCRIPTION_PDF:<id>]) -->
-                                <div
-                                    v-if="parsePrescriptionMessage(msg.message_text).prescriptionId > 0"
-                                    class="prescription-card"
-                                    @click="openPrescriptionPdf(parsePrescriptionMessage(msg.message_text).prescriptionId)"
-                                >
-                                    <div class="rx-icon"><i class="fa-solid fa-file-prescription"></i></div>
-                                    <div class="rx-body">
-                                        <div class="rx-title">ใบสรุปรายการยา (PDF)</div>
-                                        <div class="rx-sub">คลิกเพื่อเปิด/บันทึก</div>
-                                    </div>
-                                    <div class="rx-action">
-                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                    </div>
                                 </div>
                             </template>
 
@@ -2818,6 +2811,16 @@ const closePreview = () => {
     color: #10b981;
     font-size: 0.95rem;
     padding: 6px 8px;
+}
+.text.rx-payment-note {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    border-radius: 6px;
+    font-weight: 500;
+    color: #92400e;
+    line-height: 1.45;
 }
 
 @media (max-width: 480px) {

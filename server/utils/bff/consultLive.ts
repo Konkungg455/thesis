@@ -96,11 +96,11 @@ export async function handleGetActiveConsult(event: H3Event) {
             const base = prow.last_followup_at || prow.created_at || null;
             trackingBase = base ? String(base) : null;
             trackingCid = Number(prow.id_consult_request || 0);
-            const isDone = String(prow.tracking_status || '') === 'completed';
             const within = base
                 ? Date.now() < new Date(String(base)).getTime() + 3 * 24 * 60 * 60 * 1000
                 : false;
-            trackingActive = !isDone && within ? 1 : 0;
+            // แชทยังติดตามได้จนกว่าจะครบ 3 วัน — ไม่จบเพราะอนุมัติสลิป/ปิดเคสในรายการติดตาม
+            trackingActive = within ? 1 : 0;
         }
 
         let rows;
@@ -152,12 +152,10 @@ export async function handleGetActiveConsult(event: H3Event) {
         }
 
         if (presRows[0] && trackingBase !== null && (reqCid > 0 || trackingCid > 0)) {
-            const prow = presRows[0];
-            const isDone = String(prow.tracking_status || '') === 'completed';
             const baseMs = new Date(String(trackingBase)).getTime();
             const expired = Number.isFinite(baseMs)
                 && Date.now() >= baseMs + 3 * 24 * 60 * 60 * 1000;
-            if (isDone || expired) {
+            if (expired) {
                 const fallbackCid = reqCid > 0 ? reqCid : trackingCid;
                 return {
                     status: 'tracking_ended',

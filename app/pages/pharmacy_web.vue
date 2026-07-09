@@ -67,20 +67,64 @@ const sidebarPatientIds = ref([]);
 const patientSearchQuery = ref('');
 const MEDICINE_REQUEST_TEXT = 'ระบบ : ผู้ป่วยต้องการรับยา กรุณาออกใบปรึกษาให้ด้วย';
 
-// ===== Parse marker ใบสรุปรายการยา [PRESCRIPTION_PDF:<id>] =====
-const PRESCRIPTION_MARKER = /\[PRESCRIPTION_PDF:(\d+)\]/;
-const parsePrescriptionMessage = (text) => {
-    if (!text) return { prescriptionId: 0, cleanText: '' };
-    const m = String(text).match(PRESCRIPTION_MARKER);
-    if (!m) return { prescriptionId: 0, cleanText: text };
-    return {
-        prescriptionId: Number(m[1]) || 0,
-        cleanText: String(text).replace(PRESCRIPTION_MARKER, '').trim(),
-    };
-};
+import { parsePrescriptionMessage } from '~/utils/prescription';
+
+const BILLING_CTX_RX = /\[BILLING_CTX:patient=\d+;rx=(\d+)\]/;
+const approvedDeliveryRxIds = ref(new Set());
+
 const openPrescriptionPdf = (prescriptionId) => {
     if (!prescriptionId || !import.meta.client) return;
     window.open(`/prescription-view?id=${prescriptionId}&print=0`, '_blank', 'noopener,noreferrer');
+};
+
+const rxParsed = (text) => parsePrescriptionMessage(text);
+
+const loadApprovedDeliveryRx = async () => {
+    if (!myPharmaId.value) return;
+    try {
+        const data = await $fetch(apiUrl('get-pharmacist-billing-slips.php'), {
+            credentials: 'include',
+            query: { id_pharma: myPharmaId.value, t: Date.now() },
+        });
+        const next = new Set();
+        if (data?.status === 'success') {
+            for (const slip of data.slips || []) {
+                if (slip.status !== 'approved') continue;
+                const rxId = Number(String(slip.note || '').match(BILLING_CTX_RX)?.[1] || 0);
+                if (rxId > 0) next.add(rxId);
+            }
+        }
+        approvedDeliveryRxIds.value = next;
+    } catch {
+        // ignore polling errors
+    }
+};
+
+const shouldShowDeliveryConfirm = (msg, parsed) => {
+    if (msg?.sender_role !== 'pharma') return false;
+    const rxId = Number(parsed?.prescriptionId || 0);
+    if (!rxId || approvedDeliveryRxIds.value.has(rxId)) return false;
+    return true;
+};
+
+const parseAmountFromRxHeader = (headerText) => {
+    const match = String(headerText || '').match(/ยอดรวม:\s*([\d,.]+)/);
+    return match ? match[1].replace(/,/g, '') : '';
+};
+
+const goConfirmDelivery = (parsed) => {
+    const rxId = Number(parsed?.prescriptionId || 0);
+    const pid = Number(activePatientId.value) || 0;
+    if (!rxId) return;
+    router.push({
+        path: '/billing',
+        query: {
+            from_rx: '1',
+            prescription_id: rxId,
+            patient_id: pid || undefined,
+            amount: parseAmountFromRxHeader(parsed.headerText) || undefined,
+        },
+    });
 };
 
 // กรองรายการคนไข้ตามคำค้น (ใช้กับ slider list ใน sidebar)
@@ -1251,8 +1295,11 @@ onMounted(async () => {
 
     await checkExternalBellTrigger();
 
+    await loadApprovedDeliveryRx();
+
     mainTimer = setInterval(() => { 
         fetchMessages(); 
+        loadApprovedDeliveryRx();
         checkExternalBellTrigger();
     }, 3000);
 
@@ -1655,24 +1702,43 @@ const closePreview = () => { isShowPreview.value = false; };
                                     </div>
                                 </div>
                                 <template v-else>
-                                    <div v-if="parsePrescriptionMessage(msg.message_text).cleanText" class="text">
-                                        {{ parsePrescriptionMessage(msg.message_text).cleanText }}
+                                    <template v-if="rxParsed(msg.message_text).prescriptionId > 0">
+                                        <div v-if="rxParsed(msg.message_text).headerText" class="text">
+                                            {{ rxParsed(msg.message_text).headerText }}
+                                            <span v-if="msg.edited_at" class="edited-mark">(แก้ไขแล้ว)</span>
+                                        </div>
+                                        <div
+                                            class="prescription-card"
+                                            @click="openPrescriptionPdf(rxParsed(msg.message_text).prescriptionId)"
+                                        >
+                                            <div class="rx-icon"><i class="fa-solid fa-file-prescription"></i></div>
+                                            <div class="rx-body">
+                                                <div class="rx-title">ใบสรุปรายการยา (PDF)</div>
+                                                <div class="rx-sub">คลิกเพื่อเปิด/พิมพ์</div>
+                                            </div>
+                                            <div class="rx-action">
+                                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                            </div>
+                                        </div>
+                                        <div v-if="rxParsed(msg.message_text).footerText" class="text rx-payment-note">
+                                            {{ rxParsed(msg.message_text).footerText }}
+                                        </div>
+                                        <div
+                                            v-if="shouldShowDeliveryConfirm(msg, rxParsed(msg.message_text))"
+                                            class="rx-delivery-confirm-box"
+                                        >
+                                            <button
+                                                type="button"
+                                                class="rx-delivery-btn"
+                                                @click.stop="goConfirmDelivery(rxParsed(msg.message_text))"
+                                            >
+                                                ยืนยันการจัดส่ง
+                                            </button>
+                                        </div>
+                                    </template>
+                                    <div v-else class="text">
+                                        {{ msg.message_text }}
                                         <span v-if="msg.edited_at" class="edited-mark">(แก้ไขแล้ว)</span>
-                                    </div>
-                                    <!-- 📋 การ์ดใบสรุปรายการยา -->
-                                    <div
-                                        v-if="parsePrescriptionMessage(msg.message_text).prescriptionId > 0"
-                                        class="prescription-card"
-                                        @click="openPrescriptionPdf(parsePrescriptionMessage(msg.message_text).prescriptionId)"
-                                    >
-                                        <div class="rx-icon"><i class="fa-solid fa-file-prescription"></i></div>
-                                        <div class="rx-body">
-                                            <div class="rx-title">ใบสรุปรายการยา (PDF)</div>
-                                            <div class="rx-sub">คลิกเพื่อเปิด/พิมพ์</div>
-                                        </div>
-                                        <div class="rx-action">
-                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                        </div>
                                     </div>
                                 </template>
 
@@ -2633,6 +2699,36 @@ const closePreview = () => { isShowPreview.value = false; };
     color: #10b981;
     font-size: 0.95rem;
     padding: 6px 8px;
+}
+.text.rx-payment-note {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: #fffbeb;
+    border-left: 3px solid #f59e0b;
+    border-radius: 6px;
+    font-weight: 500;
+    color: #92400e;
+    line-height: 1.45;
+}
+.rx-delivery-confirm-box {
+    margin-top: 12px;
+}
+.rx-delivery-btn {
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.rx-delivery-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.42);
 }
 @media (max-width: 480px) {
     .prescription-card { padding: 10px 12px; gap: 10px; }

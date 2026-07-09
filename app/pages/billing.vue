@@ -104,6 +104,20 @@ const form = ref({
     transfer_date: '',
     note: ''
 })
+const fromPrescriptionId = computed(() => Number(route.query.prescription_id || 0))
+const fromPatientId = computed(() => Number(route.query.patient_id || 0))
+const fromAmount = computed(() => {
+    const n = Number(route.query.amount || 0)
+    return Number.isFinite(n) && n > 0 ? n : 0
+})
+const isFromPrescriptionFlow = computed(() =>
+    String(route.query.from_rx || '') === '1' && fromPrescriptionId.value > 0 && fromPatientId.value > 0
+)
+
+const buildSystemBillingMarker = () => {
+    if (!isFromPrescriptionFlow.value) return ''
+    return `[BILLING_CTX:patient=${fromPatientId.value};rx=${fromPrescriptionId.value}]`
+}
 const slipFile = ref(null)
 const slipPreview = ref('')
 const slipLabel = ref('เลือกไฟล์รูปสลิปการโอน')
@@ -152,7 +166,10 @@ const submitSlip = async () => {
         body.append('id_pharma', idPharma.value)
         body.append('amount', form.value.amount)
         body.append('transfer_date', form.value.transfer_date)
-        body.append('note', form.value.note)
+        const plainNote = String(form.value.note || '').trim()
+        const marker = buildSystemBillingMarker()
+        const noteToSend = marker ? [plainNote, marker].filter(Boolean).join('\n') : plainNote
+        body.append('note', noteToSend)
         body.append('slip_image', slipFile.value)
 
         const data = await $fetch(apiUrl('upload-billing-slip.php'), {
@@ -199,6 +216,12 @@ onMounted(async () => {
     isAuthorized.value = checkAuth()
     if (!isAuthorized.value) return
     await syncFromServer({ force: true })
+    if (fromAmount.value > 0 && !form.value.amount) {
+        form.value.amount = String(fromAmount.value)
+    }
+    if (isFromPrescriptionFlow.value && !form.value.note) {
+        form.value.note = `ค่ายาใบสรุปรายการยา #${fromPrescriptionId.value}`
+    }
     if (idPharma.value) await loadSlips()
 })
 </script>
@@ -252,6 +275,14 @@ onMounted(async () => {
                         <i class="fa-solid fa-rotate" :class="{ spin: isLoading }"></i>
                         <span>โหลดใหม่</span>
                     </button>
+                </div>
+
+                <div v-if="isFromPrescriptionFlow" class="rx-flow-banner">
+                    <i class="fa-solid fa-truck-medical"></i>
+                    <span>
+                        กำลังส่งข้อมูลจากใบสรุปรายการยา #{{ fromPrescriptionId }} —
+                        เมื่อร้านอนุมัติสลิป ระบบจะแจ้งผู้ใช้ในแชทอัตโนมัติ
+                    </span>
                 </div>
 
                 <!-- ===== Summary Cards ===== -->
@@ -659,6 +690,20 @@ onMounted(async () => {
     transform: translateY(-1px);
 }
 .btn-refresh:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.rx-flow-banner {
+    margin: -6px 0 18px;
+    border: 1px solid #bfdbfe;
+    background: linear-gradient(135deg, #eff6ff, #ecfeff);
+    color: #1e3a8a;
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
 
 /* ===== Summary cards ===== */
 .summary-grid {

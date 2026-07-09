@@ -32,26 +32,40 @@ const formatMoney = (v) => parseNum(v).toLocaleString('th-TH', {
     maximumFractionDigits: 2,
 });
 
+const isPlaceholderText = (v) => {
+    const t = String(v || '').trim();
+    return t === '' || t === '-' || t === '—';
+};
+
 const lineItems = computed(() => {
     if (!data.value) return [];
     const names = String(data.value.med_details || '').split('\n');
     const qtyUnits = String(data.value.med_qty || '').split('\n');
     const prices = String(data.value.med_price || '').split('\n');
-    const maxRows = Math.max(names.length, qtyUnits.length, prices.length, 10);
+    const maxRows = Math.max(names.length, qtyUnits.length, prices.length);
 
-    return Array.from({ length: maxRows }, (_, i) => {
+    const items = Array.from({ length: maxRows }, (_, i) => {
         const [qty = '', unit = ''] = String(qtyUnits[i] || '').split('|');
         const totalRaw = String(prices[i] || '').trim();
         const totalNum = parseNum(totalRaw);
-        const unitPrice = qty && totalNum ? totalNum / Math.max(parseNum(qty), 1) : 0;
+        const qtyNum = parseNum(qty);
+        const unitPrice = qtyNum > 0 && totalNum > 0 ? totalNum / qtyNum : 0;
         return {
             name: (names[i] || '').trim(),
             qty: qty || '',
             unit: unit || '',
             unitPrice: unitPrice ? formatMoney(unitPrice) : '0.00',
-            total: totalRaw ? formatMoney(totalRaw) : '0.00',
+            totalNum,
+            total: totalNum > 0 ? formatMoney(totalNum) : '0.00',
         };
     });
+    const filtered = items.filter((item) => {
+        const hasName = !isPlaceholderText(item.name);
+        const hasQty = !isPlaceholderText(item.qty) && parseNum(item.qty) > 0;
+        const hasPrice = item.totalNum > 0;
+        return hasName || hasQty || hasPrice;
+    });
+    return filtered.length ? filtered : [{ name: '-', qty: '-', unit: '', unitPrice: '0.00', totalNum: 0, total: '0.00' }];
 });
 
 const subtotal = computed(() =>
