@@ -49,7 +49,7 @@
           <h2 class="section-subtitle">
             <i class="fa-solid fa-store"></i> ร้านยาในระบบของเรา
             <small class="result-count">
-              ({{ filteredPartners.length }} ร้าน
+              ({{ displayPartners.length }} ร้าน
               <span v-if="userPos && maxDistanceKm > 0">ไม่เกิน {{ maxDistanceKm }} กม.</span>)
             </small>
           </h2>
@@ -83,8 +83,8 @@
             <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดร้านยาใกล้คุณ...
           </div>
 
-          <div v-else-if="filteredPartners.length > 0" class="pharmacy-grid">
-            <div v-for="(shop, index) in filteredPartners" :key="`p-${shop.id}`" class="pharmacy-card partner-card">
+          <div v-else-if="displayPartners.length > 0" class="pharmacy-grid">
+            <div v-for="(shop, index) in displayPartners" :key="`p-${shop.id}`" class="pharmacy-card partner-card">
               <div v-if="index === 0 && shop.distance_km != null" class="card-badge nearest">
                 <i class="fa-solid fa-circle-check"></i> ใกล้คุณที่สุด
               </div>
@@ -113,7 +113,7 @@
             </div>
           </div>
 
-          <div v-else-if="userPos && maxDistanceKm > 0" class="empty-filter-state">
+          <div v-else-if="userPos && maxDistanceKm > 0 && !usedDistanceFallback" class="empty-filter-state">
             <i class="fa-solid fa-map-location-dot"></i>
             <p>ไม่พบร้านยาในระยะไม่เกิน {{ maxDistanceKm }} กม. ลองขยายระยะการค้นหา</p>
           </div>
@@ -159,6 +159,7 @@ const partnersLoading = ref(false)
 const userPos = ref(null)
 const locationStatus = ref('idle') // idle | locating | granted | denied | unavailable
 const maxDistanceKm = ref(10)      // 0 = ไม่จำกัด, ค่าเริ่มต้น 10 กม.
+const usedDistanceFallback = ref(false)
 const countdown = ref(60)
 const searchStatus = ref(null)
 let timerInterval = null
@@ -172,6 +173,10 @@ const filteredPartners = computed(() => {
         return Number(shop.distance_km) <= Number(maxDistanceKm.value)
     })
 })
+
+const displayPartners = computed(() => (
+    usedDistanceFallback.value ? partners.value : filteredPartners.value
+))
 
 const getUserPosition = () =>
     new Promise((resolve) => {
@@ -199,23 +204,35 @@ const getUserPosition = () =>
 
 const loadPartners = async (pos = null, radiusKm = null) => {
     partnersLoading.value = true
+    usedDistanceFallback.value = false
     try {
         const radius = radiusKm ?? (maxDistanceKm.value > 0 ? maxDistanceKm.value : 0)
-        let url = apiUrl('get-nearby-pharmacies.php')
-        if (pos) {
-            url += `&lat=${pos.lat}&lng=${pos.lng}`
-            if (radius > 0) {
-                url += `&radius_km=${radius}`
+        const buildUrl = (withRadius) => {
+            let url = apiUrl('get-nearby-pharmacies.php')
+            if (pos) {
+                url += `&lat=${pos.lat}&lng=${pos.lng}`
+                if (withRadius > 0) {
+                    url += `&radius_km=${withRadius}`
+                }
             }
+            return url
         }
-        const res = await $fetch(url, { credentials: 'include' })
-        if (res.status === 'success') {
-            partners.value = (res.stores || []).map((s) => ({
-                ...s,
-                distance_km: s.distance ?? null,
-                store_phone: s.phone || ''
-            }))
+
+        let res = await $fetch(buildUrl(radius), { credentials: 'include' })
+        let stores = res?.status === 'success' ? (res.stores || []) : []
+
+        // ไม่มีร้านในระยะที่เลือก → โหลดร้านในระบบทั้งหมดเรียงตามระยะทาง
+        if (pos && radius > 0 && stores.length === 0) {
+            res = await $fetch(buildUrl(0), { credentials: 'include' })
+            stores = res?.status === 'success' ? (res.stores || []) : []
+            usedDistanceFallback.value = stores.length > 0
         }
+
+        partners.value = stores.map((s) => ({
+            ...s,
+            distance_km: s.distance ?? null,
+            store_phone: s.phone || ''
+        }))
     } catch (e) {
         console.warn('โหลดร้านยาในระบบไม่สำเร็จ', e)
     } finally {
@@ -225,6 +242,7 @@ const loadPartners = async (pos = null, radiusKm = null) => {
 
 const reloadWithDistance = async () => {
     if (!userPos.value) return
+    usedDistanceFallback.value = false
     await loadPartners(userPos.value, maxDistanceKm.value)
 }
 
@@ -264,38 +282,76 @@ const stopTimer = () => {
   loading.value = false
 }
 
-const runGooglePlacesSearch = (userPos) => {
-  if (typeof google === 'undefined' || !google.maps?.places) return;
-  try {
-    const dummyMap = new google.maps.Map(document.createElement('div'));
-    const service = new google.maps.places.PlacesService(dummyMap);
-    const request = {
-      location: userPos,
-      radius: 5000,
-      type: ['pharmacy'],
-      keyword: 'ร้านขายยา'
-    };
-    service.nearbySearch(request, (results, status) => {
-      if (status === google.maps.places.PlacesServiceStatus.OK && results?.length > 0) {
-        pharmacies.value = results.map(place => {
-          const dist = google.maps.geometry.spherical.computeDistanceBetween(
-            new google.maps.LatLng(userPos.lat, userPos.lng),
-            place.geometry.location
-          );
-          return {
-            id: place.place_id,
-            name: place.name,
-            address: place.vicinity,
-            distance: (dist / 1000).toFixed(1)
-          };
-        })
-        .sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance))
-        .slice(0, 3);
-      }
-    });
-  } catch (e) {
-    console.warn('Google Places search failed:', e);
-  }
+const runGooglePlacesSearch = (userPos) =>
+    new Promise((resolve) => {
+        if (typeof google === 'undefined' || !google.maps?.places) {
+            resolve(0)
+            return
+        }
+        try {
+            const dummyMap = new google.maps.Map(document.createElement('div'))
+            const service = new google.maps.places.PlacesService(dummyMap)
+            const request = {
+                location: userPos,
+                radius: 5000,
+                type: ['pharmacy'],
+                keyword: 'ร้านขายยา'
+            }
+            service.nearbySearch(request, (results, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && results?.length > 0) {
+                    pharmacies.value = results.map((place) => {
+                        const dist = google.maps.geometry.spherical.computeDistanceBetween(
+                            new google.maps.LatLng(userPos.lat, userPos.lng),
+                            place.geometry.location
+                        )
+                        return {
+                            id: place.place_id,
+                            name: place.name,
+                            address: place.vicinity,
+                            distance: (dist / 1000).toFixed(1)
+                        }
+                    })
+                        .sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance))
+                        .slice(0, 3)
+                    resolve(pharmacies.value.length)
+                    return
+                }
+                pharmacies.value = []
+                resolve(0)
+            })
+        } catch (e) {
+            console.warn('Google Places search failed:', e)
+            pharmacies.value = []
+            resolve(0)
+        }
+    })
+
+const updateSearchStatus = (partnerCount, googleCount) => {
+    if (partnerCount > 0) {
+        if (usedDistanceFallback.value && maxDistanceKm.value > 0) {
+            searchStatus.value = {
+                text: `ไม่พบร้านยาในระยะไม่เกิน ${maxDistanceKm.value} กม. — แสดงร้านยาในระบบทั้งหมด ${partnerCount} ร้านด้านล่าง`,
+                type: 'info'
+            }
+            return
+        }
+        searchStatus.value = {
+            text: `พบร้านยาในระบบ ${partnerCount} ร้าน — เรียงตามระยะทางจากตำแหน่งของคุณ`,
+            type: 'success'
+        }
+        return
+    }
+    if (googleCount > 0) {
+        searchStatus.value = {
+            text: `พบร้านขายยาทั่วไปจาก Google Maps ${googleCount} ร้านด้านล่าง`,
+            type: 'success'
+        }
+        return
+    }
+    searchStatus.value = {
+        text: 'ยังไม่พบร้านยาใกล้คุณในระบบ — ลองขยายระยะการค้นหาหรือเปิด GPS อีกครั้ง',
+        type: 'info'
+    }
 }
 
 const handleSearch = async () => {
@@ -340,21 +396,9 @@ const handleSearch = async () => {
     // 1) ดึงร้านในระบบ (มี google_maps_url)
     await loadPartners(pos, maxDistanceKm.value)
 
-    // 2) ค้นหาร้านยาทั่วไปจาก Google Places (ถ้า library โหลดได้)
-    runGooglePlacesSearch(pos)
-
-    const totalPartners = filteredPartners.value.length
-    if (totalPartners > 0) {
-      searchStatus.value = {
-        text: `พบร้านยาในระบบ ${totalPartners} ร้าน — เรียงตามระยะทางจากตำแหน่งของคุณ`,
-        type: 'success'
-      }
-    } else {
-      searchStatus.value = {
-        text: 'ยังไม่มีร้านยาในระบบใกล้คุณ ลองดูร้านยาทั่วไปด้านล่าง',
-        type: 'info'
-      }
-    }
+    const googleCount = await runGooglePlacesSearch(pos)
+    const partnerCount = displayPartners.value.length
+    updateSearchStatus(partnerCount, googleCount)
   }, (error) => {
     stopTimer()
     let errorMsg = 'หาไม่ได้: กรุณาเปิด GPS และอนุญาตสิทธิ์ตำแหน่ง'
