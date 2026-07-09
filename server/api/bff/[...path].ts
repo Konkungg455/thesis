@@ -1,4 +1,4 @@
-const PUBLIC_CACHE_PATHS = ['get_pharmacists.php', 'review-get.php'];
+const PUBLIC_CACHE_PATHS = ['get_pharmacists.php', 'review-get.php', 'get-nearby-pharmacies.php'];
 
 function applyPublicBffCache(event: H3Event, pathLower: string, result: unknown) {
     if (!PUBLIC_CACHE_PATHS.includes(pathLower) || event.method !== 'GET') {
@@ -9,7 +9,10 @@ function applyPublicBffCache(event: H3Event, pathLower: string, result: unknown)
     const payload = isArray ? null : result as { status?: string; data?: unknown[]; total?: number } | null;
     const count = isArray
         ? result.length
-        : (payload?.total ?? payload?.data?.length ?? 0);
+        : (payload?.total
+            ?? payload?.stores?.length
+            ?? payload?.data?.length
+            ?? 0);
     const ok = isArray
         ? count > 0
         : (payload?.status === 'success' && count > 0);

@@ -152,6 +152,18 @@ import { openGoogleMapsNavigation } from '#shared/utils/googleMapsLinks'
 
 const { apiUrl } = useApiBase()
 
+const appendQuery = (base, params = {}) => {
+    const q = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+            q.set(key, String(value))
+        }
+    })
+    const qs = q.toString()
+    if (!qs) return base
+    return base + (base.includes('?') ? '&' : '?') + qs
+}
+
 const loading = ref(false)
 const pharmacies = ref([])      // ผลลัพธ์ Google Places nearbySearch (ทั่วไป)
 const partners = ref([])        // ร้านยาในระบบของเรา (มีลิงก์ Google Maps)
@@ -208,14 +220,13 @@ const loadPartners = async (pos = null, radiusKm = null) => {
     try {
         const radius = radiusKm ?? (maxDistanceKm.value > 0 ? maxDistanceKm.value : 0)
         const buildUrl = (withRadius) => {
-            let url = apiUrl('get-nearby-pharmacies.php')
+            const params = {}
             if (pos) {
-                url += `&lat=${pos.lat}&lng=${pos.lng}`
-                if (withRadius > 0) {
-                    url += `&radius_km=${withRadius}`
-                }
+                params.lat = pos.lat
+                params.lng = pos.lng
+                if (withRadius > 0) params.radius_km = withRadius
             }
-            return url
+            return appendQuery(apiUrl('get-nearby-pharmacies.php'), params)
         }
 
         let res = await $fetch(buildUrl(radius), { credentials: 'include' })
@@ -418,6 +429,8 @@ onMounted(async () => {
     userPos.value = await getUserPosition()
     if (userPos.value) {
         await loadPartners(userPos.value, maxDistanceKm.value)
+    } else {
+        await loadPartners(null)
     }
 })
 
