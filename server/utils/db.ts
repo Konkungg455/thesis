@@ -3,6 +3,7 @@ import postgres from 'postgres';
 let sql: ReturnType<typeof postgres> | null = null;
 let sqlUrl: string | null = null;
 let lastDbError: string | null = null;
+let consecutiveQueryTimeouts = 0;
 
 const TRANSIENT_DB_CODES = new Set([
     'ECONNRESET',
@@ -28,12 +29,13 @@ function isServerlessRuntime(): boolean {
 }
 
 function maxConcurrentQueries(): number {
-    if (isServerlessRuntime()) return 2;
+    // serverless ใช้ max:1 connection — ห้ามยิง query ซ้อนเกิน 1 กัน connection ค้าง/timeout แล้ว reset
+    if (isServerlessRuntime()) return 1;
     return usesSupabasePooler() ? 4 : 8;
 }
 
 function defaultQueryTimeoutMs(): number {
-    return isServerlessRuntime() ? 20_000 : 35_000;
+    return isServerlessRuntime() ? 30_000 : 35_000;
 }
 
 async function acquireDbSlot(): Promise<void> {
@@ -140,8 +142,15 @@ function isQueryTimeoutError(err: unknown): boolean {
 function isConnectionError(err: unknown): boolean {
     const code = (err as { code?: string })?.code;
     const message = String((err as Error)?.message || err);
-    if (code && TRANSIENT_DB_CODES.has(code)) return true;
-    return /ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|CONNECTION_DESTROYED|CONNECTION_ENDED|connection terminated|terminated unexpectedly|server closed the connection|broken pipe|57P01|53300|08006|08003|XX000/i.test(message);
+    if (isQueryTimeoutError(err)) return false;
+    if (code && TRANSIENT_DB_CODES.has(code)) {
+        // ETIMEDOUT จาก query ช้าอาจไม่ใช่ connection พัง — ลอง retry ก่อน reset
+        if (code === 'ETIMEDOUT' && !/connect|connection|socket/i.test(message)) {
+            return false;
+        }
+        return true;
+    }
+    return /ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|CONNECTION_DESTROYED|CONNECTION_ENDED|connection terminated|terminated unexpectedly|server closed the connection|broken pipe|57P01|53300|08006|08003|XX000/i.test(message);
 }
 
 function isRetryableDbError(err: unknown): boolean {
@@ -196,6 +205,22 @@ function detachStaleDbClient(): void {
     void old.end({ timeout: 0 }).catch(() => {});
 }
 
+/** ลองใช้ connection เดิมก่อน — ลด reset ที่ไม่จำเป็นบน Vercel */
+async function connectionStillAlive(): Promise<boolean> {
+    if (!sql) return false;
+    try {
+        await withTimeout(sql`SELECT 1 AS ok`, 4_000, 'DB ping');
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function recoverOrResetConnection(): Promise<void> {
+    if (await connectionStillAlive()) return;
+    await resetDbConnection();
+}
+
 export function useDb() {
     if (!isDbConfigured()) {
         throw createError({
@@ -218,10 +243,10 @@ export function useDb() {
             prepare: false,
             fetch_types: false,
             max: isServerless ? 1 : (pooler ? 4 : 6),
-            connect_timeout: isServerless ? 15 : 15,
+            connect_timeout: isServerless ? 18 : 15,
             // pooler จัดการ connection ฝั่ง server — อย่าปิด client เร็วเกินไปภายใน warm lambda
-            idle_timeout: isServerless ? (pooler ? 25 : 12) : (pooler ? 25 : 25),
-            max_lifetime: isServerless ? (pooler ? 300 : 90) : (pooler ? 120 : 60 * 10),
+            idle_timeout: isServerless ? (pooler ? 45 : 20) : (pooler ? 25 : 25),
+            max_lifetime: isServerless ? (pooler ? 600 : 120) : (pooler ? 120 : 60 * 10),
         });
     }
 
@@ -239,13 +264,14 @@ export async function dbQuery<T>(
     await acquireDbSlot();
     try {
         const baseTimeoutMs = options?.timeoutMs ?? defaultQueryTimeoutMs();
-        const maxAttempts = usesSupabasePooler() ? 4 : 3;
+        const maxAttempts = usesSupabasePooler() ? 3 : 2;
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            const timeoutMs = baseTimeoutMs + (attempt * 4_000);
+            const timeoutMs = baseTimeoutMs + (attempt * 5_000);
             try {
                 const result = await withTimeout(fn(useDb()), timeoutMs, 'DB query');
                 lastDbError = null;
+                consecutiveQueryTimeouts = 0;
                 return result;
             } catch (err: unknown) {
                 rememberDbError(err);
@@ -254,11 +280,17 @@ export async function dbQuery<T>(
                     return null;
                 }
                 if (attempt < maxAttempts - 1 && isRetryableDbError(err)) {
-                    // reset เฉพาะ connection พังจริง — query ช้า/timeout ไม่ทำลาย pool
-                    if (isConnectionError(err)) {
-                        await resetDbConnection();
+                    if (isQueryTimeoutError(err)) {
+                        consecutiveQueryTimeouts += 1;
+                        // query ค้างบน connection เดียว (serverless) — reset เฉพาะเมื่อ timeout ซ้ำ
+                        if (consecutiveQueryTimeouts >= 2 && isServerlessRuntime()) {
+                            await resetDbConnection();
+                            consecutiveQueryTimeouts = 0;
+                        }
+                    } else if (isConnectionError(err)) {
+                        await recoverOrResetConnection();
                     }
-                    await new Promise((r) => setTimeout(r, 120 * (2 ** attempt)));
+                    await new Promise((r) => setTimeout(r, 150 * (2 ** attempt)));
                     continue;
                 }
                 throw err;
