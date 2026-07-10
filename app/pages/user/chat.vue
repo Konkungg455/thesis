@@ -85,7 +85,6 @@ const newMessage = ref('');
 const chatMessages = ref([]);
 const chatScroll = ref(null);
 const fileInput = ref(null);
-let mainTimer = null;
 let consultCountdownTimer = null;
 let consultCountdownStarting = false;
 
@@ -119,7 +118,15 @@ const fetchPharmaInfo = async () => {
     }
 };
 
-import { parsePrescriptionMessage } from '~/utils/prescription';
+import { parsePrescriptionMessage, normalizeChatDisplayText, buildDeliveryChoiceMessage, findPendingDeliveryRx, parseDeliveryChoiceMessage, parsePharmaPaymentSuccessMessage } from '~/utils/prescription';
+import { useAdaptivePoll } from '~/composables/useChatApi';
+
+const deliveryParsed = (text) => parseDeliveryChoiceMessage(text);
+const paymentSuccessParsed = (text) => parsePharmaPaymentSuccessMessage(text);
+const chatBubbleClass = (msg) => {
+    if (paymentSuccessParsed(msg.message_text).isPaymentSuccess) return 'pharma';
+    return msg.sender_role === 'user' ? 'me' : 'pharma';
+};
 
 const openPrescriptionPdf = (prescriptionId) => {
     if (!prescriptionId || !import.meta.client) return;
@@ -491,7 +498,6 @@ const chatMessagesWithDivider = computed(() => {
 let lastSeenFollowupId = 0;
 let lastSeenAcceptedId = 0;     // request_id ของ accepted ล่าสุดที่เห็น
 let lastKnownConsultStatus = ''; // จับการเปลี่ยน accepted → completed
-let followupPollTimer = null;
 
 const markConsultCompleted = async () => {
     try {
@@ -730,6 +736,19 @@ const checkForFollowup = async () => {
     }
 };
 
+const chatMessagePoll = useAdaptivePoll(() => fetchMessages(), {
+    visibleMs: 4000,
+    hiddenMs: 15000,
+    productionVisibleMs: 5000,
+    immediate: false,
+});
+const followupPoll = useAdaptivePoll(() => checkForFollowup(), {
+    visibleMs: 5000,
+    hiddenMs: 20000,
+    productionVisibleMs: 6000,
+    immediate: false,
+});
+
 const formatTimer = (seconds) => {
     const safeSeconds = Math.max(0, Number(seconds) || 0);
     const m = String(Math.floor(safeSeconds / 60)).padStart(2, '0');
@@ -966,6 +985,7 @@ const fetchMessages = async () => {
             } else {
                 updateJumpVisibility();
             }
+            syncDeliveryPrompt();
         }
     } catch (err) { console.error("Fetch Error:", err); }
 };
@@ -1017,6 +1037,46 @@ const sendMedicineRequest = async () => {
         alert('ส่งคำขอรับยาไม่สำเร็จ กรุณาลองใหม่');
     } finally {
         isSendingMedRequest.value = false;
+    }
+};
+
+// ========= Popup ยืนยันการจัดส่งยา (หลังเภสัชส่งใบสรุปรายการยา) =========
+const deliveryConfirmOpen = ref(false);
+const pendingDeliveryRx = ref({ prescriptionId: 0, billNo: '' });
+const isSendingDeliveryChoice = ref(false);
+let lastPromptedDeliveryRxId = 0;
+
+const syncDeliveryPrompt = () => {
+    if (deliveryConfirmOpen.value || isSendingDeliveryChoice.value) return;
+    const pending = findPendingDeliveryRx(chatMessages.value);
+    if (!pending) {
+        lastPromptedDeliveryRxId = 0;
+        return;
+    }
+    if (lastPromptedDeliveryRxId === pending.prescriptionId) return;
+    pendingDeliveryRx.value = pending;
+    deliveryConfirmOpen.value = true;
+    lastPromptedDeliveryRxId = pending.prescriptionId;
+};
+
+const sendDeliveryChoice = async (choice) => {
+    const rxId = Number(pendingDeliveryRx.value.prescriptionId || 0);
+    if (!rxId || !activePatientId.value || isSendingDeliveryChoice.value) return;
+    isSendingDeliveryChoice.value = true;
+    try {
+        const body = new FormData();
+        body.append('receiver_id', activePatientId.value);
+        body.append('message_text', buildDeliveryChoiceMessage(rxId, choice));
+        await $fetch(apiUrl('chat-send.php'), { method: 'POST', body, credentials: 'include' });
+        deliveryConfirmOpen.value = false;
+        await fetchMessages();
+        await scrollToBottom(true);
+    } catch (err) {
+        console.error('Send delivery choice error:', err);
+        alert('ส่งคำตอบไม่สำเร็จ กรุณาลองใหม่');
+        lastPromptedDeliveryRxId = 0;
+    } finally {
+        isSendingDeliveryChoice.value = false;
     }
 };
 
@@ -1162,20 +1222,16 @@ onMounted(async () => {
     // sync user session ก่อน เพื่อให้ peer id (telebot-user-<id>) ใช้งานได้ทันที
     try { await syncFromServer(); } catch (e) { /* ignore */ }
 
-    mainTimer = setInterval(() => {
-        fetchMessages();
-    }, 3000);
-
-    // ตรวจสอบการ "เปิดแชทอีกครั้ง" จากเภสัชกรทุก 4 วินาที (เร็วกว่ารอ Header polling)
+    chatMessagePoll.start();
+    followupPoll.start();
     checkForFollowup();
-    followupPollTimer = setInterval(checkForFollowup, 4000);
 
     // 💓 heartbeat นาฬิกากลางทุก 5 วิ (ส่งเฉพาะตอนเปิดหน้าจออยู่) + เช็คทันทีเมื่อกลับมาที่แท็บ
     chatTimerHeartbeat = setInterval(() => syncChatTimer(), 5000);
     bindChatTimerPageLifecycle();
 
-    // เริ่ม polling การโทร — composable ใช้ความถี่ของตัวเอง (2.5s)
-    startCallPolling(2500);
+    // เริ่ม polling การโทร
+    startCallPolling(3500);
 
     modifyTickTimer = setInterval(() => {
         modifyTick.value += 1;
@@ -1184,9 +1240,9 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     persistTimerBeforeLeave();
-    if (mainTimer) clearInterval(mainTimer);
+    chatMessagePoll.stop();
+    followupPoll.stop();
     if (modifyTickTimer) clearInterval(modifyTickTimer);
-    if (followupPollTimer) clearInterval(followupPollTimer);
     if (redirectIntervalId) clearInterval(redirectIntervalId);
     if (chatTimerHeartbeat) clearInterval(chatTimerHeartbeat);
     unbindChatTimerPageLifecycle();
@@ -1550,7 +1606,8 @@ const closePreview = () => {
                                 <span class="divider-line"></span>
                             </div>
                             <div v-else
-                                :class="['message-bubble', msg.sender_role === 'user' ? 'me' : 'pharma', {
+                                :class="['message-bubble', chatBubbleClass(msg), {
+                                    'payment-system-bubble': paymentSuccessParsed(msg.message_text).isPaymentSuccess,
                                     'can-modify': showMsgActions(msg, 'user'),
                                     'msg-actions-open': isMsgActionsVisible(msg),
                                 }]"
@@ -1617,8 +1674,25 @@ const closePreview = () => {
                                         {{ parsePrescriptionMessage(msg.message_text).footerText }}
                                     </div>
                                 </template>
+                                <template v-else-if="deliveryParsed(msg.message_text).isDeliveryChoice">
+                                    <div class="text">
+                                        {{ deliveryParsed(msg.message_text).mainText }}
+                                        <span v-if="msg.edited_at" class="edited-mark">(แก้ไขแล้ว)</span>
+                                    </div>
+                                    <div
+                                        v-if="deliveryParsed(msg.message_text).declineHint"
+                                        class="text rx-payment-note"
+                                    >
+                                        {{ deliveryParsed(msg.message_text).declineHint }}
+                                    </div>
+                                </template>
+                                <template v-else-if="paymentSuccessParsed(msg.message_text).isPaymentSuccess">
+                                    <div class="text rx-payment-success-note">
+                                        {{ paymentSuccessParsed(msg.message_text).mainText }}
+                                    </div>
+                                </template>
                                 <div v-else class="text">
-                                    {{ msg.message_text }}
+                                    {{ normalizeChatDisplayText(msg.message_text) }}
                                     <span v-if="msg.edited_at" class="edited-mark">(แก้ไขแล้ว)</span>
                                 </div>
                             </template>
@@ -1688,6 +1762,39 @@ const closePreview = () => {
                             <i v-if="isSendingMedRequest" class="fa-solid fa-spinner fa-spin"></i>
                             <i v-else class="fa-solid fa-paper-plane"></i>
                             {{ isSendingMedRequest ? 'กำลังส่ง...' : 'ส่งคำขอรับยา' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </transition>
+
+        <!-- ===== Modal: ยืนยันการจัดส่งยา (หลังได้รับใบสรุปรายการยา) ===== -->
+        <transition name="fade">
+            <div v-if="deliveryConfirmOpen" class="med-req-overlay">
+                <div class="med-req-card delivery-card">
+                    <div class="med-req-icon delivery-icon">
+                        <i class="fa-solid fa-truck-medical"></i>
+                    </div>
+                    <h3 class="med-req-title">ยืนยันการจัดส่งยา</h3>
+                    <p class="med-req-desc">
+                        ใบสรุปรายการยาเลขที่ <strong>{{ pendingDeliveryRx.billNo }}</strong> ถูกส่งให้แล้ว
+                        คุณต้องการรับบริการจัดส่งยาหรือไม่?
+                    </p>
+                    <div class="med-req-actions delivery-actions">
+                        <button
+                            class="med-req-btn delivery-decline"
+                            :disabled="isSendingDeliveryChoice"
+                            @click="sendDeliveryChoice('decline')"
+                        >
+                            ไม่รับบริการจัดส่ง
+                        </button>
+                        <button
+                            class="med-req-btn delivery-accept"
+                            :disabled="isSendingDeliveryChoice"
+                            @click="sendDeliveryChoice('accept')"
+                        >
+                            <i v-if="isSendingDeliveryChoice" class="fa-solid fa-spinner fa-spin"></i>
+                            <span>{{ isSendingDeliveryChoice ? 'กำลังส่ง...' : 'ทำการจัดส่ง' }}</span>
                         </button>
                     </div>
                 </div>
@@ -2352,6 +2459,30 @@ const closePreview = () => {
   box-shadow: 0 8px 20px rgba(16, 185, 129, 0.45);
 }
 
+.delivery-icon {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.28);
+}
+.delivery-actions {
+  flex-direction: row;
+}
+.med-req-btn.delivery-decline {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+.med-req-btn.delivery-decline:hover:not(:disabled) {
+  background: #fecaca;
+}
+.med-req-btn.delivery-accept {
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.35);
+}
+.med-req-btn.delivery-accept:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(22, 163, 74, 0.45);
+}
+
 /* ===== Toast: รับยาสำเร็จ ===== */
 .med-req-toast {
   position: fixed;
@@ -2821,6 +2952,26 @@ const closePreview = () => {
     font-weight: 500;
     color: #92400e;
     line-height: 1.45;
+}
+.text.rx-payment-success-note {
+    margin-top: 4px;
+    padding: 10px 12px;
+    background: #ecfdf5;
+    border-left: 3px solid #10b981;
+    border-radius: 8px;
+    font-weight: 700;
+    color: #047857;
+    line-height: 1.45;
+}
+.message-bubble.payment-system-bubble {
+    background: #ffffff !important;
+    color: #1e293b !important;
+    border: 1px solid #bbf7d0 !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12) !important;
+}
+.message-bubble.payment-system-bubble .time {
+    color: #94a3b8 !important;
+    text-align: left;
 }
 
 @media (max-width: 480px) {

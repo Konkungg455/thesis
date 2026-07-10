@@ -66,6 +66,10 @@ export default defineNuxtConfig({
 
   // Nitro — API route /api/ai-chat + proxy /n8n บน production
   nitro: {
+    // ใกล้ Supabase ap-southeast-1 — ลด latency DB บน Vercel
+    vercel: {
+      regions: ['sin1'],
+    },
     // ให้ Nitro/Vercel อ่าน env สำหรับ Supabase Postgres ได้แน่นอน
     env: [
       'DATABASE_URL',
@@ -84,6 +88,8 @@ export default defineNuxtConfig({
       '/api/**': { cors: true },
       '/api/home/summary': { headers: { 'cache-control': 'public, s-maxage=120, stale-while-revalidate=300' } },
       '/api/bff/get_pharmacists.php': { headers: { 'cache-control': 'public, s-maxage=120, stale-while-revalidate=300' } },
+      '/api/bff/get-stores.php': { headers: { 'cache-control': 'public, s-maxage=120, stale-while-revalidate=300' } },
+      '/api/bff/get-nearby-pharmacies.php': { headers: { 'cache-control': 'public, s-maxage=60, stale-while-revalidate=180' } },
       '/api/bff/review-get.php': { headers: { 'cache-control': 'public, s-maxage=120, stale-while-revalidate=300' } },
       '/api/ai-chat': { headers: { 'cache-control': 'no-store' } },
       '/api/ai-chat/**': { headers: { 'cache-control': 'no-store' } },

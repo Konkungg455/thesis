@@ -2,9 +2,85 @@ import { randomBytes } from 'node:crypto';
 import type { H3Event } from 'h3';
 import { getArrayField, readMultipartRequest } from './formData';
 import { getAuthContext, parsePositiveInt } from './sessionContext';
-import { uploadMediaFile, mimeFromExt } from '../../utils/storageUpload';
+import { uploadMediaFile, downloadMediaFile, mimeFromExt } from '../../utils/storageUpload';
 
 const VALID_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+type SlipChatRow = {
+    id: number;
+    sender_id: number;
+    receiver_id: number;
+    sender_role: string;
+    file_path: string;
+};
+
+async function findUserSlipChatMessage(
+    sql: ReturnType<typeof useDb>,
+    opts: { messageId: number; patientId: number; idPharma: number; filePath: string },
+): Promise<SlipChatRow | null> {
+    const { messageId, patientId, idPharma, filePath } = opts;
+
+    if (messageId > 0) {
+        const liveById = await sql`
+            SELECT id, sender_id, receiver_id, sender_role, file_path
+            FROM chat_messages
+            WHERE id = ${messageId}
+              AND sender_role = 'user'
+              AND sender_id = ${patientId}
+              AND receiver_id = ${idPharma}
+            LIMIT 1
+        `;
+        if (liveById[0]) {
+            return liveById[0] as SlipChatRow;
+        }
+
+        const archivedById = await sql`
+            SELECT message_id AS id, sender_id, receiver_id, sender_role, file_path
+            FROM chat_messages_archive
+            WHERE message_id = ${messageId}
+              AND sender_role = 'user'
+              AND sender_id = ${patientId}
+              AND receiver_id = ${idPharma}
+            ORDER BY archive_id DESC
+            LIMIT 1
+        `;
+        if (archivedById[0]) {
+            return archivedById[0] as SlipChatRow;
+        }
+    }
+
+    if (filePath) {
+        const liveByFile = await sql`
+            SELECT id, sender_id, receiver_id, sender_role, file_path
+            FROM chat_messages
+            WHERE file_path = ${filePath}
+              AND sender_role = 'user'
+              AND sender_id = ${patientId}
+              AND receiver_id = ${idPharma}
+            ORDER BY id DESC
+            LIMIT 1
+        `;
+        if (liveByFile[0]) {
+            return liveByFile[0] as SlipChatRow;
+        }
+
+        const archivedByFile = await sql`
+            SELECT message_id AS id, sender_id, receiver_id, sender_role, file_path
+            FROM chat_messages_archive
+            WHERE file_path = ${filePath}
+              AND sender_role = 'user'
+              AND sender_id = ${patientId}
+              AND receiver_id = ${idPharma}
+            ORDER BY archive_id DESC
+            LIMIT 1
+        `;
+        if (archivedByFile[0]) {
+            return archivedByFile[0] as SlipChatRow;
+        }
+    }
+
+    return null;
+}
 
 export async function handleUpdatePharmaProfile(event: H3Event) {
     const { fields, arrays, files } = await readMultipartRequest(event);
@@ -493,6 +569,134 @@ export async function handleRejectPharmacist(event: H3Event) {
     return { status: 'success', message: 'อัปเดตสำเร็จ' };
 }
 
+export async function handleConfirmChatBillingSlip(event: H3Event) {
+    const { fields } = await readMultipartRequest(event);
+    const auth = getAuthContext(event, fields);
+    const idPharma = parsePositiveInt(fields.id_pharma ?? auth.id_pharma);
+    const patientId = parsePositiveInt(fields.patient_id);
+    const messageId = parsePositiveInt(fields.message_id);
+    const filePath = String(fields.file_path || '').trim();
+
+    if (idPharma <= 0 || patientId <= 0 || messageId <= 0 || !filePath) {
+        return { status: 'error', message: 'ข้อมูลไม่ครบ' };
+    }
+    if (!/\.(jpg|jpeg|png|gif|webp)$/i.test(filePath)) {
+        return { status: 'error', message: 'ไฟล์นี้ไม่ใช่รูปสลิปการโอน' };
+    }
+
+    const result = await dbQuery(async (sql) => {
+        const msg = await findUserSlipChatMessage(sql, {
+            messageId,
+            patientId,
+            idPharma,
+            filePath,
+        });
+        if (!msg) {
+            return { error: 'ไม่พบข้อความสลิปในแชท' };
+        }
+
+        const confirmMsgId = Number(msg.id || messageId) || messageId;
+        const storedFile = String(msg.file_path || '').trim();
+        if (!storedFile) {
+            return { error: 'ไม่พบไฟล์สลิปในแชท' };
+        }
+
+        const dup = await sql`
+            SELECT id FROM pharmacy_billing_slips
+            WHERE id_pharma = ${idPharma}
+              AND note LIKE ${'%[CHAT_SLIP:msg=' + confirmMsgId + ']%'}
+            LIMIT 1
+        `;
+        if (dup[0]?.id) {
+            return { error: 'สลิปนี้ยืนยันการชำระเงินแล้ว' };
+        }
+
+        const pharmaRow = await sql`
+            SELECT id_store FROM pharmacist_account WHERE id_pharma = ${idPharma} LIMIT 1
+        `;
+        const idStore = parsePositiveInt(pharmaRow[0]?.id_store);
+        if (idStore <= 0) {
+            return { error: 'กรุณาสังกัดร้านยาก่อนยืนยันการชำระเงิน' };
+        }
+
+        const rxRows = await sql`
+            SELECT id, total_amount
+            FROM prescriptions
+            WHERE id_pharma = ${idPharma}
+              AND id_account = ${patientId}
+              AND COALESCE(auto_created, 0) = 0
+            ORDER BY id DESC
+            LIMIT 1
+        `;
+        const rxId = Number(rxRows[0]?.id || 0);
+        const amountRaw = String(rxRows[0]?.total_amount || '').replace(/,/g, '').trim();
+        const amount = Number(amountRaw) || 0;
+        if (amount <= 0) {
+            return { error: 'ไม่พบยอดชำระจากใบสรุปรายการยา' };
+        }
+
+        return { storedFile, idStore, rxId, amount, confirmMsgId };
+    });
+
+    if (!result) {
+        return { status: 'error', message: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้' };
+    }
+    if ('error' in result) {
+        return { status: 'error', message: result.error };
+    }
+
+    const downloaded = await downloadMediaFile('uploads/chat', result.storedFile);
+    if (!downloaded?.buffer?.length) {
+        return { status: 'error', message: 'โหลดไฟล์สลิปจากแชทไม่สำเร็จ' };
+    }
+
+    const ext = result.storedFile.includes('.')
+        ? result.storedFile.slice(result.storedFile.lastIndexOf('.') + 1).toLowerCase()
+        : 'jpg';
+    const safeExt = ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg';
+    const slipFilename = `slip_${idPharma}_${randomBytes(6).toString('hex')}.${safeExt === 'jpeg' ? 'jpg' : safeExt}`;
+
+    try {
+        await uploadMediaFile(
+            'uploads/slips',
+            slipFilename,
+            downloaded.buffer,
+            downloaded.contentType || mimeFromExt(safeExt),
+        );
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { status: 'error', message: msg || 'อัปโหลดสลิปไม่สำเร็จ' };
+    }
+
+    const note = [
+        `ค่ายาใบสรุปรายการยา #${result.rxId}`,
+        `[BILLING_CTX:patient=${patientId};rx=${result.rxId}][CHAT_SLIP:msg=${result.confirmMsgId}]`,
+    ].join('\n');
+    const inserted = await dbQuery(async (sql) => {
+        const rows = await sql`
+            INSERT INTO pharmacy_billing_slips (
+                id_pharma, id_store, amount, slip_image, transfer_date, note, status, created_at
+            ) VALUES (
+                ${idPharma}, ${result.idStore}, ${result.amount}, ${slipFilename},
+                NOW(), ${note}, 'pending', NOW()
+            )
+            RETURNING id
+        `;
+        return rows[0];
+    });
+
+    if (!inserted?.id) {
+        return { status: 'error', message: 'บันทึกสลิปไม่สำเร็จ' };
+    }
+
+    return {
+        status: 'success',
+        message: 'ยืนยันการชำระเงินแล้ว รอเจ้าของร้านตรวจสอบ',
+        slip_id: Number(inserted.id),
+        rx_id: result.rxId,
+    };
+}
+
 export async function handleReviewBillingSlip(event: H3Event) {
     const body = await readBody(event).catch(() => ({}));
     const auth = getAuthContext(event, body as Record<string, unknown>);
@@ -525,13 +729,13 @@ export async function handleReviewBillingSlip(event: H3Event) {
         const rxId = Number(marker?.[2] || 0);
         const pharmaId = Number(reviewed.id_pharma || 0);
         if (patientId > 0 && pharmaId > 0) {
-            const paymentDoneMessage = rxId > 0
-                ? `การชำระเงินของคุณสำเร็จแล้วนะ\nอ้างอิงใบสรุปรายการยา #${rxId}`
-                : 'การชำระเงินของคุณสำเร็จแล้วนะ';
+            const pharmaMessage = rxId > 0
+                ? `ระบบ: การชำระเงินสำเร็จแล้ว อ้างอิงใบสรุปรายการยา #${rxId}`
+                : 'ระบบ: การชำระเงินสำเร็จแล้ว';
             await dbQuery(async (sql) => {
                 await sql`
                     INSERT INTO chat_messages (sender_id, receiver_id, sender_role, message_text, file_path)
-                    VALUES (${pharmaId}, ${patientId}, 'pharma', ${paymentDoneMessage}, NULL)
+                    VALUES (${pharmaId}, ${patientId}, 'pharma', ${pharmaMessage}, NULL)
                 `;
                 return true;
             });

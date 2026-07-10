@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { formatBillingSlipDisplayNote } from '~/utils/prescription'
 
 definePageMeta({ middleware: 'store-only' });
 
@@ -539,7 +540,7 @@ onMounted(async () => {
                 <img :src="slipUrl(s.slip_image)" class="slip-thumb-store" @click="openSlipPreview(s.slip_image)" />
                 <div class="slip-info">
                   <p class="slip-from">{{ s.pharmacist_name }}</p>
-                  <p class="slip-note">{{ s.note || '—' }}</p>
+                  <p class="slip-note">{{ formatBillingSlipDisplayNote(s.note) || '—' }}</p>
                   <div class="slip-meta">
                     <span><i class="fa-solid fa-calendar"></i> {{ formatDateThai(s.transfer_date || s.created_at) }}</span>
                     <span class="slip-amount">฿ {{ formatMoney(s.amount) }}</span>

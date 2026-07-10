@@ -51,7 +51,7 @@ export default defineEventHandler(async (event) => {
             ? (cloud.hasKey ? `cloud/${cloud.provider} (${cloud.model})` : 'missing NUXT_AI_API_KEY')
             : (n8nUrl ? `n8n (${n8nUrl})` : 'n8n (local / npm run dev)'),
         hints: [
-            !dbOk && 'Add DATABASE_URL (Supabase pooler port 6543)',
+            !dbOk && 'Add DATABASE_POOLER_URL or DATABASE_URL (Supabase pooler port 6543)',
             dbOk && !dbPing.ok && `DB connection failed: ${dbPing.error}`,
             !supabaseOk && 'Add SUPABASE_URL + SUPABASE_KEY (+ NUXT_PUBLIC_* variants)',
             supabaseOk && !supabasePing.ok && `Supabase API failed: ${supabasePing.error}`,

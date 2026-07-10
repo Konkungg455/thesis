@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { formatBillingSlipDisplayNote } from '~/utils/prescription'
 
 definePageMeta({
     middleware: 'pharmacist-only'
@@ -91,7 +92,7 @@ const filteredSlips = computed(() => {
     return slips.value.filter(s => {
         if (filterStatus.value !== 'all' && s.status !== filterStatus.value) return false
         if (q) {
-            const hay = `${s.store_name || ''} ${s.note || ''} ${s.amount}`.toLowerCase()
+            const hay = `${s.store_name || ''} ${formatBillingSlipDisplayNote(s.note)} ${s.amount}`.toLowerCase()
             if (!hay.includes(q)) return false
         }
         return true
@@ -476,7 +477,7 @@ onMounted(async () => {
                                     </div>
                                 </td>
                                 <td>
-                                    <div class="note-cell">{{ s.note || '—' }}</div>
+                                    <div class="note-cell">{{ formatBillingSlipDisplayNote(s.note) || '—' }}</div>
                                 </td>
                                 <td>{{ formatDateTime(s.transfer_date) }}</td>
                                 <td class="text-right">
@@ -522,7 +523,7 @@ onMounted(async () => {
                                 </div>
                                 <div class="mc-row">
                                     <span class="mc-label">หมายเหตุ</span>
-                                    <span class="text-muted">{{ s.note || '—' }}</span>
+                                    <span class="text-muted">{{ formatBillingSlipDisplayNote(s.note) || '—' }}</span>
                                 </div>
                                 <div v-if="s.reviewed_note" class="mc-row mc-reviewed">
                                     <i class="fa-solid fa-comment"></i> {{ s.reviewed_note }}

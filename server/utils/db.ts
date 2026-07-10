@@ -27,12 +27,12 @@ function isServerlessRuntime(): boolean {
 }
 
 function maxConcurrentQueries(): number {
-    if (isServerlessRuntime()) return 3;
+    if (isServerlessRuntime()) return 2;
     return usesSupabasePooler() ? 4 : 8;
 }
 
 function defaultQueryTimeoutMs(): number {
-    return isServerlessRuntime() ? 28_000 : 35_000;
+    return isServerlessRuntime() ? 20_000 : 35_000;
 }
 
 async function acquireDbSlot(): Promise<void> {
@@ -67,10 +67,10 @@ export function getLastDbError(): string | null {
 /** อ่าน URL จาก env หลายชื่อ (Vercel / Supabase integration) */
 export function resolveDatabaseUrlRaw(): string {
     const candidates = [
-        process.env.DATABASE_URL,
         process.env.DATABASE_POOLER_URL,
-        process.env.POSTGRES_URL,
+        process.env.DATABASE_URL,
         process.env.POSTGRES_PRISMA_URL,
+        process.env.POSTGRES_URL,
     ];
     for (const c of candidates) {
         const v = String(c || '').trim();
@@ -194,10 +194,10 @@ export function useDb() {
             ssl: 'require',
             prepare: false,
             fetch_types: false,
-            max: isServerless ? 2 : (pooler ? 4 : 6),
-            connect_timeout: isServerless ? 25 : 20,
-            idle_timeout: pooler ? (isLocalDev ? 25 : 20) : 25,
-            max_lifetime: pooler ? (isLocalDev ? 120 : 120) : 60 * 10,
+            max: isServerless ? 1 : (pooler ? 4 : 6),
+            connect_timeout: isServerless ? 12 : 15,
+            idle_timeout: isServerless ? 8 : (pooler ? 25 : 25),
+            max_lifetime: isServerless ? 55 : (pooler ? 120 : 60 * 10),
         });
     }
 
@@ -281,7 +281,7 @@ export async function pingDb(timeoutMs = 18000): Promise<{ ok: boolean; error?: 
 
 export function dbUnavailableMessage(): string {
     if (!isDbConfigured()) {
-        return 'DATABASE_URL ยังไม่ได้ตั้งค่า — คัด import.env เป็น .env (local) หรือ Import env บน Vercel แล้ว Redeploy';
+        return 'DATABASE_URL ยังไม่ได้ตั้งค่า — ใส่ DATABASE_POOLER_URL (port 6543) ใน Vercel แล้ว Redeploy';
     }
 
     const raw = resolveDatabaseUrlRaw();

@@ -191,6 +191,10 @@ export async function dispatchBff(event: H3Event, pathname: string) {
         return handleUploadBillingSlip(event);
     }
 
+    if (pathLower === 'confirm-chat-billing-slip.php' && method === 'POST') {
+        return handleConfirmChatBillingSlip(event);
+    }
+
     if (pathLower === 'invite-pharmacist-to-store.php' && method === 'POST') {
         return handleInvitePharmacistToStore(event);
     }

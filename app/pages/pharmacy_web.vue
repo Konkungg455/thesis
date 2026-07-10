@@ -67,10 +67,8 @@ const sidebarPatientIds = ref([]);
 const patientSearchQuery = ref('');
 const MEDICINE_REQUEST_TEXT = 'ระบบ : ผู้ป่วยต้องการรับยา กรุณาออกใบปรึกษาให้ด้วย';
 
-import { parsePrescriptionMessage } from '~/utils/prescription';
-
-const BILLING_CTX_RX = /\[BILLING_CTX:patient=\d+;rx=(\d+)\]/;
-const approvedDeliveryRxIds = ref(new Set());
+import { parsePrescriptionMessage, normalizeChatDisplayText, parseDeliveryChoiceMessage, getConfirmedChatSlipMsgIds, isChatSlipImageMessage, parsePharmaPaymentSuccessMessage } from '~/utils/prescription';
+import { useAdaptivePoll } from '~/composables/useChatApi';
 
 const openPrescriptionPdf = (prescriptionId) => {
     if (!prescriptionId || !import.meta.client) return;
@@ -78,53 +76,93 @@ const openPrescriptionPdf = (prescriptionId) => {
 };
 
 const rxParsed = (text) => parsePrescriptionMessage(text);
+const deliveryParsed = (text) => parseDeliveryChoiceMessage(text);
+const paymentSuccessParsed = (text) => parsePharmaPaymentSuccessMessage(text);
+const chatBubbleClass = (msg) => {
+    if (paymentSuccessParsed(msg.message_text).isPaymentSuccess) return 'doctor';
+    return msg.sender_role === 'pharma' ? 'doctor' : 'patient';
+};
 
-const loadApprovedDeliveryRx = async () => {
+const confirmedChatSlipMsgIds = ref(new Set());
+const confirmingChatSlipId = ref(0);
+
+const loadConfirmedChatSlips = async () => {
     if (!myPharmaId.value) return;
     try {
         const data = await $fetch(apiUrl('get-pharmacist-billing-slips.php'), {
             credentials: 'include',
             query: { id_pharma: myPharmaId.value, t: Date.now() },
         });
-        const next = new Set();
         if (data?.status === 'success') {
-            for (const slip of data.slips || []) {
-                if (slip.status !== 'approved') continue;
-                const rxId = Number(String(slip.note || '').match(BILLING_CTX_RX)?.[1] || 0);
-                if (rxId > 0) next.add(rxId);
-            }
+            confirmedChatSlipMsgIds.value = getConfirmedChatSlipMsgIds(data.slips || []);
         }
-        approvedDeliveryRxIds.value = next;
     } catch {
         // ignore polling errors
     }
 };
 
-const shouldShowDeliveryConfirm = (msg, parsed) => {
-    if (msg?.sender_role !== 'pharma') return false;
-    const rxId = Number(parsed?.prescriptionId || 0);
-    if (!rxId || approvedDeliveryRxIds.value.has(rxId)) return false;
-    return true;
+const chatMessagePoll = useAdaptivePoll(() => fetchMessages(), {
+    visibleMs: 4000,
+    hiddenMs: 15000,
+    productionVisibleMs: 5000,
+    immediate: false,
+});
+const billingSlipPoll = useAdaptivePoll(() => loadConfirmedChatSlips(), {
+    visibleMs: 30000,
+    hiddenMs: 60000,
+    productionVisibleMs: 30000,
+    immediate: false,
+});
+const bellPoll = useAdaptivePoll(() => checkExternalBellTrigger(), {
+    visibleMs: 4000,
+    hiddenMs: 15000,
+    productionVisibleMs: 6000,
+    immediate: false,
+});
+const consultInfoPoll = useAdaptivePoll(() => fetchActiveConsultInfo(), {
+    visibleMs: 5000,
+    hiddenMs: 20000,
+    productionVisibleMs: 6000,
+    immediate: false,
+});
+
+const shouldShowPaymentConfirm = (msg) => {
+    if (!isChatSlipImageMessage(msg)) return false;
+    const mid = getMessageId(msg);
+    return mid > 0 && !confirmedChatSlipMsgIds.value.has(mid);
 };
 
-const parseAmountFromRxHeader = (headerText) => {
-    const match = String(headerText || '').match(/ยอดรวม:\s*([\d,.]+)/);
-    return match ? match[1].replace(/,/g, '') : '';
-};
+const confirmChatPayment = async (msg) => {
+    const messageId = getMessageId(msg);
+    const patientId = Number(activePatientId.value) || 0;
+    if (!messageId || !patientId || confirmingChatSlipId.value > 0) return;
+    if (!confirm('ยืนยันว่าลูกค้าชำระเงินและส่งสลิปถูกต้อง แล้วส่งให้เจ้าของร้านตรวจสอบ?')) return;
 
-const goConfirmDelivery = (parsed) => {
-    const rxId = Number(parsed?.prescriptionId || 0);
-    const pid = Number(activePatientId.value) || 0;
-    if (!rxId) return;
-    router.push({
-        path: '/billing',
-        query: {
-            from_rx: '1',
-            prescription_id: rxId,
-            patient_id: pid || undefined,
-            amount: parseAmountFromRxHeader(parsed.headerText) || undefined,
-        },
-    });
+    confirmingChatSlipId.value = messageId;
+    try {
+        const body = new FormData();
+        body.append('patient_id', String(patientId));
+        body.append('message_id', String(messageId));
+        body.append('file_path', String(msg.file_path || ''));
+        if (myPharmaId.value) body.append('id_pharma', String(myPharmaId.value));
+        const res = await $fetch(apiUrl('confirm-chat-billing-slip.php'), {
+            method: 'POST',
+            body,
+            credentials: 'include',
+        });
+        if (res?.status === 'success') {
+            confirmedChatSlipMsgIds.value = new Set([...confirmedChatSlipMsgIds.value, messageId]);
+            await loadConfirmedChatSlips();
+            alert(res.message || 'ยืนยันการชำระเงินแล้ว รอเจ้าของร้านตรวจสอบ');
+        } else {
+            alert(res?.message || 'ยืนยันการชำระเงินไม่สำเร็จ');
+        }
+    } catch (err) {
+        console.error('confirmChatPayment', err);
+        alert(err?.data?.message || err?.message || 'ยืนยันการชำระเงินไม่สำเร็จ');
+    } finally {
+        confirmingChatSlipId.value = 0;
+    }
 };
 
 // กรองรายการคนไข้ตามคำค้น (ใช้กับ slider list ใน sidebar)
@@ -321,7 +359,6 @@ const newMessage = ref('');
 const chatMessages = ref([]);
 const chatScroll = ref(null);
 const fileInput = ref(null);
-let mainTimer = null;
 let consultCountdownTimer = null;
 let consultCountdownStarting = false;
 
@@ -338,7 +375,6 @@ const isTrackingMode = ref(false);
 const trackingStartedAt = ref(null);   // last_followup_at
 // 🔚 สิ้นสุดการติดตามอาการ (ครบ 3 วัน) → เข้าไปดูแชทได้ แต่พิมพ์ตอบไม่ได้
 const isTrackingEnded = ref(false);
-let consultInfoPollTimer = null;
 
 // ===== นาฬิกาให้คำปรึกษา (15 นาที) แบบ "กลาง" จาก server =====
 //   - เวลาก้อนเดียวกับฝั่งผู้ใช้ → เห็นตรงกัน (เวลาตามคนที่เหลือน้อยกว่าเสมอ)
@@ -1294,21 +1330,16 @@ onMounted(async () => {
     }
 
     await checkExternalBellTrigger();
+    await loadConfirmedChatSlips();
 
-    await loadApprovedDeliveryRx();
-
-    mainTimer = setInterval(() => { 
-        fetchMessages(); 
-        loadApprovedDeliveryRx();
-        checkExternalBellTrigger();
-    }, 3000);
+    chatMessagePoll.start();
+    billingSlipPoll.start();
+    bellPoll.start();
+    consultInfoPoll.start();
+    fetchActiveConsultInfo();
 
     // เริ่ม polling การโทร (ใน composable) — ใช้ความถี่ของตัวเอง
-    startCallPolling(2500);
-
-    // ตรวจสอบโหมดติดตามอาการทุก 4 วินาที (จับเหตุการณ์ user หรือ pharma กดปรึกษาอีกครั้ง)
-    fetchActiveConsultInfo();
-    consultInfoPollTimer = setInterval(fetchActiveConsultInfo, 4000);
+    startCallPolling(3500);
 
     // 💓 heartbeat นาฬิกากลางทุก 5 วิ (ส่งเฉพาะตอนเปิดหน้าจออยู่) + เช็คทันทีเมื่อกลับมาที่แท็บ
     chatTimerHeartbeat = setInterval(() => syncChatTimer(), 5000);
@@ -1321,9 +1352,11 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     persistTimerBeforeLeave();
-    if (mainTimer) clearInterval(mainTimer);
+    chatMessagePoll.stop();
+    billingSlipPoll.stop();
+    bellPoll.stop();
+    consultInfoPoll.stop();
     if (modifyTickTimer) clearInterval(modifyTickTimer);
-    if (consultInfoPollTimer) clearInterval(consultInfoPollTimer);
     if (chatTimerHeartbeat) clearInterval(chatTimerHeartbeat);
     unbindChatTimerPageLifecycle();
     clearConsultCountdown();
@@ -1656,7 +1689,8 @@ const closePreview = () => { isShowPreview.value = false; };
                                     <span class="divider-line"></span>
                                 </div>
                                 <div v-else
-                                    :class="['message-bubble', msg.sender_role === 'pharma' ? 'doctor' : 'patient', {
+                                    :class="['message-bubble', chatBubbleClass(msg), {
+                                        'payment-system-bubble': paymentSuccessParsed(msg.message_text).isPaymentSuccess,
                                         'can-modify': showMsgActions(msg),
                                         'msg-actions-open': isMsgActionsVisible(msg),
                                     }]"
@@ -1680,6 +1714,20 @@ const closePreview = () => { isShowPreview.value = false; };
                                 <div v-if="msg.file_path && (msg.file_path.match(/\.(jpg|jpeg|png|gif|webp)$/i))" class="msg-image-wrap">
                                     <img :src="uploadsChat(msg.file_path)" class="msg-image"
                                          @click="openPreview(uploadsChat(msg.file_path))" />
+                                    <div
+                                        v-if="shouldShowPaymentConfirm(msg)"
+                                        class="rx-payment-confirm-box"
+                                    >
+                                        <button
+                                            type="button"
+                                            class="rx-payment-confirm-btn"
+                                            :disabled="confirmingChatSlipId === getMessageId(msg)"
+                                            @click.stop="confirmChatPayment(msg)"
+                                        >
+                                            <i v-if="confirmingChatSlipId === getMessageId(msg)" class="fa-solid fa-spinner fa-spin"></i>
+                                            {{ confirmingChatSlipId === getMessageId(msg) ? 'กำลังส่ง...' : 'ยืนยันการชำระเงิน' }}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div v-if="msg.file_path && msg.file_path.toLowerCase().endsWith('.pdf')" class="pdf-container">
@@ -1723,21 +1771,26 @@ const closePreview = () => { isShowPreview.value = false; };
                                         <div v-if="rxParsed(msg.message_text).footerText" class="text rx-payment-note">
                                             {{ rxParsed(msg.message_text).footerText }}
                                         </div>
+                                    </template>
+                                    <template v-else-if="paymentSuccessParsed(msg.message_text).isPaymentSuccess">
+                                        <div class="text rx-payment-success-note">
+                                            {{ paymentSuccessParsed(msg.message_text).mainText }}
+                                        </div>
+                                    </template>
+                                    <template v-else-if="deliveryParsed(msg.message_text).isDeliveryChoice">
+                                        <div class="text">
+                                            {{ deliveryParsed(msg.message_text).mainText }}
+                                            <span v-if="msg.edited_at" class="edited-mark">(แก้ไขแล้ว)</span>
+                                        </div>
                                         <div
-                                            v-if="shouldShowDeliveryConfirm(msg, rxParsed(msg.message_text))"
-                                            class="rx-delivery-confirm-box"
+                                            v-if="deliveryParsed(msg.message_text).declineHint"
+                                            class="text rx-payment-note"
                                         >
-                                            <button
-                                                type="button"
-                                                class="rx-delivery-btn"
-                                                @click.stop="goConfirmDelivery(rxParsed(msg.message_text))"
-                                            >
-                                                ยืนยันการจัดส่ง
-                                            </button>
+                                            {{ deliveryParsed(msg.message_text).declineHint }}
                                         </div>
                                     </template>
                                     <div v-else class="text">
-                                        {{ msg.message_text }}
+                                        {{ normalizeChatDisplayText(msg.message_text) }}
                                         <span v-if="msg.edited_at" class="edited-mark">(แก้ไขแล้ว)</span>
                                     </div>
                                 </template>
@@ -2710,25 +2763,43 @@ const closePreview = () => { isShowPreview.value = false; };
     color: #92400e;
     line-height: 1.45;
 }
-.rx-delivery-confirm-box {
-    margin-top: 12px;
+.rx-payment-confirm-box {
+    margin-top: 10px;
 }
-.rx-delivery-btn {
+.rx-payment-confirm-btn {
     width: 100%;
     border: none;
     border-radius: 12px;
-    padding: 12px 16px;
-    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    padding: 11px 14px;
+    background: linear-gradient(135deg, #16a34a, #15803d);
     color: #fff;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 800;
     cursor: pointer;
-    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    box-shadow: 0 8px 18px rgba(22, 163, 74, 0.28);
 }
-.rx-delivery-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 24px rgba(37, 99, 235, 0.42);
+.rx-payment-confirm-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+.text.rx-payment-success-note {
+    margin-top: 4px;
+    padding: 10px 12px;
+    background: #ecfdf5;
+    border-left: 3px solid #10b981;
+    border-radius: 8px;
+    font-weight: 700;
+    color: #047857;
+    line-height: 1.45;
+}
+.message-bubble.payment-system-bubble {
+    background: #ffffff !important;
+    color: #1e293b !important;
+    border: 1px solid #bbf7d0 !important;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12) !important;
+}
+.message-bubble.payment-system-bubble .time {
+    color: #94a3b8 !important;
 }
 @media (max-width: 480px) {
     .prescription-card { padding: 10px 12px; gap: 10px; }

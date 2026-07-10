@@ -1,4 +1,4 @@
-const PUBLIC_CACHE_PATHS = ['get_pharmacists.php', 'review-get.php', 'get-nearby-pharmacies.php'];
+const PUBLIC_CACHE_PATHS = ['get_pharmacists.php', 'review-get.php', 'get-nearby-pharmacies.php', 'get-stores.php'];
 
 function applyPublicBffCache(event: H3Event, pathLower: string, result: unknown) {
     if (!PUBLIC_CACHE_PATHS.includes(pathLower) || event.method !== 'GET') {

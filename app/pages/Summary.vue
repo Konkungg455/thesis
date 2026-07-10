@@ -111,13 +111,6 @@ const initialForm = {
 
 const form = ref({ ...initialForm })
 const isSaving = ref(false)
-const showDeliveryConfirmModal = ref(false)
-const pendingDelivery = ref({
-  insertedId: 0,
-  patientId: 0,
-  totalAmount: '',
-  billNo: '',
-})
 
 const emptyItem = () => ({
   name: '',
@@ -423,33 +416,6 @@ const saveAndPrint = async () => {
     }
   }
 
-  pendingDelivery.value = {
-    insertedId,
-    patientId: Number(activePatientId.value) || 0,
-    totalAmount: String(form.value.total_amount || '').trim(),
-    billNo: String(form.value.doc_no || '').trim() || `B-${String(insertedId).padStart(6, '0')}`,
-  }
-  showDeliveryConfirmModal.value = true
-}
-
-const confirmDeliveryAndGoBilling = async () => {
-  const rxId = Number(pendingDelivery.value.insertedId || 0)
-  const pid = Number(pendingDelivery.value.patientId || 0)
-  const amount = String(pendingDelivery.value.totalAmount || '').trim()
-  showDeliveryConfirmModal.value = false
-  await router.push({
-    path: '/billing',
-    query: {
-      from_rx: '1',
-      prescription_id: rxId || undefined,
-      patient_id: pid || undefined,
-      amount: amount || undefined,
-    },
-  })
-}
-
-const cancelDeliveryAndBack = async () => {
-  showDeliveryConfirmModal.value = false
   await router.push({
     path: '/pharmacy_web',
     query: skipTracking.value
@@ -663,28 +629,6 @@ const addRow = () => {
       </div>
 
     </div>
-
-    <div
-      v-if="showDeliveryConfirmModal"
-      class="ship-modal-backdrop no-print"
-      @click.self="showDeliveryConfirmModal = false"
-    >
-      <div class="ship-modal-card">
-        <h3>ยืนยันการจัดส่งยา</h3>
-        <p>
-          ใบสรุปรายการยาเลขที่ <strong>{{ pendingDelivery.billNo }}</strong> ถูกบันทึกแล้ว
-          ต้องการยืนยันการจัดส่งและไปกรอกข้อมูลการโอนที่หน้า Billing หรือไม่?
-        </p>
-        <div class="ship-modal-actions">
-          <button type="button" class="ship-btn ship-cancel" @click="cancelDeliveryAndBack">
-            ยกเลิกการจัดส่ง
-          </button>
-          <button type="button" class="ship-btn ship-confirm" @click="confirmDeliveryAndGoBilling">
-            ยืนยันการจัดส่ง
-          </button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -809,62 +753,5 @@ const addRow = () => {
     touch-action: manipulation;
     min-height: 44px;
   }
-}
-
-.ship-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1200;
-  padding: 16px;
-}
-
-.ship-modal-card {
-  width: min(520px, 100%);
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #dbeafe;
-  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.28);
-  padding: 20px;
-}
-
-.ship-modal-card h3 {
-  margin: 0 0 10px;
-  color: #1e3a8a;
-  font-size: 1.1rem;
-}
-
-.ship-modal-card p {
-  margin: 0;
-  color: #334155;
-  line-height: 1.5;
-}
-
-.ship-modal-actions {
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.ship-btn {
-  border: none;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.ship-cancel {
-  background: #fee2e2;
-  color: #b91c1c;
-}
-
-.ship-confirm {
-  background: linear-gradient(135deg, #16a34a, #15803d);
-  color: #fff;
 }
 </style>

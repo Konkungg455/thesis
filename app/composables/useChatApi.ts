@@ -1,5 +1,72 @@
 export const GUEST_SESSIONS_KEY = 'telebot_guest_sessions';
 
+/** Poll ปรับความถี่ตาม visibility — ลด DB round-trip บน Vercel */
+export function useAdaptivePoll(
+    fn: () => void | Promise<void>,
+    options: {
+        visibleMs?: number
+        hiddenMs?: number
+        productionVisibleMs?: number
+        immediate?: boolean
+    } = {},
+) {
+    const {
+        visibleMs = 4000,
+        hiddenMs = 15000,
+        productionVisibleMs = 5000,
+        immediate = true,
+    } = options;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let stopped = true;
+
+    const intervalMs = () => {
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+            return hiddenMs;
+        }
+        if (import.meta.client && !import.meta.dev) return productionVisibleMs;
+        return visibleMs;
+    };
+
+    const schedule = (delay = intervalMs()) => {
+        if (stopped) return;
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(tick, delay);
+    };
+
+    const tick = async () => {
+        if (stopped) return;
+        try {
+            await fn();
+        } catch {
+            /* ignore */
+        }
+        schedule();
+    };
+
+    const onVisibility = () => {
+        if (stopped) return;
+        schedule(document.visibilityState === 'hidden' ? intervalMs() : 0);
+    };
+
+    const start = () => {
+        if (!import.meta.client || !stopped) return;
+        stopped = false;
+        document.addEventListener('visibilitychange', onVisibility);
+        if (immediate) void tick();
+        else schedule();
+    };
+
+    const stop = () => {
+        stopped = true;
+        if (timer) clearTimeout(timer);
+        timer = null;
+        document.removeEventListener('visibilitychange', onVisibility);
+    };
+
+    return { start, stop };
+}
+
 export function useChatApi() {
     const getAccountId = (): number | null => {
         if (!import.meta.client) return null;

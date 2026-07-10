@@ -6,6 +6,9 @@ import { readMultipartRequest, readRequestFields } from './formData';
 import { getAuthContext, parsePositiveInt } from './sessionContext';
 import { consolidateDuplicateActiveTracking } from './consultTracking';
 
+const consolidateCooldown = new Map<number, number>();
+const CONSOLIDATE_COOLDOWN_MS = 60_000;
+
 function pharmacistLicensePath(filename?: string | null): string {
     return `uploads/licenses/${resolvePharmacistLicenseFile(filename)}`;
 }
@@ -264,10 +267,16 @@ export async function handleGetPrescriptions(event: H3Event) {
 
     const rows = await dbQuery(async (sql) => {
         if (auth.id_pharma) {
-            await consolidateDuplicateActiveTracking(sql, auth.id_pharma);
+            const now = Date.now();
+            const last = consolidateCooldown.get(auth.id_pharma) || 0;
+            if (now - last > CONSOLIDATE_COOLDOWN_MS) {
+                await consolidateDuplicateActiveTracking(sql, auth.id_pharma);
+                consolidateCooldown.set(auth.id_pharma, now);
+            }
         }
+        let prescriptions: Record<string, unknown>[] = [];
         if (auth.isAdmin) {
-            return sql`
+            prescriptions = await sql`
                 SELECT p.*,
                        a.phone_number AS account_phone, a.firstname AS account_firstname,
                        a.lastname AS account_lastname, a.email_account AS account_email,
@@ -287,9 +296,8 @@ export async function handleGetPrescriptions(event: H3Event) {
                 LEFT JOIN pharmacist_account ph ON ph.id_pharma = p.id_pharma
                 ORDER BY p.created_at DESC
             `;
-        }
-        if (auth.id_store_accounts) {
-            return sql`
+        } else if (auth.id_store_accounts) {
+            prescriptions = await sql`
                 SELECT p.*,
                        a.phone_number AS account_phone, a.firstname AS account_firstname,
                        a.lastname AS account_lastname, a.email_account AS account_email,
@@ -312,9 +320,8 @@ export async function handleGetPrescriptions(event: H3Event) {
                 )
                 ORDER BY p.created_at DESC
             `;
-        }
-        if (auth.id_pharma) {
-            return sql`
+        } else if (auth.id_pharma) {
+            prescriptions = await sql`
                 SELECT p.*,
                        a.phone_number AS account_phone, a.firstname AS account_firstname,
                        a.lastname AS account_lastname, a.email_account AS account_email,
@@ -335,8 +342,8 @@ export async function handleGetPrescriptions(event: H3Event) {
                 WHERE p.id_pharma = ${auth.id_pharma}
                 ORDER BY p.created_at DESC
             `;
-        }
-        return sql`
+        } else {
+            prescriptions = await sql`
             SELECT p.*,
                    a.phone_number AS account_phone, a.firstname AS account_firstname,
                    a.lastname AS account_lastname, a.email_account AS account_email,
@@ -357,6 +364,8 @@ export async function handleGetPrescriptions(event: H3Event) {
             WHERE p.id_account = ${auth.id_account}
             ORDER BY p.created_at DESC
         `;
+        }
+        return attachPrescriptionSymptoms(sql, prescriptions || []);
     });
 
     const data = (rows || []).map(mapPrescriptionRow);
@@ -691,19 +700,20 @@ export async function handleGetPharmacistBillingSlips(event: H3Event) {
     const rows = await dbQuery(async (sql) => sql`
         SELECT b.id, b.id_pharma, b.id_store, b.amount, b.slip_image, b.transfer_date, b.note,
                b.status, b.created_at, b.reviewed_at, b.reviewed_note,
-               st.firstname AS store_firstname, st.lastname AS store_lastname, st.username AS store_username
+               d.store_name AS detail_store_name,
+               ph.store_name AS pharma_store_name
         FROM pharmacy_billing_slips b
-        LEFT JOIN phamacy_store_accounts st ON b.id_store = st.id_store_accounts
+        LEFT JOIN phamacy_store_details d ON d.id_store_accounts = b.id_store
+        LEFT JOIN pharmacist_account ph ON ph.id_pharma = b.id_pharma
         WHERE b.id_pharma = ${idPharma}
         ORDER BY b.created_at DESC
         LIMIT 200
     `);
 
     const slips = (rows || []).map((r) => {
-        let storeName = `${r.store_firstname || ''} ${r.store_lastname || ''}`.trim();
-        if (!storeName) {
-            storeName = String(r.store_username || '') || `ร้าน #${Number(r.id_store || 0)}`;
-        }
+        let storeName = String(r.detail_store_name || '').trim();
+        if (!storeName) storeName = String(r.pharma_store_name || '').trim();
+        if (!storeName) storeName = `ร้าน #${Number(r.id_store || 0)}`;
         return {
             id: Number(r.id),
             id_pharma: Number(r.id_pharma),
@@ -1425,6 +1435,49 @@ function mapStoreRow(row: Record<string, unknown>) {
     };
 }
 
+async function attachPrescriptionSymptoms(
+    sql: ReturnType<typeof useDb>,
+    prescriptions: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+    if (!prescriptions.length) return prescriptions;
+
+    const consultIds = [
+        ...new Set(
+            prescriptions
+                .map((row) => Number(row.id_consult_request || 0))
+                .filter((id) => id > 0),
+        ),
+    ];
+    if (!consultIds.length) return prescriptions;
+
+    try {
+        const symptomRows = await sql`
+            SELECT DISTINCT ON (cr.id) cr.id AS consult_id, ch.symptom_name
+            FROM consult_requests cr
+            INNER JOIN chat_history ch
+              ON ch.id_account = cr.id_account AND ch.session_id = cr.bot_session_id
+            WHERE cr.id IN ${sql(consultIds)}
+              AND ch.symptom_name IS NOT NULL
+              AND ch.symptom_name <> ''
+              AND COALESCE(ch.is_deleted, 0) = 0
+            ORDER BY cr.id, ch.created_at ASC, ch.id ASC
+        `;
+
+        const symptomMap = new Map<number, string>();
+        for (const row of symptomRows) {
+            symptomMap.set(Number(row.consult_id), String(row.symptom_name || '').trim());
+        }
+
+        return prescriptions.map((row) => {
+            const linked = symptomMap.get(Number(row.id_consult_request || 0)) || '';
+            return linked ? { ...row, linked_symptom_name: linked } : row;
+        });
+    } catch (err) {
+        console.warn('[attachPrescriptionSymptoms]', err);
+        return prescriptions;
+    }
+}
+
 function mapPrescriptionRow(r: Record<string, unknown>) {
     const pharmaFn = String(r.p_firstname_pharma || '').trim();
     const pharmaLn = String(r.p_lastname_pharma || '').trim();
@@ -1468,7 +1521,7 @@ function mapPrescriptionRow(r: Record<string, unknown>) {
         pharmacist_username: String(r.p_username_pharma || '').trim(),
         store_name: String(r.p_store_name || '').trim(),
         work_place: String(r.p_store_name || '').trim(),
-        symptom_name: 'ทั่วไป',
+        symptom_name: String(r.linked_symptom_name || '').trim() || 'ทั่วไป',
         service_code: serviceCode,
         patient_phone: String(r.account_phone || '').trim(),
         patient_name: displayPatientName,
