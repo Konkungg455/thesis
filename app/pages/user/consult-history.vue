@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 definePageMeta({ middleware: 'user-only' });
@@ -7,38 +7,41 @@ definePageMeta({ middleware: 'user-only' });
 const { apiUrl } = useApiBase();
 const router = useRouter();
 
-const isLoading = ref(false);
-const loadingMessages = ref(false);
 const errorMessage = ref('');
-const sessions = ref([]);
 const selectedSession = ref(null);
 const messages = ref([]);
 const meta = ref({ retentionDays: 365, archivedAt: '', expiresAt: '' });
 const deletingKey = ref('');
+const loadingMessages = ref(false);
+
+const { data: sessionsRes, pending: isLoading, refresh: reloadSessions } = await useAsyncData(
+    'consult-archives-list',
+    () => $fetch(apiUrl('consult-handler.php?action=list_consult_archives'), {
+        credentials: 'include',
+        timeout: 25_000,
+    }),
+    { default: () => ({ status: 'success', data: [], retention_days: 365 }) },
+);
+
+const sessions = computed(() => (
+    sessionsRes.value?.status === 'success' ? (sessionsRes.value.data || []) : []
+));
 
 const loadSessions = async () => {
-    isLoading.value = true;
     errorMessage.value = '';
     try {
-        const res = await $fetch(
-            apiUrl('consult-handler.php?action=list_consult_archives'),
-            { credentials: 'include', timeout: 15_000 }
-        );
-        if (res?.status === 'success') {
-            sessions.value = res.data || [];
-            meta.value.retentionDays = res.retention_days || 365;
-            isLoading.value = false;
-            if (sessions.value.length > 0) {
-                selectSession(sessions.value[0]);
+        await reloadSessions();
+        if (sessionsRes.value?.status === 'success') {
+            meta.value.retentionDays = sessionsRes.value.retention_days || 365;
+            if (sessions.value.length > 0 && !selectedSession.value) {
+                void selectSession(sessions.value[0]);
             }
         } else {
-            errorMessage.value = res?.message || 'ดึงประวัติไม่สำเร็จ';
+            errorMessage.value = sessionsRes.value?.message || 'ดึงประวัติไม่สำเร็จ';
         }
     } catch (err) {
         console.error('list_consult_archives error', err);
         errorMessage.value = 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้';
-    } finally {
-        isLoading.value = false;
     }
 };
 
@@ -53,7 +56,7 @@ const selectSession = async (session) => {
         const url = session.consult_id
             ? `consult-handler.php?action=get_chat_archive&consult_id=${session.consult_id}`
             : `consult-handler.php?action=get_chat_archive&peer_id=${session.other_id}`;
-        const res = await $fetch(apiUrl(url), { credentials: 'include', timeout: 12_000 });
+        const res = await $fetch(apiUrl(url), { credentials: 'include', timeout: 22_000 });
         if (res?.status === 'success') {
             messages.value = res.data || [];
             meta.value.archivedAt = res.archived_at || '';
@@ -142,7 +145,11 @@ const deleteSession = async (session, ev) => {
             method: 'POST', body: fd, credentials: 'include'
         });
         if (res?.status === 'success') {
-            sessions.value = sessions.value.filter((s) => s !== session);
+            sessionsRes.value = {
+                ...sessionsRes.value,
+                status: 'success',
+                data: sessions.value.filter((s) => s !== session),
+            };
             if (selectedSession.value === session) {
                 selectedSession.value = null;
                 messages.value = [];
@@ -159,7 +166,19 @@ const deleteSession = async (session, ev) => {
     }
 };
 
-onMounted(loadSessions);
+onMounted(async () => {
+    if (sessions.value.length > 0 && !selectedSession.value) {
+        void selectSession(sessions.value[0]);
+        return;
+    }
+    if (sessions.value.length === 0 && !isLoading.value) {
+        for (let i = 0; i < 2; i++) {
+            await loadSessions();
+            if (sessions.value.length > 0) break;
+            await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+        }
+    }
+});
 </script>
 
 <template>

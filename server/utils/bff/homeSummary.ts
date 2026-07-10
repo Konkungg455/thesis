@@ -24,7 +24,7 @@ function isValidHomeSummary(payload: unknown): payload is { pharmacists: Pharmac
 const PHARMA_CACHE_KEY = 'home:pharmacists';
 const REVIEWS_CACHE_KEY = 'home:reviews';
 const SUMMARY_CACHE_KEY = 'home:summary';
-const CACHE_TTL_MS = 120_000;
+const CACHE_TTL_MS = 300_000;
 
 /** โหลดข้อมูลหน้าแรกครั้งเดียว — ลด cold start + round-trip บน Vercel */
 export async function fetchHomeSummary(event?: H3Event) {
@@ -32,11 +32,26 @@ export async function fetchHomeSummary(event?: H3Event) {
     if (String(q.nocache || '') === '1') {
         clearBffCache(SUMMARY_CACHE_KEY);
         clearBffCache(PHARMA_CACHE_KEY);
+        clearBffCache(REVIEWS_CACHE_KEY);
         clearBffCachePrefix('pharmacists:');
     }
 
+    const skipCache = String(q.nocache || '') === '1';
     const cached = getBffCache(SUMMARY_CACHE_KEY);
-    if (cached && isValidHomeSummary(cached) && String(q.nocache || '') !== '1') return cached;
+    if (cached && isValidHomeSummary(cached) && !skipCache) return cached;
+
+    // cache ย่อยยังอยู่ — รวมกลับได้ทันทีโดยไม่ต้อง query DB ทั้งก้อน
+    if (!skipCache) {
+        const cachedPharma = (getBffCache(PHARMA_CACHE_KEY) ?? getBffCacheStale(PHARMA_CACHE_KEY)) as PharmacistPayload | null;
+        const cachedReviews = (getBffCache(REVIEWS_CACHE_KEY) ?? getBffCacheStale(REVIEWS_CACHE_KEY)) as unknown[] | null;
+        if (cachedPharma && Array.isArray(cachedReviews)) {
+            const quick = { pharmacists: cachedPharma, reviews: cachedReviews };
+            if (isValidHomeSummary(quick)) {
+                setBffCache(SUMMARY_CACHE_KEY, quick, CACHE_TTL_MS);
+                return quick;
+            }
+        }
+    }
 
     const stale = getBffCacheStale(SUMMARY_CACHE_KEY);
 
@@ -188,14 +203,15 @@ async function fetchReviewsPayload() {
     let rows;
     try {
         rows = await dbQuery(async (sql) => sql`
+            WITH latest AS (
+                SELECT DISTINCT ON (user_id) id
+                FROM reviews
+                ORDER BY user_id, id DESC
+            )
             SELECT r.id, r.user_id, r.rating, r.comment, r.created_at,
                    a.firstname, a.lastname, a.images_account
             FROM reviews r
-            INNER JOIN (
-                SELECT user_id, MAX(id) AS latest_id
-                FROM reviews
-                GROUP BY user_id
-            ) latest ON latest.user_id = r.user_id AND latest.latest_id = r.id
+            INNER JOIN latest l ON l.id = r.id
             JOIN account a ON r.user_id = a.id_account
             ORDER BY r.rating DESC, r.created_at DESC
             LIMIT 30

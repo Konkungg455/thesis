@@ -103,7 +103,7 @@ const fetchPharmaInfo = async () => {
         // lookup=pharma → ดึงชื่อจริงจาก pharmacist_account (ไม่ให้ auth role=user ทับ)
         const res = await $fetch(
             apiUrl(`get-patient-info.php?id=${activePatientId.value}&lookup=pharma`),
-            { credentials: 'include' }
+            { credentials: 'include', timeout: 18_000 },
         );
         if (res?.status === 'success') {
             pharmaName.value = res.data.patient_name || 'เภสัชกร';
@@ -740,7 +740,7 @@ const chatMessagePoll = useAdaptivePoll(() => fetchMessages(), {
     visibleMs: 4000,
     hiddenMs: 15000,
     productionVisibleMs: 5000,
-    immediate: false,
+    immediate: true,
 });
 const followupPoll = useAdaptivePoll(() => checkForFollowup(), {
     visibleMs: 5000,
@@ -965,7 +965,8 @@ const fetchMessages = async () => {
     if (!activePatientId.value) return;
     try {
         const data = await $fetch(buildChatGetUrl(), {
-            credentials: 'include'
+            credentials: 'include',
+            timeout: 22_000,
         });
         if (data) {
             const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
@@ -1186,23 +1187,30 @@ const initChatFromRoute = async (newId) => {
     pharmaName.value = '';
     pharmaImage.value = '';
 
-    await checkForFollowup();
-    if (myGen !== initRouteGen) return;
-    if (isTrackingMode.value) {
-        isConsultEnded.value = false;
-        if (import.meta.client) sessionStorage.removeItem(getConsultEndedKey());
-    }
-
-    const autoCall = String(route.query.auto_call || '').trim();
-    if (autoCall === 'video' || autoCall === 'voice') {
-        maybeAutoStartCall({ consult_method: autoCall }, activeRequestId.value || timerRequestId.value, autoCall);
-    }
-
-    await fetchMessages();
+    // โหลดแชทก่อน — ไม่รอ check status / timer (ลด perceived latency บน Vercel)
+    await Promise.all([
+        fetchMessages(),
+        fetchPharmaInfo(),
+    ]);
     if (myGen !== initRouteGen) return;
 
-    fetchPharmaInfo();
-    await startConsultCountdown();
+    void (async () => {
+        await checkForFollowup();
+        if (myGen !== initRouteGen) return;
+        if (isTrackingMode.value) {
+            isConsultEnded.value = false;
+            if (import.meta.client) sessionStorage.removeItem(getConsultEndedKey());
+        }
+
+        const autoCall = String(route.query.auto_call || '').trim();
+        if (autoCall === 'video' || autoCall === 'voice') {
+            maybeAutoStartCall({ consult_method: autoCall }, activeRequestId.value || timerRequestId.value, autoCall);
+        }
+
+        await fetchMessages();
+        if (myGen !== initRouteGen) return;
+        void startConsultCountdown();
+    })();
 };
 
 watch(() => route.query.id || route.query.id_pharma, (newId) => {
@@ -1218,9 +1226,8 @@ watch(() => [route.query.consult_id, route.query.srv], () => {
     fetchMessages();
 });
 
-onMounted(async () => {
-    // sync user session ก่อน เพื่อให้ peer id (telebot-user-<id>) ใช้งานได้ทันที
-    try { await syncFromServer(); } catch (e) { /* ignore */ }
+onMounted(() => {
+    void syncFromServer().catch(() => {});
 
     chatMessagePoll.start();
     followupPoll.start();

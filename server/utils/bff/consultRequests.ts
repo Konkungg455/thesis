@@ -156,6 +156,12 @@ export async function handleCheckUserStatus(event: H3Event) {
 
     const selCid = Number(query.consult_id || 0);
 
+    const cacheKey = `consult:status:user:${uId}:${selCid}`;
+    const cached = getBffCache(cacheKey);
+    if (cached) return cached;
+
+    const stale = getBffCacheStale(cacheKey);
+
     const result = await dbQuery(async (sql) => {
         let rows;
         if (selCid > 0) {
@@ -187,7 +193,13 @@ export async function handleCheckUserStatus(event: H3Event) {
         return data;
     });
 
-    return result || { status: 'none' };
+    const payload = result || { status: 'none' };
+    if (result) {
+        setBffCache(cacheKey, payload, 5_000);
+    } else if (stale) {
+        return stale;
+    }
+    return payload;
 }
 
 export async function handleCheckPharmaRequest(event: H3Event) {

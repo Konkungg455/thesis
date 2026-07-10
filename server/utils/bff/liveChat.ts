@@ -124,6 +124,10 @@ export async function handleChatGet(event: H3Event) {
     const includeArchive = String(query.include_archive || '') === '1'
         && (consultId > 0 || serviceCode !== '');
 
+    const cacheKey = `chat:get:${identity.myId}:${targetId}:${consultId}:${serviceCode}:${includeArchive ? 1 : 0}`;
+    const cached = getBffCache(cacheKey);
+    if (cached) return cached;
+
     const rows = await dbQuery(async (sql) => {
         const liveRows = await sql`
             SELECT *, id AS message_id,
@@ -179,7 +183,9 @@ export async function handleChatGet(event: H3Event) {
         return mergeMessages(live, archiveRows.map(mapArchiveRow));
     });
 
-    return rows || [];
+    const payload = rows ?? [];
+    setBffCache(cacheKey, payload, 4_000);
+    return payload;
 }
 
 export async function handleChatSend(event: H3Event) {
@@ -232,9 +238,11 @@ export async function handleChatSend(event: H3Event) {
         return true;
     });
 
-    return ok
-        ? { status: 'success' }
-        : { status: 'error', message: 'บันทึกไม่สำเร็จ' };
+    if (ok) {
+        clearBffCachePrefix('chat:get:');
+        return { status: 'success' };
+    }
+    return { status: 'error', message: 'บันทึกไม่สำเร็จ' };
 }
 
 export async function handleChatTimer(event: H3Event) {

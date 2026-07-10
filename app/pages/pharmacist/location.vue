@@ -17,6 +17,8 @@ const searchError = ref('');
 const isDesktopDevice = ref(false);
 let searchSession = 0;
 let searchStartedAt = 0;
+let pageHiddenAt = 0;
+let awaitingGeolocation = false;
 
 if (typeof window !== 'undefined') {
   const isMobileAgent = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -27,11 +29,23 @@ const resetSearchState = () => {
   isSearching.value = false;
 };
 
-const onReturnToPage = () => {
+const onVisibilityChange = () => {
   if (typeof document === 'undefined') return;
-  if (document.visibilityState === 'hidden') return;
-  if (!isSearching.value) return;
-  if (Date.now() - searchStartedAt < 1500) return;
+
+  if (document.visibilityState === 'hidden') {
+    pageHiddenAt = Date.now();
+    return;
+  }
+
+  if (!isSearching.value || awaitingGeolocation) {
+    pageHiddenAt = 0;
+    return;
+  }
+
+  const hiddenMs = pageHiddenAt ? Date.now() - pageHiddenAt : 0;
+  pageHiddenAt = 0;
+  if (hiddenMs < 60_000) return;
+
   searchSession += 1;
   resetSearchState();
   searchError.value = 'การค้นหาถูกยกเลิก — กดค้นหาอีกครั้งได้';
@@ -45,31 +59,41 @@ const getCurrentPosition = () =>
     }
 
     let settled = false;
+    awaitingGeolocation = true;
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
+      awaitingGeolocation = false;
       reject({ code: 3 });
     }, 18000);
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        resolve(position);
-      },
-      (error) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        reject(error);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      },
-    );
+    const finish = (fn) => (value) => {
+      if (settled) return;
+      settled = true;
+      awaitingGeolocation = false;
+      clearTimeout(timer);
+      fn(value);
+    };
+
+    const tryGet = (options) => {
+      navigator.geolocation.getCurrentPosition(
+        finish(resolve),
+        (error) => {
+          if (options.enableHighAccuracy) {
+            finish(reject)(error);
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(
+            finish(resolve),
+            finish(reject),
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
+          );
+        },
+        options,
+      );
+    };
+
+    tryGet({ enableHighAccuracy: false, timeout: 10000, maximumAge: 120000 });
   });
 
 // --- 2. Navigation Logic ---
@@ -115,14 +139,12 @@ const handleSearchNearMe = async () => {
 };
 
 onMounted(() => {
-  document.addEventListener('visibilitychange', onReturnToPage);
-  window.addEventListener('pageshow', onReturnToPage);
+  document.addEventListener('visibilitychange', onVisibilityChange);
 });
 
 onBeforeUnmount(() => {
   searchSession += 1;
-  document.removeEventListener('visibilitychange', onReturnToPage);
-  window.removeEventListener('pageshow', onReturnToPage);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
   resetSearchState();
 });
 </script>

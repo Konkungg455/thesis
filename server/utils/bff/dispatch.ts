@@ -850,15 +850,17 @@ async function handleGetReviews() {
     if (cached) return cached;
 
     const rows = await dbQuery(async (sql) => sql`
+        WITH latest AS (
+            SELECT DISTINCT ON (user_id) id
+            FROM reviews
+            ORDER BY user_id, id DESC
+        )
         SELECT r.*, a.firstname, a.lastname, a.images_account
         FROM reviews r
-        INNER JOIN (
-            SELECT user_id, MAX(id) AS latest_id
-            FROM reviews
-            GROUP BY user_id
-        ) latest ON latest.user_id = r.user_id AND latest.latest_id = r.id
+        INNER JOIN latest l ON l.id = r.id
         JOIN account a ON r.user_id = a.id_account
         ORDER BY r.rating DESC, r.created_at DESC
+        LIMIT 40
     `);
 
     if (rows === null) {

@@ -216,6 +216,8 @@ export async function handleListConsultArchives(event: H3Event) {
     const cached = getBffCache(cacheKey);
     if (cached) return cached;
 
+    const stale = getBffCacheStale(cacheKey);
+
     const result = await dbQuery(async (sql) => {
         const runMaint = shouldRunArchiveMaintenance();
         if (runMaint) {
@@ -366,6 +368,7 @@ export async function handleListConsultArchives(event: H3Event) {
     });
 
     if (!result) {
+        if (stale) return stale;
         return { status: 'error', message: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้', data: [] };
     }
 
@@ -375,7 +378,7 @@ export async function handleListConsultArchives(event: H3Event) {
         retention_days: RETENTION_DAYS,
         viewer_role: result.viewerRole,
     };
-    setBffCache(cacheKey, payload, 30_000);
+    setBffCache(cacheKey, payload, 90_000);
     return payload;
 }
 
@@ -392,6 +395,13 @@ export async function handleGetChatArchive(event: H3Event) {
     if (uId <= 0 && pId <= 0) {
         return { status: 'error', message: 'กรุณาเข้าสู่ระบบ' };
     }
+
+    const ownerId = pId > 0 ? pId : uId;
+    const cacheKey = `archive:msgs:${ownerId}:${consultId}:${peerId}:${serviceCodeRaw}:${archivedAtRaw}`;
+    const cached = getBffCache(cacheKey);
+    if (cached) return cached;
+
+    const stale = getBffCacheStale(cacheKey);
 
     const result = await dbQuery(async (sql) => {
         const runMaint = shouldRunArchiveMaintenance();
@@ -463,19 +473,22 @@ export async function handleGetChatArchive(event: H3Event) {
     });
 
     if (!result) {
+        if (stale) return stale;
         return { status: 'error', message: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้' };
     }
     if ('error' in result && result.error) {
         return { status: 'error', message: result.error };
     }
 
-    return {
+    const payload = {
         status: 'success',
         data: result.messages,
         archived_at: result.firstArchived,
         expires_at: result.firstExpires,
         retention_days: RETENTION_DAYS,
     };
+    setBffCache(cacheKey, payload, 120_000);
+    return payload;
 }
 
 export async function handleDeleteConsultArchive(event: H3Event) {

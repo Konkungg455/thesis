@@ -177,6 +177,8 @@ const searchStatus = ref(null)
 let timerInterval = null
 let loadingStartedAt = 0
 let searchSession = 0
+let pageHiddenAt = 0
+let awaitingGeolocation = false
 
 const resetSearchState = () => {
   stopTimer()
@@ -191,12 +193,24 @@ const clearSearchResults = () => {
   hasSearched.value = false
 }
 
-const onReturnToPage = () => {
+const onVisibilityChange = () => {
   if (typeof document === 'undefined') return
-  if (document.visibilityState === 'hidden') return
-  if (!loading.value) return
-  const elapsed = Date.now() - loadingStartedAt
-  if (elapsed < 1500) return
+
+  if (document.visibilityState === 'hidden') {
+    pageHiddenAt = Date.now()
+    return
+  }
+
+  // กลับมาแท็บ — อย่ายกเลิกระหว่างรอ GPS permission (มักหายไปไม่กี่วินาที)
+  if (!loading.value || awaitingGeolocation) {
+    pageHiddenAt = 0
+    return
+  }
+
+  const hiddenMs = pageHiddenAt ? Date.now() - pageHiddenAt : 0
+  pageHiddenAt = 0
+  if (hiddenMs < 60_000) return
+
   searchSession += 1
   clearSearchResults()
   resetSearchState()
@@ -217,13 +231,13 @@ const onPageShow = (event) => {
 
 const bindPageLifecycle = () => {
   if (typeof document === 'undefined') return
-  document.addEventListener('visibilitychange', onReturnToPage)
+  document.addEventListener('visibilitychange', onVisibilityChange)
   window.addEventListener('pageshow', onPageShow)
 }
 
 const unbindPageLifecycle = () => {
   if (typeof document === 'undefined') return
-  document.removeEventListener('visibilitychange', onReturnToPage)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
   window.removeEventListener('pageshow', onPageShow)
 }
 
@@ -234,21 +248,25 @@ const getPositionWithTimeout = (options, timeoutMs = 20000) =>
       return
     }
     let settled = false
+    awaitingGeolocation = true
     const timer = setTimeout(() => {
       if (settled) return
       settled = true
+      awaitingGeolocation = false
       reject({ code: 3, message: 'timeout' })
     }, timeoutMs)
     navigator.geolocation.getCurrentPosition(
       (position) => {
         if (settled) return
         settled = true
+        awaitingGeolocation = false
         clearTimeout(timer)
         resolve(position)
       },
       (error) => {
         if (settled) return
         settled = true
+        awaitingGeolocation = false
         clearTimeout(timer)
         reject(error)
       },
@@ -454,7 +472,12 @@ const handleSearch = async () => {
   startTimer()
 
   try {
-    await loadGoogleMaps()
+    await Promise.race([
+      loadGoogleMaps(),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Google Maps load timeout')), 12_000)
+      }),
+    ])
   } catch {
     if (mySession !== searchSession) return
     searchStatus.value = { text: 'โหลด Google Maps ไม่สำเร็จ — ลองใหม่อีกครั้ง', type: 'error' }
@@ -472,13 +495,22 @@ const handleSearch = async () => {
   }
 
   const geoOptions = {
-    enableHighAccuracy: true,
-    timeout: 20000,
-    maximumAge: 0,
+    enableHighAccuracy: false,
+    timeout: 12000,
+    maximumAge: 120000,
   }
 
   try {
-    const position = await getPositionWithTimeout(geoOptions, 22000)
+    let position
+    try {
+      position = await getPositionWithTimeout(geoOptions, 14000)
+    } catch {
+      position = await getPositionWithTimeout({
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 0,
+      }, 22000)
+    }
     if (mySession !== searchSession) return
 
     const pos = {
@@ -515,7 +547,6 @@ const openMap = (placeId, name) => {
 
 onMounted(() => {
     bindPageLifecycle()
-    clearSearchResults()
 })
 
 onUnmounted(() => {

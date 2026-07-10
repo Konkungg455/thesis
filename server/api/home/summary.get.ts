@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
         event,
         'Cache-Control',
         total > 0 || reviewCount > 0
-            ? 'public, s-maxage=120, stale-while-revalidate=300'
+            ? 'public, s-maxage=180, stale-while-revalidate=600'
             : 'no-store, max-age=0',
     );
 

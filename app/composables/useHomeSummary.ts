@@ -57,37 +57,33 @@ export function useHomeSummaryData() {
         { default: emptyHome },
     );
 
-    // SSR/ISR อาจได้ข้อมูลว่างเมื่อ DB cold — โหลดซ้ำฝั่ง client (bust BFF cache หลัง seed DB)
+    /** โหลดใหม่ — bustCache=true เฉพาะปุ่มรีเฟรช (ไม่ยิง nocache ทุกครั้งที่เปิดหน้า) */
+    const reload = async (bustCache = false) => {
+        const url = bustCache ? '/api/home/summary?nocache=1' : '/api/home/summary';
+        const fresh = await $fetch<HomeSummary>(url, { timeout: 25_000 });
+        if (fresh) {
+            result.data.value = fresh;
+        }
+        return fresh;
+    };
+
+    // SSR/ISR ว่างเมื่อ DB cold — retry ฝั่ง client เท่านั้น (ไม่ทำลาย cache ถ้ามีข้อมูลแล้ว)
     onMounted(async () => {
         if (route.path !== '/') return;
+        if (!isHomeEmpty(result.data.value)) return;
 
-        const applyFresh = async () => {
-            const fresh = await $fetch<HomeSummary>('/api/home/summary?nocache=1', { timeout: 25_000 });
-            if (fresh && !isHomeEmpty(fresh)) {
-                result.data.value = fresh;
-                return true;
-            }
-            return false;
-        };
-
-        if (!isHomeEmpty(result.data.value)) {
-            try { await applyFresh(); } catch { /* keep SSR data */ }
-            return;
-        }
-
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < 3; i++) {
             try {
-                if (await applyFresh()) break;
                 await result.refresh();
-                if (!isHomeEmpty(result.data.value)) break;
-                await new Promise((r) => setTimeout(r, 1200));
+                if (!isHomeEmpty(result.data.value)) return;
+                await new Promise((r) => setTimeout(r, 700 * (i + 1)));
             } catch {
-                /* retry once on cold start */
+                /* cold start retry */
             }
         }
     });
 
-    return result;
+    return { ...result, reload };
 }
 
 export type { PharmacistRow, PharmacistsResponse, ReviewRow };
