@@ -227,3 +227,125 @@ export function getRoleFromAuthType(type: string | undefined): MailRole {
     if (type === 'admin' || type === 'pharmacist' || type === 'store') return type;
     return 'user';
 }
+
+export type RegistrationReviewResult = 'approved' | 'rejected';
+
+export function buildAdminNewRegistrationEmailHtml(options: {
+    role: 'pharmacist' | 'store';
+    name: string;
+    email: string;
+    username?: string;
+    phone?: string;
+    storeName?: string;
+    id: number;
+    adminUrl: string;
+}): { subject: string; html: string; text: string } {
+    const role: MailRole = options.role;
+    const theme = ROLE_THEMES[role];
+    const label = options.role === 'pharmacist' ? 'เภสัชกร' : 'เจ้าของร้านยา';
+    const subject = `[แอดมิน] มี${label}ใหม่สมัคร — ${options.name}`;
+
+    const rows = [
+        ['ชื่อ-นามสกุล', options.name],
+        ['อีเมล', options.email],
+        ...(options.username ? [['ชื่อผู้ใช้', options.username] as const] : []),
+        ...(options.phone ? [['เบอร์โทร', options.phone] as const] : []),
+        ...(options.storeName ? [['ชื่อร้าน', options.storeName] as const] : []),
+        ['รหัสในระบบ', `#${options.id}`],
+    ];
+
+    const tableRows = rows.map(([k, v], idx) => `
+        <tr>
+          <td style="padding:12px 16px;color:#64748b;font-size:13px;${idx ? 'border-top:1px solid #e2e8f0;' : ''}">${rxEsc(k)}</td>
+          <td style="padding:12px 16px;font-weight:bold;text-align:right;color:#0f172a;${idx ? 'border-top:1px solid #e2e8f0;' : ''}">${rxEsc(v)}</td>
+        </tr>`).join('');
+
+    const bodyHtml = `
+        <p style="margin:0 0 8px;font-size:16px;color:#0f172a;">เรียน ผู้ดูแลระบบ</p>
+        <p style="margin:0 0 22px;color:#475569;line-height:1.75;font-size:14px;">
+          มี<strong style="color:${theme.accent};">${label}</strong>สมัครใช้งานใหม่และยืนยัน OTP เรียบร้อยแล้ว
+          กรุณาเข้าไปตรวจสอบและดำเนินการอนุมัติในระบบแอดมิน
+        </p>
+        <table role="presentation" style="width:100%;border:1px solid #e2e8f0;border-radius:12px;border-collapse:separate;border-spacing:0;margin-bottom:22px;">
+          ${tableRows}
+        </table>
+        <div style="text-align:center;margin:26px 0;">
+          <a href="${rxEsc(options.adminUrl)}" style="display:inline-block;background:linear-gradient(135deg,#0f172a,#334155);color:#fff;text-decoration:none;padding:15px 32px;border-radius:12px;font-weight:bold;font-size:15px;">
+            เปิดหน้าตรวจสอบในแอดมิน
+          </a>
+        </div>`;
+
+    const html = emailShell({
+        role: 'admin',
+        title: `มี${label}ใหม่รออนุมัติ`,
+        subtitle: `${theme.badge} · แจ้งเตือนแอดมิน`,
+        bodyHtml,
+    });
+
+    const text = [
+        `Telebot Pharmacy — มี${label}ใหม่สมัคร`,
+        ...rows.map(([k, v]) => `${k}: ${v}`),
+        `เปิดแอดมิน: ${options.adminUrl}`,
+    ].join('\n');
+
+    return { subject, html, text };
+}
+
+export function buildRegistrationReviewEmailHtml(options: {
+    role: 'pharmacist' | 'store';
+    recipientName: string;
+    result: RegistrationReviewResult;
+    note?: string;
+    loginUrl: string;
+}): { subject: string; html: string; text: string } {
+    const role: MailRole = options.role;
+    const theme = ROLE_THEMES[role];
+    const approved = options.result === 'approved';
+    const accent = approved ? '#10b981' : '#ef4444';
+    const accentDark = approved ? '#059669' : '#dc2626';
+    const title = approved ? 'บัญชีได้รับการอนุมัติแล้ว' : 'คำขอสมัครไม่ได้รับการอนุมัติ';
+    const subject = approved
+        ? `ยินดีด้วย! บัญชี${theme.label}ของคุณได้รับการอนุมัติแล้ว`
+        : `แจ้งผลการพิจารณาบัญชี${theme.label}`;
+
+    const greeting = `สวัสดีค่ะ/ครับ คุณ${rxEsc(options.recipientName)}`;
+    const mainLine = approved
+        ? `บัญชี<strong style="color:${theme.accent};">${theme.label}</strong>ของคุณได้รับการอนุมัติจากผู้ดูแลระบบแล้ว สามารถเข้าสู่ระบบและเริ่มใช้งานได้ทันที`
+        : `ขออภัย คำขอสมัครบัญชี<strong style="color:${theme.accent};">${theme.label}</strong>ของคุณไม่ได้รับการอนุมัติในขณะนี้`;
+
+    const noteBlock = options.note
+        ? `<div style="background:#f8fafc;border-left:4px solid ${accent};padding:14px 16px;border-radius:0 10px 10px 0;font-size:13px;color:#334155;line-height:1.65;margin:0 0 22px;">
+            <strong>หมายเหตุจากผู้ดูแลระบบ:</strong><br>${rxEsc(options.note)}
+          </div>`
+        : '';
+
+    const cta = approved
+        ? `<div style="text-align:center;margin:26px 0;">
+            <a href="${rxEsc(options.loginUrl)}" style="display:inline-block;background:linear-gradient(135deg,${accentDark},${accent});color:#fff;text-decoration:none;padding:15px 32px;border-radius:12px;font-weight:bold;font-size:15px;">
+              ${theme.loginHint}
+            </a>
+          </div>`
+        : '';
+
+    const bodyHtml = `
+        <p style="margin:0 0 8px;font-size:16px;color:#0f172a;">${greeting}</p>
+        <p style="margin:0 0 22px;color:#475569;line-height:1.75;font-size:14px;">${mainLine}</p>
+        ${noteBlock}
+        ${cta}`;
+
+    const html = emailShell({
+        role,
+        title,
+        subtitle: theme.badge,
+        bodyHtml,
+    });
+
+    const text = [
+        `Telebot Pharmacy — ${title}`,
+        approved ? 'คุณสามารถเข้าสู่ระบบได้แล้ว' : 'คำขอสมัครไม่ได้รับการอนุมัติ',
+        ...(options.note ? [`หมายเหตุ: ${options.note}`] : []),
+        ...(approved ? [`เข้าสู่ระบบ: ${options.loginUrl}`] : []),
+    ].join('\n');
+
+    return { subject, html, text };
+}

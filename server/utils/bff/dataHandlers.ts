@@ -5,6 +5,12 @@ import { resolvePharmacistLicenseFile, resolveProfileImageFile, resolveStoreLice
 import { readMultipartRequest, readRequestFields } from './formData';
 import { getAuthContext, parsePositiveInt } from './sessionContext';
 import { consolidateDuplicateActiveTracking } from './consultTracking';
+import {
+    ensurePharmacistReviewNoticeColumns,
+    ensureStoreReviewNoticeColumns,
+    notifyRegistrationReview,
+} from '../../utils/registrationNotifications';
+import { resolveRequestOrigin } from '../../utils/requestOrigin';
 
 const consolidateCooldown = new Map<number, number>();
 const CONSOLIDATE_COOLDOWN_MS = 60_000;
@@ -636,17 +642,141 @@ export async function handleVerifyPharma(event: H3Event) {
     if (id <= 0) {
         return { status: 'error', message: 'ไม่พบรหัสเภสัชกร' };
     }
+    if (status !== 1 && status !== 2) {
+        return { status: 'error', message: 'สถานะไม่ถูกต้อง' };
+    }
 
-    const ok = await dbQuery(async (sql) => {
-        await sql`UPDATE pharmacist_account SET status_verify = ${status} WHERE id_pharma = ${id}`;
-        return true;
+    const result = await dbQuery(async (sql) => {
+        const rows = await sql`
+            SELECT id_pharma, email_pharma, firstname_pharma, lastname_pharma, status_verify
+            FROM pharmacist_account
+            WHERE id_pharma = ${id}
+            LIMIT 1
+        `;
+        const pharma = rows[0];
+        if (!pharma) {
+            return { error: 'ไม่พบเภสัชกร' };
+        }
+
+        const reviewResult = status === 1 ? 'approved' : 'rejected';
+        await ensurePharmacistReviewNoticeColumns(sql);
+        await sql`
+            UPDATE pharmacist_account SET
+                status_verify = ${status},
+                platform_review_notice_at = NOW(),
+                platform_review_ack_at = NULL,
+                platform_review_result = ${reviewResult}
+            WHERE id_pharma = ${id}
+        `;
+
+        return {
+            email: String(pharma.email_pharma || ''),
+            name: `${String(pharma.firstname_pharma || '').trim()} ${String(pharma.lastname_pharma || '').trim()}`.trim(),
+            reviewResult,
+        };
     });
 
-    if (!ok) {
-        return { status: 'error', message: 'อัปเดตไม่สำเร็จ' };
+    if ('error' in result) {
+        return { status: 'error', message: result.error };
+    }
+
+    if (result.email) {
+        void notifyRegistrationReview({
+            role: 'pharmacist',
+            to: result.email,
+            name: result.name || 'เภสัชกร',
+            result: result.reviewResult as 'approved' | 'rejected',
+            origin: resolveRequestOrigin(event),
+        });
     }
 
     const msg = status === 1 ? 'อนุมัติเภสัชกรเรียบร้อยแล้ว' : 'ปฏิเสธการสมัครเรียบร้อยแล้ว';
+    return { status: 'success', message: msg };
+}
+
+export async function handleAdminReviewStore(event: H3Event) {
+    const body = await readBody(event).catch(() => ({}));
+    const auth = getAuthContext(event, body as Record<string, unknown>);
+    const adminId = parsePositiveInt(auth.id_account_admin);
+    const storeId = parsePositiveInt((body as Record<string, unknown>).id);
+    const action = String((body as Record<string, unknown>).action || '').trim();
+    const note = String((body as Record<string, unknown>).note || '').trim();
+
+    if (adminId <= 0) {
+        return { status: 'error', message: 'กรุณาเข้าสู่ระบบในฐานะแอดมิน' };
+    }
+    if (storeId <= 0 || !['approve', 'reject'].includes(action)) {
+        return { status: 'error', message: 'ข้อมูลไม่ครบหรือไม่ถูกต้อง' };
+    }
+
+    const result = await dbQuery(async (sql) => {
+        const adminRows = await sql`
+            SELECT admin_status
+            FROM account_admin
+            WHERE id_account_admin = ${adminId}
+              AND (is_deleted IS NULL OR is_deleted = 0)
+            LIMIT 1
+        `;
+        if (!adminRows[0] || String(adminRows[0].admin_status) !== 'approved') {
+            return { error: 'ไม่มีสิทธิ์ดำเนินการ' };
+        }
+
+        const storeRows = await sql`
+            SELECT a.id_store_accounts, a.personal_email, a.firstname, a.lastname, a.admin_status,
+                   d.store_name
+            FROM phamacy_store_accounts a
+            LEFT JOIN phamacy_store_details d ON d.id_store_accounts = a.id_store_accounts
+            WHERE a.id_store_accounts = ${storeId}
+              AND COALESCE(a.is_deleted, 0) = 0
+            LIMIT 1
+        `;
+        const store = storeRows[0];
+        if (!store) {
+            return { error: 'ไม่พบข้อมูลร้าน' };
+        }
+        if (String(store.admin_status || '') !== 'pending') {
+            return { error: 'ร้านนี้ไม่อยู่ในสถานะรออนุมัติ' };
+        }
+
+        const reviewResult = action === 'approve' ? 'approved' : 'rejected';
+        const reviewNote = note || null;
+        await ensureStoreReviewNoticeColumns(sql);
+        await sql`
+            UPDATE phamacy_store_accounts SET
+                admin_status = ${reviewResult},
+                admin_reviewed_at = NOW(),
+                admin_review_note = ${reviewNote},
+                platform_review_notice_at = NOW(),
+                platform_review_ack_at = NULL,
+                platform_review_result = ${reviewResult}
+            WHERE id_store_accounts = ${storeId}
+        `;
+
+        return {
+            email: String(store.personal_email || ''),
+            name: `${String(store.firstname || '').trim()} ${String(store.lastname || '').trim()}`.trim()
+                || String(store.store_name || 'เจ้าของร้าน'),
+            reviewResult,
+            reviewNote: note,
+        };
+    });
+
+    if ('error' in result) {
+        return { status: 'error', message: result.error };
+    }
+
+    if (result.email) {
+        void notifyRegistrationReview({
+            role: 'store',
+            to: result.email,
+            name: result.name || 'เจ้าของร้าน',
+            result: result.reviewResult as 'approved' | 'rejected',
+            note: result.reviewNote || undefined,
+            origin: resolveRequestOrigin(event),
+        });
+    }
+
+    const msg = action === 'approve' ? 'อนุมัติร้านเรียบร้อยแล้ว' : 'ปฏิเสธคำขอเรียบร้อยแล้ว';
     return { status: 'success', message: msg };
 }
 

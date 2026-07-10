@@ -70,6 +70,9 @@ export default defineNuxtConfig({
     vercel: {
       regions: ['sin1'],
     },
+    externals: {
+      external: ['puppeteer-core', '@sparticuz/chromium-min', 'puppeteer'],
+    },
     // ให้ Nitro/Vercel อ่าน env สำหรับ Supabase Postgres ได้แน่นอน
     env: [
       'DATABASE_URL',
@@ -83,6 +86,8 @@ export default defineNuxtConfig({
       'SUPABASE_KEY',
       'NUXT_PUBLIC_SUPABASE_URL',
       'NUXT_PUBLIC_SUPABASE_KEY',
+      'PUPPETEER_EXECUTABLE_PATH',
+      'CHROMIUM_REMOTE_EXEC_PATH',
     ],
     routeRules: {
       '/': { isr: 180 },

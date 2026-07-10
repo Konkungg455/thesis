@@ -73,6 +73,28 @@
                                 <p class="alert-desc">{{ storeStatus.message }}</p>
                             </div>
 
+                            <!-- แจ้งเตือนผลการอนุมัติจากแอดมิน -->
+                            <div v-if="showRegistrationNotice" class="notif-wrapper welcome-join-block" :class="{ 'alert-reject-block': !registrationNotice?.approved }">
+                                <div class="welcome-join-head">
+                                    <span class="welcome-join-icon" aria-hidden="true">
+                                        <i :class="registrationNotice?.approved ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'"></i>
+                                    </span>
+                                    <span class="welcome-join-title">
+                                        {{ registrationNotice?.approved ? 'บัญชีได้รับการอนุมัติแล้ว' : 'คำขอสมัครไม่ได้รับการอนุมัติ' }}
+                                    </span>
+                                </div>
+                                <p class="welcome-join-msg">{{ registrationNotice?.message }}</p>
+                                <button
+                                    type="button"
+                                    class="welcome-join-btn"
+                                    :disabled="ackRegistrationLoading"
+                                    @click="acknowledgeRegistrationNotice"
+                                >
+                                    <i class="fa-solid fa-check"></i>
+                                    {{ ackRegistrationLoading ? 'กำลังบันทึก...' : 'รับทราบ' }}
+                                </button>
+                            </div>
+
                             <!-- แจ้งเตือนเข้าร่วมร้านยา (เพิ่มเข้าข่ายสำเร็จ) -->
                             <div v-if="showWelcomeNotice" class="notif-wrapper welcome-join-block">
                                 <div class="welcome-join-head">
@@ -142,7 +164,7 @@
                                 </div>
                             </div>
 
-                            <div v-if="!incomingRequest && !hasStoreAlert && !showWelcomeNotice" class="notif-empty">
+                            <div v-if="!incomingRequest && !hasStoreAlert && !showWelcomeNotice && !showRegistrationNotice" class="notif-empty">
                                 ไม่มีคำขอใหม่ในขณะนี้
                             </div>
                         </div>
@@ -284,8 +306,10 @@ const theme = ref("LIGHT")
 /* ================= Notification State (สำหรับเภสัช) ================= */
 const incomingRequest = ref(null) 
 const storeStatus = ref(null) // {state: 'active'|'pending'|'unassigned', message, store_name}
+const registrationNotice = ref(null)
 let pollTimer = null
 let lastIncomingReqId = 0
+let lastRegistrationNoticeKey = ''
 
 const playNotificationSound = () => {
     try {
@@ -394,12 +418,15 @@ const hasStoreAlert = computed(() =>
 const showWelcomeNotice = computed(() =>
     !!storeStatus.value?.welcome_pending && storeStatus.value?.state === 'active'
 )
+const showRegistrationNotice = computed(() => !!registrationNotice.value?.notice_pending)
 const hasAnyAlert = computed(() =>
-    !!incomingRequest.value || hasStoreAlert.value || showWelcomeNotice.value
+    !!incomingRequest.value || hasStoreAlert.value || showWelcomeNotice.value || showRegistrationNotice.value
 )
 
 const ackWelcomeLoading = ref(false)
+const ackRegistrationLoading = ref(false)
 const welcomeAutoOpened = ref(false)
+const registrationAutoOpened = ref(false)
 
 /* ================= Refs ================= */
 const langRef = ref(null)
@@ -476,6 +503,55 @@ const acknowledgeStoreWelcome = async () => {
     }
 }
 
+const checkRegistrationNotice = async () => {
+    if (!user.value) return;
+    try {
+        const data = await $fetch(apiUrl(`get-pharma-registration-notice.php?t=${Date.now()}`), {
+            credentials: 'include'
+        });
+        if (data?.status !== 'success') return;
+
+        const noticeKey = data.notice_pending
+            ? `${data.result}:${data.message}`
+            : '';
+        if (data.notice_pending && noticeKey !== lastRegistrationNoticeKey && lastRegistrationNoticeKey) {
+            playNotificationSound();
+            if (!activeDropdown.value) activeDropdown.value = 'notification';
+        }
+        lastRegistrationNoticeKey = noticeKey;
+        registrationNotice.value = data;
+
+        if (data.notice_pending && !registrationAutoOpened.value) {
+            activeDropdown.value = 'notification';
+            registrationAutoOpened.value = true;
+        }
+        if (!data.notice_pending) {
+            registrationAutoOpened.value = false;
+        }
+    } catch (e) {
+        // เงียบไว้
+    }
+}
+
+const acknowledgeRegistrationNotice = async () => {
+    if (ackRegistrationLoading.value) return;
+    ackRegistrationLoading.value = true;
+    try {
+        const data = await $fetch(apiUrl('ack-pharma-registration-notice.php'), {
+            method: 'POST',
+            credentials: 'include'
+        });
+        if (data?.status === 'success') {
+            await checkRegistrationNotice();
+            closeAll();
+        }
+    } catch (e) {
+        console.error('Ack registration notice error:', e);
+    } finally {
+        ackRegistrationLoading.value = false;
+    }
+}
+
 // 2. ฟังก์ชันกด "รับงาน" หรือ "ปฏิเสธ" (ซ่อมแซมการแชร์ค่าไปหน้าแชทถาวร)
 const updateRequestStatus = async (status) => {
     if (!incomingRequest.value) return;
@@ -530,6 +606,7 @@ const checkUserStatus = () => {
     if (user.value) {
         checkIncomingRequest();
         checkStoreStatus();
+        checkRegistrationNotice();
     }
 }
 
@@ -589,7 +666,10 @@ onMounted(() => {
         if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
         checkIncomingRequest()
         pollTick += 1
-        if (pollTick % 2 === 0) checkStoreStatus()
+        if (pollTick % 2 === 0) {
+            checkStoreStatus()
+            checkRegistrationNotice()
+        }
     }, 8000)
 })
 
@@ -628,6 +708,9 @@ watch(theme, (val) => { applyTheme(val) })
     justify-content: center;
     font-size: 1.1rem;
     flex-shrink: 0;
+}
+.alert-reject-block .welcome-join-icon {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 .welcome-join-title {
     font-size: 15px;

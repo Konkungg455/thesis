@@ -9,7 +9,8 @@
     "dev:web": "powershell -Command \"$env:SKIP_AI='1'; npm run dev\"",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare",
+    "postinstall": "nuxt prepare && node scripts/install-puppeteer-chrome.mjs",
+    "pdf:install-chrome": "npx puppeteer browsers install chrome",
     "demo": "powershell -ExecutionPolicy Bypass -File ./scripts/start-thesis-demo.ps1",
     "demo:check": "powershell -ExecutionPolicy Bypass -File ./scripts/check-thesis-demo.ps1",
     "ai:start": "powershell -ExecutionPolicy Bypass -File ./scripts/start-ai-local.ps1",
@@ -38,6 +39,7 @@
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
     "@nuxt/image": "^2.0.0",
+    "@sparticuz/chromium-min": "^141.0.0",
     "@supabase/supabase-js": "^2.108.2",
     "agora-rtc-sdk-ng": "^4.24.5",
     "agora-token": "^2.0.5",
@@ -49,6 +51,7 @@
     "peerjs": "^1.5.5",
     "postgres": "^3.4.9",
     "puppeteer": "^25.2.1",
+    "puppeteer-core": "^25.2.1",
     "vue": "^3.5.28",
     "vue-router": "^4.6.4"
   }

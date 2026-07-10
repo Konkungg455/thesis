@@ -42,9 +42,23 @@
                     <div v-if="activeDropdown === 'notif'" class="dropdown-menu notif-dropdown shadow">
                         <div class="notif-header">การแจ้งเตือน</div>
 
-                        <div v-if="!pendingPharmacists.length" class="no-notif">ไม่มีการแจ้งเตือนใหม่</div>
+                        <div v-if="showRegistrationNotice" class="notif-item registration-notice" :class="{ rejected: !registrationNotice?.approved }">
+                            <div class="notif-icon-box" :class="registrationNotice?.approved ? 'approved' : 'rejected'">
+                                <i :class="registrationNotice?.approved ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-xmark'"></i>
+                            </div>
+                            <div class="notif-text">
+                                <strong>{{ registrationNotice?.approved ? 'ร้านได้รับการอนุมัติแล้ว' : 'คำขอสมัครไม่ได้รับการอนุมัติ' }}</strong>
+                                <p>{{ registrationNotice?.message }}</p>
+                                <p v-if="registrationNotice?.review_note" class="review-note">หมายเหตุ: {{ registrationNotice.review_note }}</p>
+                                <button class="btn-go-chat" @click="acknowledgeRegistrationNotice" :disabled="ackRegistrationLoading">
+                                    {{ ackRegistrationLoading ? 'กำลังบันทึก...' : 'รับทราบ' }}
+                                </button>
+                            </div>
+                        </div>
 
-                        <div v-else class="notif-body">
+                        <div v-if="!pendingPharmacists.length && !showRegistrationNotice" class="no-notif">ไม่มีการแจ้งเตือนใหม่</div>
+
+                        <div v-else-if="pendingPharmacists.length" class="notif-body">
                             <div v-for="p in pendingPharmacists" :key="'pending-' + p.id_pharma" class="notif-item">
                                 <div class="notif-icon-box waiting"><i class="fa-solid fa-user-doctor"></i></div>
                                 <div class="notif-text">
@@ -137,10 +151,12 @@ const theme = ref("LIGHT")
 
 /* ================= Notification State (ร้านยา) ================= */
 const pendingPharmacists = ref([])
+const registrationNotice = ref(null)
 let pollTimer = null
 let lastPendingCount = 0
+let lastRegistrationNoticeKey = ''
 
-const hasAlert = computed(() => pendingPharmacists.value.length > 0)
+const hasAlert = computed(() => pendingPharmacists.value.length > 0 || !!registrationNotice.value?.notice_pending)
 
 const playNotificationSound = () => {
     try {
@@ -202,10 +218,56 @@ const checkStoreNotifications = async () => {
     }
 }
 
+const ackRegistrationLoading = ref(false)
+
+const checkRegistrationNotice = async () => {
+    if (!user.value) return;
+    try {
+        const data = await $fetch(apiUrl(`get-store-registration-notice.php?t=${Date.now()}`), {
+            credentials: 'include'
+        });
+        if (data?.status !== 'success') return;
+
+        const noticeKey = data.notice_pending
+            ? `${data.result}:${data.message}:${data.review_note || ''}`
+            : '';
+        if (data.notice_pending && noticeKey !== lastRegistrationNoticeKey && lastRegistrationNoticeKey) {
+            playNotificationSound();
+            if (!activeDropdown.value) activeDropdown.value = 'notif';
+        }
+        lastRegistrationNoticeKey = noticeKey;
+        registrationNotice.value = data;
+    } catch (error) {
+        console.error('Store registration notice error:', error);
+    }
+}
+
+const showRegistrationNotice = computed(() => !!registrationNotice.value?.notice_pending)
+
+const acknowledgeRegistrationNotice = async () => {
+    if (ackRegistrationLoading.value) return;
+    ackRegistrationLoading.value = true;
+    try {
+        const data = await $fetch(apiUrl('ack-store-registration-notice.php'), {
+            method: 'POST',
+            credentials: 'include'
+        });
+        if (data?.status === 'success') {
+            await checkRegistrationNotice();
+            closeAll();
+        }
+    } catch (error) {
+        console.error('Ack store registration notice error:', error);
+    } finally {
+        ackRegistrationLoading.value = false;
+    }
+}
+
 const checkUserStatus = () => {
     syncFromServer().catch(() => {})
     if (user.value) {
         checkStoreNotifications()
+        checkRegistrationNotice()
     }
 }
 
@@ -277,7 +339,11 @@ onMounted(() => {
     checkUserStatus()
 
     // ตั้งเวลา Polling เช็คสถานะกระดิ่งทุก 5 วินาที
-    pollTimer = setInterval(checkStoreNotifications, 5000);
+    pollTimer = setInterval(() => {
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+        checkStoreNotifications()
+        checkRegistrationNotice()
+    }, 5000);
 })
 
 onBeforeUnmount(() => {
@@ -419,6 +485,22 @@ watch(theme, (val) => {
     justify-content: center;
     border-radius: 50%;
     background: #f0f2f5;
+}
+.notif-icon-box.approved {
+    background: #dcfce7;
+    color: #16a34a;
+}
+.notif-icon-box.rejected {
+    background: #fee2e2;
+    color: #dc2626;
+}
+.registration-notice {
+    border-bottom: 1px solid #eee;
+}
+.review-note {
+    margin-top: 6px !important;
+    font-size: 12px !important;
+    color: #94a3b8 !important;
 }
 
 .notif-text strong {

@@ -7,6 +7,10 @@ import {
     completePharmacistRegistration,
     completeStoreRegistration,
 } from './authRegister';
+import {
+    notifyAdminsNewPharmacistFromTemp,
+    notifyAdminsNewStoreFromTemp,
+} from '../../utils/registrationNotifications';
 
 type OtpType = 'user' | 'admin' | 'pharmacist' | 'store';
 
@@ -191,6 +195,7 @@ export async function handleVerifyOtp(event: H3Event) {
     if (type === 'pharmacist') {
         const newId = await completePharmacistRegistration(u, email);
         if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
+        void notifyAdminsNewPharmacistFromTemp(newId, u, email, event);
         return {
             status: 'success',
             message: 'สมัครสมาชิกสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ',
@@ -211,6 +216,7 @@ export async function handleVerifyOtp(event: H3Event) {
     if (type === 'store') {
         const newId = await completeStoreRegistration(u, email);
         if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
+        void notifyAdminsNewStoreFromTemp(newId, u, email, event);
         return {
             status: 'success',
             message: 'สมัครสมาชิกสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ',

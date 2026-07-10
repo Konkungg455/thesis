@@ -103,6 +103,10 @@ export async function dispatchBff(event: H3Event, pathname: string) {
         return handleAdminReviewAdmin(event);
     }
 
+    if (pathLower === 'admin-review-store.php' && method === 'POST') {
+        return handleAdminReviewStore(event);
+    }
+
     if (pathLower === 'delete-user.php') {
         return handleDeleteUser(event);
     }
@@ -141,6 +145,22 @@ export async function dispatchBff(event: H3Event, pathname: string) {
 
     if (pathLower === 'ack-pharma-store-welcome.php' && method === 'POST') {
         return handleAckPharmaStoreWelcome(event);
+    }
+
+    if (pathLower === 'get-pharma-registration-notice.php') {
+        return handleGetPharmaRegistrationNotice(event);
+    }
+
+    if (pathLower === 'get-store-registration-notice.php') {
+        return handleGetStoreRegistrationNotice(event);
+    }
+
+    if (pathLower === 'ack-pharma-registration-notice.php' && method === 'POST') {
+        return handleAckPharmaRegistrationNotice(event);
+    }
+
+    if (pathLower === 'ack-store-registration-notice.php' && method === 'POST') {
+        return handleAckStoreRegistrationNotice(event);
     }
 
     if (pathLower === 'get-pharmacist-billing-slips.php') {
