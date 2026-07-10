@@ -1,7 +1,7 @@
 /** ตรวจ env + ทดสอบเชื่อมต่อ Supabase จริง (มี timeout กัน hang) */
 export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig();
-    const dbOk = Boolean(String(process.env.DATABASE_URL || '').trim());
+    const dbOk = isDbConfigured();
     const supabaseOk = isSupabaseConfigured();
     const onVercel = Boolean(process.env.VERCEL);
     const serviceKey = Boolean(String(process.env.SUPABASE_SERVICE_ROLE_KEY || config.supabaseServiceKey || '').trim());

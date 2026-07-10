@@ -7,7 +7,7 @@ import { usePharmacistStatus } from '~/composables/usePharmacistStatus';
 const router = useRouter();
 const { imagesPharma } = useApiBase();
 const { computeStatus } = usePharmacistStatus();
-const { pharmacists, isLoading, loadError, refresh, refreshWithGps } = usePharmacistsList();
+const { pharmacists, isLoading, loadError, refresh, refreshWithGps, clearGpsCache } = usePharmacistsList();
 
 const userPos = ref(null);          // { lat, lng } ของผู้ใช้ ถ้าอนุญาต GPS
 const locationStatus = ref('idle'); // idle | locating | granted | denied | unavailable
@@ -40,6 +40,7 @@ const getUserPosition = () =>
     });
 
 onMounted(() => {
+    clearGpsCache();
     getUserPosition().then((pos) => {
         if (pos) {
             userPos.value = pos;

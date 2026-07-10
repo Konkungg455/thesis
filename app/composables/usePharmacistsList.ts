@@ -22,7 +22,7 @@ type PharmacistsResponse = {
 export function usePharmacistsList() {
     const route = useRoute();
     const isHome = computed(() => route.path === '/');
-    const gpsList = useState<PharmacistRow[] | null>('pharmacists-gps-list', () => null);
+    const gpsList = useState('pharmacists-gps-list', () => null);
 
     const home = useHomeSummaryData();
 
@@ -76,6 +76,10 @@ export function usePharmacistsList() {
         }
     };
 
+    const clearGpsCache = () => {
+        gpsList.value = null;
+    };
+
     return {
         pharmacists,
         total,
@@ -86,5 +90,6 @@ export function usePharmacistsList() {
         status: computed(() => (isHome.value ? home.status.value : standalone.status.value)),
         refresh,
         refreshWithGps,
+        clearGpsCache,
     };
 }

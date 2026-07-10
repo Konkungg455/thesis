@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 definePageMeta({ middleware: 'user-only' });
@@ -15,11 +15,27 @@ const isDeliveryPrepaid = ref(false);
 const isSearching = ref(false);
 const searchError = ref('');
 const isDesktopDevice = ref(false);
+let searchSession = 0;
+let searchStartedAt = 0;
 
 if (typeof window !== 'undefined') {
   const isMobileAgent = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   isDesktopDevice.value = !isMobileAgent && window.innerWidth >= 768;
 }
+
+const resetSearchState = () => {
+  isSearching.value = false;
+};
+
+const onReturnToPage = () => {
+  if (typeof document === 'undefined') return;
+  if (document.visibilityState === 'hidden') return;
+  if (!isSearching.value) return;
+  if (Date.now() - searchStartedAt < 1500) return;
+  searchSession += 1;
+  resetSearchState();
+  searchError.value = 'การค้นหาถูกยกเลิก — กดค้นหาอีกครั้งได้';
+};
 
 const getCurrentPosition = () =>
   new Promise((resolve, reject) => {
@@ -28,14 +44,31 @@ const getCurrentPosition = () =>
       return;
     }
 
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject({ code: 3 });
+    }, 18000);
+
     navigator.geolocation.getCurrentPosition(
-      (position) => resolve(position),
-      (error) => reject(error),
+      (position) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(position);
+      },
+      (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(error);
+      },
       {
         enableHighAccuracy: true,
         timeout: 15000,
-        maximumAge: 0
-      }
+        maximumAge: 0,
+      },
     );
   });
 
@@ -43,15 +76,17 @@ const getCurrentPosition = () =>
 const handleSearchNearMe = async () => {
   if (isSearching.value) return;
 
+  const mySession = ++searchSession;
   searchError.value = '';
   isSearching.value = true;
+  searchStartedAt = Date.now();
 
   try {
     const position = await getCurrentPosition();
+    if (mySession !== searchSession) return;
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
 
-    // เริ่มค้นหาที่ 500 เมตร และขยายเป็น 1 กม. ถ้าไม่พบผลลัพธ์
     router.push({
       path: '/user/phamacy',
       query: {
@@ -60,11 +95,11 @@ const handleSearchNearMe = async () => {
         initialRadius: '500',
         fallbackRadius: '1000',
         emergency: route.query.emergency === 'true' ? 'true' : undefined,
-        // 🆕 ส่งต่อ session ของห้องแชท AI ที่ผู้ใช้กำลังคุยอยู่
-        bot_session_id: route.query.bot_session_id || undefined
-      }
+        bot_session_id: route.query.bot_session_id || undefined,
+      },
     });
   } catch (error) {
+    if (mySession !== searchSession) return;
     if (error?.code === 1) {
       searchError.value = 'กรุณาอนุญาตสิทธิ์ตำแหน่งก่อนค้นหาเภสัชกรใกล้คุณ';
     } else if (error?.code === 3) {
@@ -73,9 +108,23 @@ const handleSearchNearMe = async () => {
       searchError.value = 'ไม่สามารถอ่านตำแหน่งปัจจุบันได้ กรุณาตรวจสอบ GPS';
     }
   } finally {
-    isSearching.value = false;
+    if (mySession === searchSession) {
+      resetSearchState();
+    }
   }
 };
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', onReturnToPage);
+  window.addEventListener('pageshow', onReturnToPage);
+});
+
+onBeforeUnmount(() => {
+  searchSession += 1;
+  document.removeEventListener('visibilitychange', onReturnToPage);
+  window.removeEventListener('pageshow', onReturnToPage);
+  resetSearchState();
+});
 </script>
 
 <template>

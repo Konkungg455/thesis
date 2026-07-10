@@ -1,10 +1,7 @@
-/** อุ่น connection DB + Supabase client ตอน server เริ่ม */
+/** อุ่น schema + Supabase client ตอน server เริ่ม (DB ping อยู่ใน 00-warm-db.ts) */
 export default defineNitroPlugin(() => {
     if (isDbConfigured()) {
         ensureBffSchema().catch(() => {});
-        dbQuery(async (sql) => {
-            await sql`SELECT 1 AS ok`;
-        }).catch(() => {});
     }
     if (isSupabaseConfigured()) {
         try {

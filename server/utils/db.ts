@@ -1,6 +1,7 @@
 import postgres from 'postgres';
 
 let sql: ReturnType<typeof postgres> | null = null;
+let sqlUrl: string | null = null;
 let lastDbError: string | null = null;
 
 const TRANSIENT_DB_CODES = new Set([
@@ -131,11 +132,20 @@ export function usesSupabasePooler(url?: string): boolean {
     return /pooler\.supabase\.com:6543/i.test(String(url || resolveDatabaseUrl() || ''));
 }
 
-function isTransientDbError(err: unknown): boolean {
+function isQueryTimeoutError(err: unknown): boolean {
+    return /DB query timeout after/i.test(String((err as Error)?.message || err));
+}
+
+/** ข้อผิดพลาดที่เกี่ยวกับ connection จริง — ต้อง reset pool */
+function isConnectionError(err: unknown): boolean {
     const code = (err as { code?: string })?.code;
     const message = String((err as Error)?.message || err);
     if (code && TRANSIENT_DB_CODES.has(code)) return true;
-    return /timeout|connection|terminated|closed|pool|destroyed|ended|broken|ENOTFOUND|EAI_AGAIN/i.test(message);
+    return /ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|CONNECTION_DESTROYED|CONNECTION_ENDED|connection terminated|terminated unexpectedly|server closed the connection|broken pipe|57P01|53300|08006|08003|XX000/i.test(message);
+}
+
+function isRetryableDbError(err: unknown): boolean {
+    return isConnectionError(err) || isQueryTimeoutError(err);
 }
 
 export function isDbConfigured(): boolean {
@@ -169,12 +179,21 @@ export function resolveDatabaseUrl(): string {
 export async function resetDbConnection(): Promise<void> {
     const old = sql;
     sql = null;
+    sqlUrl = null;
     if (!old) return;
     try {
         await old.end({ timeout: 2 });
     } catch {
         /* ignore */
     }
+}
+
+function detachStaleDbClient(): void {
+    if (!sql) return;
+    const old = sql;
+    sql = null;
+    sqlUrl = null;
+    void old.end({ timeout: 0 }).catch(() => {});
 }
 
 export function useDb() {
@@ -185,19 +204,24 @@ export function useDb() {
         });
     }
 
+    const dbUrl = resolveDatabaseUrl();
+    if (sql && sqlUrl && sqlUrl !== dbUrl) {
+        detachStaleDbClient();
+    }
+
     if (!sql) {
         const isServerless = isServerlessRuntime();
-        const isLocalDev = !isServerless;
-        const dbUrl = resolveDatabaseUrl();
         const pooler = usesSupabasePooler(dbUrl);
+        sqlUrl = dbUrl;
         sql = postgres(dbUrl, {
             ssl: 'require',
             prepare: false,
             fetch_types: false,
             max: isServerless ? 1 : (pooler ? 4 : 6),
-            connect_timeout: isServerless ? 12 : 15,
-            idle_timeout: isServerless ? 8 : (pooler ? 25 : 25),
-            max_lifetime: isServerless ? 55 : (pooler ? 120 : 60 * 10),
+            connect_timeout: isServerless ? 15 : 15,
+            // pooler จัดการ connection ฝั่ง server — อย่าปิด client เร็วเกินไปภายใน warm lambda
+            idle_timeout: isServerless ? (pooler ? 25 : 12) : (pooler ? 25 : 25),
+            max_lifetime: isServerless ? (pooler ? 300 : 90) : (pooler ? 120 : 60 * 10),
         });
     }
 
@@ -214,10 +238,11 @@ export async function dbQuery<T>(
 
     await acquireDbSlot();
     try {
-        const timeoutMs = options?.timeoutMs ?? defaultQueryTimeoutMs();
-        const maxAttempts = usesSupabasePooler() ? 5 : 4;
+        const baseTimeoutMs = options?.timeoutMs ?? defaultQueryTimeoutMs();
+        const maxAttempts = usesSupabasePooler() ? 4 : 3;
 
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            const timeoutMs = baseTimeoutMs + (attempt * 4_000);
             try {
                 const result = await withTimeout(fn(useDb()), timeoutMs, 'DB query');
                 lastDbError = null;
@@ -228,9 +253,12 @@ export async function dbQuery<T>(
                 if (code === '42P01' || code === '42703') {
                     return null;
                 }
-                if (attempt < maxAttempts - 1 && isTransientDbError(err)) {
-                    await resetDbConnection();
-                    await new Promise((r) => setTimeout(r, 150 * (attempt + 1)));
+                if (attempt < maxAttempts - 1 && isRetryableDbError(err)) {
+                    // reset เฉพาะ connection พังจริง — query ช้า/timeout ไม่ทำลาย pool
+                    if (isConnectionError(err)) {
+                        await resetDbConnection();
+                    }
+                    await new Promise((r) => setTimeout(r, 120 * (2 ** attempt)));
                     continue;
                 }
                 throw err;

@@ -28,7 +28,7 @@
           </div>
 
           <transition name="fade">
-            <div v-if="searchStatus" :class="['status-msg', searchStatus.type]">
+            <div v-if="searchStatus && (hasSearched || loading)" :class="['status-msg', searchStatus.type]">
               <span v-if="searchStatus.type === 'success'"><i class="fa-solid fa-circle-check"></i></span>
               <span v-else-if="searchStatus.type === 'error'"><i class="fa-solid fa-circle-xmark"></i></span>
               <span v-else><i class="fa-solid fa-circle-info"></i></span>
@@ -37,7 +37,7 @@
           </transition>
 
           <div v-if="loading" class="progress-container">
-            <div class="progress-bar" :style="{ width: (countdown / 60) * 100 + '%' }"></div>
+            <div class="progress-bar" :style="{ width: (countdown / 20) * 100 + '%' }"></div>
           </div>
         </div>
 
@@ -45,7 +45,7 @@
 
       <!-- ===== ร้านยาในระบบของเรา (มีลิงก์ Google Maps แนบ) ===== -->
       <transition name="fade">
-        <div v-if="partners.length > 0 || partnersLoading" class="results-container partner-results">
+        <div v-if="hasSearched && (partners.length > 0 || partnersLoading)" class="results-container partner-results">
           <h2 class="section-subtitle">
             <i class="fa-solid fa-store"></i> ร้านยาในระบบของเรา
             <small class="result-count">
@@ -122,7 +122,7 @@
 
       <!-- ===== ร้านยาทั่วไปจาก Google Places ===== -->
       <transition name="fade">
-        <div v-if="pharmacies.length > 0" class="results-container">
+        <div v-if="hasSearched && pharmacies.length > 0" class="results-container">
           <h2 class="section-subtitle">
             <i class="fa-solid fa-magnifying-glass-location"></i> ร้านขายยาทั่วไปใกล้คุณ
             <small class="result-count">(จาก Google Maps)</small>
@@ -171,9 +171,90 @@ const partnersLoading = ref(false)
 const userPos = ref(null)
 const locationStatus = ref('idle') // idle | locating | granted | denied | unavailable
 const maxDistanceKm = ref(10)      // 0 = ไม่จำกัด, ค่าเริ่มต้น 10 กม.
-const countdown = ref(60)
+const hasSearched = ref(false)     // แสดงผลค้นหาเฉพาะหลังกดปุ่ม
+const countdown = ref(20)
 const searchStatus = ref(null)
 let timerInterval = null
+let loadingStartedAt = 0
+let searchSession = 0
+
+const resetSearchState = () => {
+  stopTimer()
+  loading.value = false
+}
+
+const clearSearchResults = () => {
+  partners.value = []
+  pharmacies.value = []
+  searchStatus.value = null
+  partnersLoading.value = false
+  hasSearched.value = false
+}
+
+const onReturnToPage = () => {
+  if (typeof document === 'undefined') return
+  if (document.visibilityState === 'hidden') return
+  if (!loading.value) return
+  const elapsed = Date.now() - loadingStartedAt
+  if (elapsed < 1500) return
+  searchSession += 1
+  clearSearchResults()
+  resetSearchState()
+  searchStatus.value = {
+    text: 'การค้นหาถูกยกเลิก — กดปุ่มค้นหาอีกครั้งได้',
+    type: 'info',
+  }
+  hasSearched.value = true
+}
+
+const onPageShow = (event) => {
+  if (event?.persisted) {
+    searchSession += 1
+    clearSearchResults()
+    resetSearchState()
+  }
+}
+
+const bindPageLifecycle = () => {
+  if (typeof document === 'undefined') return
+  document.addEventListener('visibilitychange', onReturnToPage)
+  window.addEventListener('pageshow', onPageShow)
+}
+
+const unbindPageLifecycle = () => {
+  if (typeof document === 'undefined') return
+  document.removeEventListener('visibilitychange', onReturnToPage)
+  window.removeEventListener('pageshow', onPageShow)
+}
+
+const getPositionWithTimeout = (options, timeoutMs = 20000) =>
+  new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject({ code: 0, message: 'unsupported' })
+      return
+    }
+    let settled = false
+    const timer = setTimeout(() => {
+      if (settled) return
+      settled = true
+      reject({ code: 3, message: 'timeout' })
+    }, timeoutMs)
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        resolve(position)
+      },
+      (error) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        reject(error)
+      },
+      options,
+    )
+  })
 
 const filteredPartners = computed(() => {
     if (!userPos.value || maxDistanceKm.value <= 0) {
@@ -214,7 +295,7 @@ const getUserPosition = () =>
 const loadPartners = async (pos = null) => {
     partnersLoading.value = true
     try {
-        const params = {}
+        const params = { t: Date.now() }
         if (pos) {
             params.lat = pos.lat
             params.lng = pos.lng
@@ -260,14 +341,16 @@ const openStoreMaps = (store) => {
 }
 
 const startTimer = () => {
-  countdown.value = 60
+  countdown.value = 20
   timerInterval = setInterval(() => {
     if (countdown.value > 0) {
       countdown.value--
     } else {
       stopTimer()
-      if (pharmacies.value.length === 0) {
-        searchStatus.value = { text: 'หาไม่เจอ: หมดเวลาค้นหาสัญญาณ GPS (1 นาที)', type: 'error' }
+      if (pharmacies.value.length === 0 && loading.value) {
+        searchSession += 1
+        resetSearchState()
+        searchStatus.value = { text: 'หาไม่เจอ: หมดเวลาค้นหาสัญญาณ GPS', type: 'error' }
       }
     }
   }, 1000)
@@ -359,7 +442,12 @@ const updateSearchStatus = (partnerCount, googleCount) => {
 }
 
 const handleSearch = async () => {
+  if (loading.value) return
+
+  const mySession = ++searchSession
+  hasSearched.value = true
   loading.value = true
+  loadingStartedAt = Date.now()
   pharmacies.value = []
   partners.value = []
   searchStatus.value = { text: 'กำลังยืนยันตำแหน่งที่แม่นยำของคุณ...', type: 'info' }
@@ -368,70 +456,74 @@ const handleSearch = async () => {
   try {
     await loadGoogleMaps()
   } catch {
+    if (mySession !== searchSession) return
     searchStatus.value = { text: 'โหลด Google Maps ไม่สำเร็จ — ลองใหม่อีกครั้ง', type: 'error' }
-    stopTimer()
+    resetSearchState()
+    loadPartners(null)
+    return
+  }
+
+  if (!navigator.geolocation) {
+    if (mySession !== searchSession) return
+    searchStatus.value = { text: 'หาไม่ได้: เบราว์เซอร์นี้ไม่รองรับ GPS', type: 'error' }
+    resetSearchState()
     loadPartners(null)
     return
   }
 
   const geoOptions = {
     enableHighAccuracy: true,
-    timeout: 60000,
-    maximumAge: 0
-  };
-
-  if (!navigator.geolocation) {
-    searchStatus.value = { text: 'หาไม่ได้: เบราว์เซอร์นี้ไม่รองรับ GPS', type: 'error' }
-    stopTimer()
-    // ยังโหลดร้านในระบบให้ดูได้ (ไม่มีระยะทาง)
-    loadPartners(null)
-    return
+    timeout: 20000,
+    maximumAge: 0,
   }
 
-  navigator.geolocation.getCurrentPosition(async (position) => {
+  try {
+    const position = await getPositionWithTimeout(geoOptions, 22000)
+    if (mySession !== searchSession) return
+
     const pos = {
       lat: position.coords.latitude,
-      lng: position.coords.longitude
-    };
-    userPos.value = pos;
-    stopTimer()
+      lng: position.coords.longitude,
+    }
+    userPos.value = pos
+    resetSearchState()
     searchStatus.value = { text: 'กำลังค้นหาร้านยาในระบบของเรา...', type: 'info' }
 
-    // 1) ดึงร้านในระบบ (มี google_maps_url)
     await loadPartners(pos)
+    if (mySession !== searchSession) return
 
     updateSearchStatus(displayPartners.value.length, 0)
 
     const googleCount = await runGooglePlacesSearch(pos)
+    if (mySession !== searchSession) return
     updateSearchStatus(displayPartners.value.length, googleCount)
-  }, (error) => {
-    stopTimer()
+  } catch (error) {
+    if (mySession !== searchSession) return
+    resetSearchState()
+    const code = Number(error?.code || 0)
     let errorMsg = 'หาไม่ได้: กรุณาเปิด GPS และอนุญาตสิทธิ์ตำแหน่ง'
-    if (error.code === 3) errorMsg = 'หาไม่ได้: หมดเวลาค้นหาพิกัด (1 นาที)'
-    if (error.code === 1) errorMsg = 'หาไม่ได้: คุณปฏิเสธสิทธิ์การเข้าถึง GPS — แสดงร้านในระบบทั้งหมดให้แทน'
-    searchStatus.value = { text: errorMsg, type: error.code === 1 ? 'info' : 'error' }
-    // ถ้าผู้ใช้ปฏิเสธ GPS ก็ยังดูร้านในระบบได้ (ไม่มีระยะทาง)
-    if (error.code === 1) loadPartners(null)
-  }, geoOptions);
+    if (code === 3) errorMsg = 'หาไม่ได้: หมดเวลาค้นหาพิกัด — ลองใหม่อีกครั้ง'
+    if (code === 1) errorMsg = 'หาไม่ได้: คุณปฏิเสธสิทธิ์การเข้าถึง GPS — แสดงร้านในระบบทั้งหมดให้แทน'
+    searchStatus.value = { text: errorMsg, type: code === 1 ? 'info' : 'error' }
+    if (code === 1) loadPartners(null)
+  }
 }
 
 const openMap = (placeId, name) => {
     openGoogleMapsNavigation({ placeId, name })
 }
 
-onMounted(async () => {
-    userPos.value = await getUserPosition()
-    if (userPos.value) {
-        await loadPartners(userPos.value)
-    } else {
-        await loadPartners(null)
-    }
-    if (displayPartners.value.length > 0) {
-        updateSearchStatus(displayPartners.value.length, 0)
-    }
+onMounted(() => {
+    bindPageLifecycle()
+    clearSearchResults()
 })
 
-onUnmounted(() => stopTimer())
+onUnmounted(() => {
+    searchSession += 1
+    unbindPageLifecycle()
+    clearSearchResults()
+    resetSearchState()
+})
 </script>
 
 <style scoped>

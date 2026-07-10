@@ -47,7 +47,8 @@ export default defineEventHandler(async (event) => {
         return result;
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        const isTransientDb = /CONNECTION_DESTROYED|CONNECTION_ENDED|connection|timeout|pool/i.test(message);
+        const isTransientDb = /CONNECTION_DESTROYED|CONNECTION_ENDED|ECONNRESET|ECONNREFUSED|connection terminated|server closed the connection/i.test(message)
+            || (/timeout/i.test(message) && !/DB query timeout after/i.test(message));
         if (isTransientDb) {
             console.warn('[api/bff]', pathname, event.method, message);
         } else {
