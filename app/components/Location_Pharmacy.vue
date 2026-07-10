@@ -170,7 +170,7 @@ const partners = ref([])        // ร้านยาในระบบของ
 const partnersLoading = ref(false)
 const userPos = ref(null)
 const locationStatus = ref('idle') // idle | locating | granted | denied | unavailable
-const maxDistanceKm = ref(10)      // 0 = ไม่จำกัด, ค่าเริ่มต้น 10 กม.
+const maxDistanceKm = ref(0)       // 0 = ไม่จำกัดระยะ (ค่าเริ่มต้น)
 const hasSearched = ref(false)     // แสดงผลค้นหาเฉพาะหลังกดปุ่ม
 const countdown = ref(20)
 const searchStatus = ref(null)

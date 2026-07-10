@@ -32,7 +32,7 @@ const historyData = ref([])
 const isLoading = ref(false)
 const isAuthorized = ref(false)
 const sidebarOpen = ref(false)
-const showCompleted = ref(true)          // แสดงรายการที่เสร็จสิ้นแล้วด้วย (รวม 40 เคส)
+const showCompleted = ref(false)         // เปิดหน้ามาแสดง "กำลังติดตาม" ก่อน
 let timerInterval = null
 
 const toggleSidebar = () => { sidebarOpen.value = !sidebarOpen.value }
