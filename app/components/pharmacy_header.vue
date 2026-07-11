@@ -293,6 +293,7 @@ import { ref, onMounted, onBeforeUnmount, watch, computed } from "vue"
 import { useApiBase } from "~/composables/useApiBase"
 import { useAuthUser } from "~/composables/useAuthUser"
 import { applyAppTheme } from '~/composables/useAppTheme'
+import { formatChatDateTime } from '@/utils/datetime'
 
 const { apiUrl } = useApiBase()
 const { user, displayName, profileImageUrl, syncFromServer, clearUser } = useAuthUser()
@@ -353,16 +354,7 @@ const shortSession = (s) => {
     return s.length > 12 ? s.substring(0, 8) + '...' : s
 }
 
-const formatBhTime = (ts) => {
-    if (!ts) return ''
-    try {
-        const d = new Date(ts.replace(' ', 'T'))
-        if (isNaN(d.getTime())) return ts
-        return d.toLocaleString('th-TH', {
-            hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short'
-        })
-    } catch { return ts }
-}
+const formatBhTime = (ts) => formatChatDateTime(ts)
 
 // แสดงเฉพาะ session ที่ผู้ป่วยกำลังคุยอยู่ตอนกดปรึกษา (มาจาก consult_request.bot_session_id)
 const openBotHistory = async (req) => {

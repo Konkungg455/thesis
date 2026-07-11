@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { H3Event } from 'h3';
+import { parseValidAge, validateAgeMessage } from '#shared/utils/age';
 import { getRoleFromOtpType } from '../../utils/emailTemplates';
 import { readRequestFields } from './formData';
 import {
@@ -86,6 +87,10 @@ export async function handleRegisterUser(event: H3Event) {
     const gender = genderForAccount(fields.gender);
     if (!gender) return { status: 'error', message: 'กรุณาเลือกเพศ' };
 
+    const ageErr = validateAgeMessage(fields.old);
+    if (ageErr) return { status: 'error', message: ageErr };
+    const age = parseValidAge(fields.old)!;
+
     const exists = await dbQuery(async (sql) => sql`
         SELECT id_account FROM account WHERE email_account = ${email} LIMIT 1
     `);
@@ -105,7 +110,7 @@ export async function handleRegisterUser(event: H3Event) {
         firstname: String(fields.firstname).trim(),
         lastname: String(fields.lastname).trim(),
         gender,
-        old: fields.old,
+        old: age,
         height: fields.height,
         weight: fields.weight,
         phone_number: String(fields.phone_number).trim(),

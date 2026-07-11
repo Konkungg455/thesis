@@ -1,5 +1,6 @@
 <script setup>
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
+import { blockInvalidAgeKeys, clampAgeInputValue, validateAgeMessage } from '~/utils/age';
 
 const router = useRouter();
 const role = AUTH_ROLES.user;
@@ -57,12 +58,18 @@ const validate = () => {
     if (!f.gender || !['ชาย', 'หญิง'].includes(f.gender)) {
         return 'กรุณาเลือกเพศ';
     }
+    const ageErr = validateAgeMessage(f.old);
+    if (ageErr) return ageErr;
     if (f.password_account1.length < 8) return 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร';
     if (f.password_account1 !== f.password_account2) return 'รหัสผ่านไม่ตรงกัน';
     if (!/^[ก-๙\s]+$/.test(f.firstname)) return 'ชื่อต้องเป็นภาษาไทยเท่านั้น';
     if (!/^[ก-๙\s]+$/.test(f.lastname)) return 'นามสกุลต้องเป็นภาษาไทยเท่านั้น';
     if (!/^[0-9]{10}$/.test(f.phone_number)) return 'เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก';
     return '';
+};
+
+const onAgeInput = () => {
+    form.value.old = clampAgeInputValue(form.value.old);
 };
 
 const submit = async () => {
@@ -112,7 +119,17 @@ const submit = async () => {
                 </div>
                 <div class="auth-field">
                     <label>อายุ <span class="req">*</span></label>
-                    <input v-model="form.old" type="number" min="1" required />
+                    <input
+                        v-model="form.old"
+                        type="number"
+                        min="1"
+                        max="100"
+                        step="1"
+                        inputmode="numeric"
+                        required
+                        @input="onAgeInput"
+                        @keydown="blockInvalidAgeKeys"
+                    />
                 </div>
                 <div class="auth-field">
                     <label>ส่วนสูง (ซม.) <span class="req">*</span></label>

@@ -343,3 +343,41 @@ img, video {
         font-size: 0.9rem !important;
     }
 }
+
+/* ===== Pharmacist portal — พื้นหลังทุกหน้า #ffffff (light mode) ===== */
+html:not(.dark).pharma-portal-page,
+html:not(.dark).pharma-portal-page body,
+html:not(.dark).pharma-portal-page #__nuxt {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+}
+
+html:not(.dark).pharma-portal-page .admin-layout,
+html:not(.dark).pharma-portal-page .admin-layout .main-content,
+html:not(.dark).pharma-portal-page .admin-layout .view-container,
+html:not(.dark).pharma-portal-page .profile-page-layout,
+html:not(.dark).pharma-portal-page .profile-page,
+html:not(.dark).pharma-portal-page .pharma-home-page,
+html:not(.dark).pharma-portal-page .presc-page,
+html:not(.dark).pharma-portal-page .page-wrapper {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+}
+
+html:not(.dark).pharma-portal-page:not(:has(.admin-layout)) .footer-divider {
+    background: #ffffff !important;
+}
+
+html.dark.pharma-portal-page:not(:has(.admin-layout)) .footer-divider {
+    background: var(--footer-pre-bg) !important;
+    background-image: none !important;
+    line-height: 0;
+    overflow: hidden;
+}
+
+html.dark.pharma-portal-page:not(:has(.admin-layout)) .footer-divider svg {
+    display: block;
+    width: 100%;
+    height: 80px;
+    fill: #020617 !important;
+}

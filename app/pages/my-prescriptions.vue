@@ -169,7 +169,7 @@ onMounted(handleFetch)
 </template>
 
 <style scoped>
-.presc-page { background: #f8fafc; min-height: 100vh; display: flex; flex-direction: column; }
+.presc-page { background: #ffffff; min-height: 100vh; display: flex; flex-direction: column; }
 .presc-main { flex: 1; max-width: 1200px; width: 100%; margin: 0 auto; padding: 28px 20px 60px; }
 
 .presc-hero {

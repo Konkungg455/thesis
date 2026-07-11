@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { H3Event } from 'h3';
+import { parseValidAge, validateAgeMessage } from '#shared/utils/age';
 import { getArrayField, readMultipartRequest, readRequestFields } from './formData';
 import { uploadMediaFile, mimeFromExt } from '../../utils/storageUpload';
 
@@ -103,7 +104,9 @@ export async function handleRegisterPharmacist(event: H3Event) {
     const firstname = String(fields.firstname_pharma || '').trim();
     const lastname = String(fields.lastname_pharma || '').trim();
     const gender = genderForAccount(fields.gender_pharma);
-    const age = Number(fields.age_pharma || 0);
+    const ageErr = validateAgeMessage(fields.age_pharma);
+    if (ageErr) return { status: 'error', message: ageErr };
+    const age = parseValidAge(fields.age_pharma)!;
     const phone = String(fields.phone || '').trim();
     const idStoreRaw = String(fields.id_store || '').trim();
 
@@ -182,7 +185,9 @@ export async function handleRegisterAdmin(event: H3Event) {
     const firstname = String(fields.firstname || '').trim();
     const lastname = String(fields.lastname || '').trim();
     const gender = genderForAccount(fields.gender);
-    const age = Number(fields.old || 0);
+    const ageErr = validateAgeMessage(fields.old);
+    if (ageErr) return { status: 'error', message: ageErr };
+    const age = parseValidAge(fields.old)!;
     const phone = String(fields.phone_number || '').trim();
 
     if (!username || !email || !firstname || !lastname || !gender || !phone) {

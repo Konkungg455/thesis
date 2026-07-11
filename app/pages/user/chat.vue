@@ -1,5 +1,5 @@
 <script setup>
-import { formatChatMessageTime } from '@/utils/datetime';
+import { formatChatMessageTime, parseAppDateTime } from '@/utils/datetime';
 
 definePageMeta({ middleware: 'user-only' });
 
@@ -142,15 +142,8 @@ const EDIT_DELETE_WINDOW_MS = 5 * 60 * 1000;
 const DELETE_CONFIRM_TEXT = 'ลบข้อความนี้ออกจากหน้าจอหรือไม่?\nข้อมูลจริงจะถูก freeze เก็บไว้ในฐานข้อมูล';
 
 const parseChatTimestamp = (v) => {
-    if (v == null || v === '') return NaN;
-    const s = String(v).trim();
-    const candidates = [new Date(s).getTime()];
-    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(s) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) {
-        candidates.push(new Date(`${s.replace(' ', 'T')}Z`).getTime());
-        candidates.push(new Date(`${s.replace(' ', 'T')}+07:00`).getTime());
-    }
-    const valid = candidates.filter((t) => !Number.isNaN(t));
-    return valid.length ? Math.max(...valid) : NaN;
+    const ms = parseAppDateTime(v).getTime();
+    return Number.isNaN(ms) ? NaN : ms;
 };
 
 const getMessageId = (msg) => Number(msg?.message_id || msg?.id || 0);
@@ -1627,10 +1620,12 @@ const closePreview = () => {
                                 <button v-if="String(msg.message_text || '').trim()" type="button"
                                         class="msg-act-btn edit"
                                         @click.stop="startEditMessage(msg)" title="แก้ไขข้อความ">
+                                    <i class="fa-solid fa-pen" aria-hidden="true"></i>
                                     <span class="msg-act-label">แก้ไข</span>
                                 </button>
                                 <button type="button" class="msg-act-btn delete"
                                         @click.stop="deleteMessage(msg)" title="ลบข้อความ">
+                                    <i class="fa-solid fa-trash-can" aria-hidden="true"></i>
                                     <span class="msg-act-label">ลบ</span>
                                 </button>
                             </div>

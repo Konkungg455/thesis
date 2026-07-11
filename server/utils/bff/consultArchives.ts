@@ -1,6 +1,11 @@
 import type { H3Event } from 'h3';
 import { readMultipartRequest } from './formData';
 import { getAuthContext } from './sessionContext';
+import {
+    CHAT_CREATED_UTC,
+    CHAT_DISPLAY_TIME_SQL,
+    mapChatTimestamps,
+} from '../../utils/chatTimestamp';
 
 const RETENTION_DAYS = 365;
 
@@ -440,7 +445,7 @@ export async function handleGetChatArchive(event: H3Event) {
         }
 
         const rows = await sql.unsafe(
-            `SELECT *
+            `SELECT *, (${CHAT_CREATED_UTC}) AS created_at_utc, ${CHAT_DISPLAY_TIME_SQL} AS display_time
              FROM chat_messages_archive
              WHERE ${ownerCol} = $1
                AND ${targetSql}
@@ -456,6 +461,7 @@ export async function handleGetChatArchive(event: H3Event) {
         const messages = rows.map((row) => {
             if (firstArchived === null) firstArchived = row.archived_at ? String(row.archived_at) : null;
             if (firstExpires === null) firstExpires = row.expires_at ? String(row.expires_at) : null;
+            const times = mapChatTimestamps(row as Record<string, unknown>);
             return {
                 id: Number(row.archive_id || row.message_id || 0),
                 message_id: Number(row.message_id || 0),
@@ -464,8 +470,9 @@ export async function handleGetChatArchive(event: H3Event) {
                 sender_role: row.sender_role,
                 message_text: row.message_text,
                 file_path: row.file_path,
-                created_at: row.created_at,
-                edited_at: row.edited_at,
+                created_at: times.created_at,
+                display_time: times.display_time,
+                edited_at: times.edited_at,
             };
         });
 

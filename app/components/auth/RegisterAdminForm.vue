@@ -1,5 +1,6 @@
 <script setup>
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
+import { blockInvalidAgeKeys, clampAgeInputValue, validateAgeMessage } from '~/utils/age';
 
 const { apiBase } = useApiBase();
 
@@ -20,8 +21,17 @@ const form = ref({
     email_account: ''
 });
 
+const onAgeInput = () => {
+    form.value.old = clampAgeInputValue(form.value.old);
+};
+
 const submit = async () => {
     errorMessage.value = '';
+    const ageErr = validateAgeMessage(form.value.old);
+    if (ageErr) {
+        errorMessage.value = ageErr;
+        return;
+    }
     isLoading.value = true;
     try {
         const data = await $fetch(`${apiBase.value}/vue-register-admin.php`, {
@@ -74,7 +84,17 @@ const submit = async () => {
                 </div>
                 <div class="auth-field">
                     <label>อายุ <span class="req">*</span></label>
-                    <input v-model="form.old" type="number" min="1" required />
+                    <input
+                        v-model="form.old"
+                        type="number"
+                        min="1"
+                        max="100"
+                        step="1"
+                        inputmode="numeric"
+                        required
+                        @input="onAgeInput"
+                        @keydown="blockInvalidAgeKeys"
+                    />
                 </div>
                 <div class="auth-field full">
                     <label>รหัสผ่าน <span class="req">*</span></label>

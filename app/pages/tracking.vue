@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { formatChatDateTime, formatChatMessageTime } from '@/utils/datetime'
 
 definePageMeta({
     middleware: 'pharmacist-only'
@@ -560,17 +561,7 @@ const goReplyChat = () => {
     closeArchiveModal();
 };
 
-const formatChatTime = (t) => {
-    if (!t) return '';
-    try {
-        return new Date(t).toLocaleString('th-TH', {
-            day: 'numeric', month: 'short', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-    } catch {
-        return t;
-    }
-};
+const formatChatTime = formatChatDateTime
 
 const formatShortDate = (t) => {
     if (!t) return '';
@@ -1070,7 +1061,7 @@ const formatArchiveExpiry = (expiresAt) => {
                                         <div v-if="msg.file_path" class="msg-file">
                                             <i class="fa-solid fa-paperclip"></i> ไฟล์แนบ: {{ msg.file_path }}
                                         </div>
-                                        <div class="msg-time">{{ formatChatTime(msg.created_at) }}</div>
+                                        <div class="msg-time">{{ formatChatMessageTime(msg) }}</div>
                                     </div>
                                 </div>
                             </div>

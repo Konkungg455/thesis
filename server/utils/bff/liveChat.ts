@@ -2,6 +2,12 @@ import type { H3Event } from 'h3';
 import { randomBytes } from 'node:crypto';
 import { getAuthContext } from './sessionContext';
 import { readMultipartRequest } from './formData';
+import {
+    CHAT_CREATED_UTC,
+    CHAT_DISPLAY_TIME_SQL,
+    mapChatTimestamps,
+    toChatIsoTime,
+} from '../../utils/chatTimestamp';
 
 const TIMER_TOTAL = 15 * 60;
 const PRESENCE_GAP_SEC = 15;
@@ -32,16 +38,44 @@ function resolveChatIdentity(event: H3Event, targetId: number) {
 type ChatRow = Record<string, unknown>;
 
 function toIsoTime(v: unknown): string {
-    if (v == null || v === '') return '';
-    if (v instanceof Date) return v.toISOString();
-    const s = String(v).trim();
-    // timestamp without time zone จาก Postgres → ถือเป็น UTC แล้วแปลงเป็น ISO
-    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(s) && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) {
-        const ms = new Date(`${s.replace(' ', 'T')}Z`).getTime();
-        return Number.isNaN(ms) ? s : new Date(ms).toISOString();
-    }
-    const ms = new Date(s).getTime();
-    return Number.isNaN(ms) ? s : new Date(ms).toISOString();
+    return toChatIsoTime(v);
+}
+
+function mapLiveRow(row: ChatRow) {
+    const times = mapChatTimestamps(row);
+    const canModify = row.can_modify === true
+        || row.can_modify === 't'
+        || row.can_modify === 1
+        || row.can_modify === '1';
+    return {
+        ...row,
+        message_id: Number(row.id || row.message_id || 0),
+        created_at: times.created_at,
+        edited_at: times.edited_at,
+        display_time: times.display_time,
+        is_archived: 0,
+        can_modify: canModify,
+    };
+}
+
+function mapArchiveRow(row: ChatRow) {
+    const times = mapChatTimestamps(row);
+    return {
+        message_id: Number(row.message_id || row.archive_id || 0),
+        archive_id: Number(row.archive_id || 0),
+        sender_id: row.sender_id,
+        receiver_id: row.receiver_id,
+        sender_role: row.sender_role,
+        message_text: row.message_text,
+        file_path: row.file_path,
+        created_at: times.created_at,
+        edited_at: times.edited_at,
+        display_time: times.display_time,
+        id_consult_request: row.id_consult_request,
+        service_code: row.service_code,
+        is_archived: 1,
+        can_modify: false,
+    };
 }
 
 function msgSortKey(m: ChatRow): number {
@@ -51,42 +85,6 @@ function msgSortKey(m: ChatRow): number {
 
 function msgTieBreak(m: ChatRow): number {
     return Number(m.archive_id || m.message_id || m.id || 0);
-}
-
-function mapLiveRow(row: ChatRow) {
-    const createdAt = toIsoTime(row.created_at);
-    const canModify = row.can_modify === true
-        || row.can_modify === 't'
-        || row.can_modify === 1
-        || row.can_modify === '1';
-    return {
-        ...row,
-        message_id: Number(row.id || row.message_id || 0),
-        created_at: createdAt,
-        edited_at: row.edited_at ? toIsoTime(row.edited_at) : null,
-        display_time: String(row.display_time || '').trim(),
-        is_archived: 0,
-        can_modify: canModify,
-    };
-}
-
-function mapArchiveRow(row: ChatRow) {
-    return {
-        message_id: Number(row.message_id || row.archive_id || 0),
-        archive_id: Number(row.archive_id || 0),
-        sender_id: row.sender_id,
-        receiver_id: row.receiver_id,
-        sender_role: row.sender_role,
-        message_text: row.message_text,
-        file_path: row.file_path,
-        created_at: toIsoTime(row.created_at),
-        edited_at: row.edited_at ? toIsoTime(row.edited_at) : null,
-        display_time: String(row.display_time || '').trim(),
-        id_consult_request: row.id_consult_request,
-        service_code: row.service_code,
-        is_archived: 1,
-        can_modify: false,
-    };
 }
 
 function mergeMessages(live: ChatRow[], archive: ChatRow[]) {
@@ -129,53 +127,56 @@ export async function handleChatGet(event: H3Event) {
     if (cached) return cached;
 
     const rows = await dbQuery(async (sql) => {
-        const liveRows = await sql`
+        const liveRows = await sql.unsafe(`
             SELECT *, id AS message_id,
-                   (EXTRACT(EPOCH FROM (NOW() - created_at)) <= ${EDIT_DELETE_WINDOW_SEC}) AS can_modify,
-                   TO_CHAR(created_at AT TIME ZONE 'Asia/Bangkok', 'HH24:MI') AS display_time
+                   (${CHAT_CREATED_UTC}) AS created_at_utc,
+                   (EXTRACT(EPOCH FROM (NOW() - (${CHAT_CREATED_UTC}))) <= ${EDIT_DELETE_WINDOW_SEC}) AS can_modify,
+                   ${CHAT_DISPLAY_TIME_SQL} AS display_time
             FROM chat_messages
             WHERE COALESCE(is_deleted, 0) = 0
               AND (
-                (sender_id = ${identity.myId} AND receiver_id = ${targetId})
-                OR (sender_id = ${targetId} AND receiver_id = ${identity.myId})
+                (sender_id = $1 AND receiver_id = $2)
+                OR (sender_id = $2 AND receiver_id = $1)
               )
             ORDER BY created_at ASC
-        `;
+        `, [identity.myId, targetId]);
         const live = liveRows.map(mapLiveRow);
 
         if (!includeArchive) return live;
 
         let archiveRows;
         if (serviceCode) {
-            archiveRows = await sql`
+            archiveRows = await sql.unsafe(`
                 SELECT message_id, sender_id, receiver_id, sender_role,
                        message_text, file_path, created_at, edited_at,
                        id_consult_request, service_code, archive_id,
-                       TO_CHAR(created_at AT TIME ZONE 'Asia/Bangkok', 'HH24:MI') AS display_time
+                       (${CHAT_CREATED_UTC}) AS created_at_utc,
+                       ${CHAT_DISPLAY_TIME_SQL} AS display_time
                 FROM chat_messages_archive
-                WHERE service_code = ${serviceCode}
+                WHERE service_code = $1
                   AND COALESCE(is_deleted, 0) = 0
                   AND (
-                    (sender_id = ${identity.myId} AND receiver_id = ${targetId})
-                    OR (sender_id = ${targetId} AND receiver_id = ${identity.myId})
+                    (sender_id = $2 AND receiver_id = $3)
+                    OR (sender_id = $3 AND receiver_id = $2)
                   )
                 ORDER BY created_at ASC, archive_id ASC
-            `;
+            `, [serviceCode, identity.myId, targetId]);
         } else if (consultId > 0) {
-            archiveRows = await sql`
+            archiveRows = await sql.unsafe(`
                 SELECT message_id, sender_id, receiver_id, sender_role,
                        message_text, file_path, created_at, edited_at,
                        id_consult_request, service_code, archive_id,
-                       TO_CHAR(created_at AT TIME ZONE 'Asia/Bangkok', 'HH24:MI') AS display_time
+                       (${CHAT_CREATED_UTC}) AS created_at_utc,
+                       ${CHAT_DISPLAY_TIME_SQL} AS display_time
                 FROM chat_messages_archive
-                WHERE id_consult_request = ${consultId}
+                WHERE id_consult_request = $1
                   AND COALESCE(is_deleted, 0) = 0
                   AND (
-                    (sender_id = ${identity.myId} AND receiver_id = ${targetId})
-                    OR (sender_id = ${targetId} AND receiver_id = ${identity.myId})
+                    (sender_id = $2 AND receiver_id = $3)
+                    OR (sender_id = $3 AND receiver_id = $2)
                   )
                 ORDER BY created_at ASC, archive_id ASC
-            `;
+            `, [consultId, identity.myId, targetId]);
         } else {
             archiveRows = [];
         }

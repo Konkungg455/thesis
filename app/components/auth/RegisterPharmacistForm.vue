@@ -1,5 +1,6 @@
 <script setup>
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
+import { blockInvalidAgeKeys, clampAgeInputValue, validateAgeMessage } from '~/utils/age';
 
 const { apiBase } = useApiBase();
 
@@ -61,8 +62,17 @@ const onFileChange = (e) => {
     licenseLabel.value = f ? f.name : 'เลือกไฟล์ใบวิชาชีพ';
 };
 
+const onAgeInput = () => {
+    form.value.age_pharma = clampAgeInputValue(form.value.age_pharma);
+};
+
 const submit = async () => {
     errorMessage.value = '';
+    const ageErr = validateAgeMessage(form.value.age_pharma);
+    if (ageErr) {
+        errorMessage.value = ageErr;
+        return;
+    }
     if (!licenseFile.value) {
         errorMessage.value = 'กรุณาแนบใบประกอบวิชาชีพ';
         return;
@@ -130,7 +140,17 @@ const submit = async () => {
                 </div>
                 <div class="auth-field">
                     <label>อายุ <span class="req">*</span></label>
-                    <input v-model="form.age_pharma" type="number" required />
+                    <input
+                        v-model="form.age_pharma"
+                        type="number"
+                        min="1"
+                        max="100"
+                        step="1"
+                        inputmode="numeric"
+                        required
+                        @input="onAgeInput"
+                        @keydown="blockInvalidAgeKeys"
+                    />
                 </div>
                 <div class="auth-field full">
                     <label>รหัสผ่าน <span class="req">*</span></label>

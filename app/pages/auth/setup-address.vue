@@ -277,10 +277,7 @@ onMounted(() => preloadAddress());
 .addr-page {
     min-height: 100vh;
     padding: 90px 16px 60px;
-    background:
-        radial-gradient(1100px 600px at 12% -10%, #dbeafe 0%, transparent 60%),
-        radial-gradient(900px 500px at 100% 110%, #ede9fe 0%, transparent 60%),
-        linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    background: #ffffff;
 }
 
 .addr-back {

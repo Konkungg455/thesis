@@ -2,7 +2,7 @@
 
 .page-wrapper {
   font-family: 'Sarabun', sans-serif;
-  background-color: #e8ecef;
+  background-color: #ffffff;
   min-height: 100vh;
   display: flex;
   justify-content: center;
@@ -393,7 +393,7 @@
     justify-content: center;
     margin-bottom: 16px;
     width: 100%;
-    background: #e8ecef;
+    background: #ffffff;
     padding: 8px 0 10px;
     pointer-events: auto;
   }

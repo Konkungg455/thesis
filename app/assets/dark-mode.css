@@ -416,20 +416,24 @@ html.dark [class*="subtitle"] {
 
 html.dark .footer-divider {
   background: var(--footer-pre-bg) !important;
-  margin-bottom: -1px;
+  background-image: none !important;
+  line-height: 0;
   overflow: hidden;
 }
 
 html.dark .footer-divider svg {
-  fill: var(--footer-wave-fill) !important;
   display: block;
-  transform: translateY(1px);
+  width: 100%;
+  height: 80px;
+  fill: #020617 !important;
 }
 
 html.dark .footer-wave {
-  background: var(--footer-bg) !important;
+  background: #020617 !important;
+  background-color: #020617 !important;
   color: var(--footer-text) !important;
-  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  margin-top: -1px;
+  border-top: none;
 }
 
 html.dark .footer-wave__heading,
@@ -1130,6 +1134,9 @@ html.dark body #__nuxt .user-layout .footer-divider {
 }
 
 html.dark body #__nuxt .user-layout .footer-divider svg {
+  display: block;
+  width: 100%;
+  height: 80px;
   fill: #020617 !important;
 }
 
@@ -1222,6 +1229,11 @@ html.dark body #__nuxt .user-layout .voice-call-card {
 }
 
 /* Setup address page */
+html.dark body #__nuxt .rua-page {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
 html.dark body #__nuxt .addr-page {
   background:
     radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 34%),
@@ -1425,26 +1437,31 @@ html.dark body #__nuxt .admin-layout .main-content {
 
 html.dark body #__nuxt .admin-layout .footer-divider {
   position: relative !important;
-  background: linear-gradient(to right, #0b1220 0, #0b1220 260px, #0f172a 260px, #0f172a 100%) !important;
+  background: linear-gradient(to right, #0b1220 0, #0b1220 260px, var(--footer-pre-bg) 260px, var(--footer-pre-bg) 100%) !important;
+  background-image: linear-gradient(to right, #0b1220 0, #0b1220 260px, var(--footer-pre-bg) 260px, var(--footer-pre-bg) 100%) !important;
+  line-height: 0 !important;
+  overflow: hidden !important;
 }
 
 html.dark body #__nuxt .admin-layout .footer-divider::before {
-  content: "" !important;
-  position: absolute !important;
-  inset: 0 auto 0 0 !important;
-  width: 260px !important;
-  background: #0b1220 !important;
-  pointer-events: none !important;
-  z-index: 1 !important;
+  content: none !important;
+  display: none !important;
 }
 
 html.dark body #__nuxt .admin-layout .footer-divider svg {
+  display: block !important;
+  width: 100% !important;
+  height: 80px !important;
   fill: #020617 !important;
+  transform: none !important;
 }
 
 html.dark body #__nuxt .admin-layout .footer-wave {
-  background: linear-gradient(to right, #0b1220 0, #0b1220 260px, #020617 260px, #020617 100%) !important;
+  background: #020617 !important;
   background-color: #020617 !important;
+  background-image: none !important;
+  margin-top: -1px !important;
+  border-top: none !important;
 }
 
 html.dark body #__nuxt .admin-layout .sidebar {
@@ -1457,16 +1474,19 @@ html.dark body #__nuxt .admin-layout .sidebar {
 
 @media (min-width: 1025px) and (max-width: 1280px) {
   html.dark body #__nuxt .admin-layout .footer-divider {
-    background: linear-gradient(to right, #0b1220 0, #0b1220 230px, #0f172a 230px, #0f172a 100%) !important;
+    background: linear-gradient(to right, #0b1220 0, #0b1220 230px, var(--footer-pre-bg) 230px, var(--footer-pre-bg) 100%) !important;
+    background-image: linear-gradient(to right, #0b1220 0, #0b1220 230px, var(--footer-pre-bg) 230px, var(--footer-pre-bg) 100%) !important;
   }
 
   html.dark body #__nuxt .admin-layout .footer-divider::before {
-    width: 230px !important;
+    content: none !important;
+    display: none !important;
   }
 
   html.dark body #__nuxt .admin-layout .footer-wave {
-    background: linear-gradient(to right, #0b1220 0, #0b1220 230px, #020617 230px, #020617 100%) !important;
+    background: #020617 !important;
     background-color: #020617 !important;
+    background-image: none !important;
   }
 }
 
@@ -1490,12 +1510,18 @@ html.dark body #__nuxt .admin-layout .sidebar {
 
   html.dark body #__nuxt .admin-layout :deep(.footer-divider),
   html.dark body #__nuxt .admin-layout .footer-divider {
-    background: #0f172a !important;
+    background: var(--footer-pre-bg) !important;
     background-image: none !important;
+    line-height: 0 !important;
+    overflow: hidden !important;
   }
 
   html.dark body #__nuxt .admin-layout .footer-divider svg {
-    fill: #0b1220 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 80px !important;
+    fill: #020617 !important;
+    transform: none !important;
   }
 
   html.dark body #__nuxt .admin-layout .footer-wave {
@@ -3164,13 +3190,19 @@ html.dark body #__nuxt .admin-layout .btn-cancel {
 
 html.dark body #__nuxt .admin-layout :deep(.footer-divider),
 html.dark body #__nuxt .admin-layout .footer-divider {
-  background: #0b1220 !important;
-  background-image: none !important;
+  background: linear-gradient(to right, #0b1220 0, #0b1220 260px, var(--footer-pre-bg) 260px, var(--footer-pre-bg) 100%) !important;
+  background-image: linear-gradient(to right, #0b1220 0, #0b1220 260px, var(--footer-pre-bg) 260px, var(--footer-pre-bg) 100%) !important;
   position: relative !important;
+  line-height: 0 !important;
+  overflow: hidden !important;
 }
 
 html.dark body #__nuxt .admin-layout .footer-divider svg {
-  fill: #0b1220 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 80px !important;
+  fill: #020617 !important;
+  transform: none !important;
 }
 
 html.dark body #__nuxt .admin-layout .footer-divider::before {
@@ -3178,30 +3210,30 @@ html.dark body #__nuxt .admin-layout .footer-divider::before {
   display: none !important;
 }
 
-html.dark body #__nuxt .admin-layout .footer-divider svg {
-  position: relative;
-  z-index: auto;
-}
-
 html.dark body #__nuxt .admin-layout .footer-wave {
-  background: #0b1220 !important;
-  background-color: #0b1220 !important;
+  background: #020617 !important;
+  background-color: #020617 !important;
+  background-image: none !important;
+  margin-top: -1px !important;
+  border-top: none !important;
 }
 
 @media (min-width: 901px) and (max-width: 1280px) {
   html.dark body #__nuxt .admin-layout :deep(.footer-divider),
   html.dark body #__nuxt .admin-layout .footer-divider {
-    background: #0b1220 !important;
-    background-image: none !important;
+    background: linear-gradient(to right, #0b1220 0, #0b1220 230px, var(--footer-pre-bg) 230px, var(--footer-pre-bg) 100%) !important;
+    background-image: linear-gradient(to right, #0b1220 0, #0b1220 230px, var(--footer-pre-bg) 230px, var(--footer-pre-bg) 100%) !important;
   }
 
   html.dark body #__nuxt .admin-layout .footer-divider::before {
-    clip-path: inset(0 calc(100% - 230px) 0 0);
+    content: none !important;
+    display: none !important;
   }
 
   html.dark body #__nuxt .admin-layout .footer-wave {
-    background: #0b1220 !important;
-    background-color: #0b1220 !important;
+    background: #020617 !important;
+    background-color: #020617 !important;
+    background-image: none !important;
   }
 }
 
@@ -3427,27 +3459,27 @@ html.dark body #__nuxt .btn-skip {
 /* Pharmacy chat footer alignment */
 html.dark body #__nuxt .admin-layout.pharmacy-web-page .footer-divider,
 html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-divider {
-  background: #0b1220 !important;
-  background-image: none !important;
+  background: linear-gradient(to right, #0b1220 0, #0b1220 260px, var(--footer-pre-bg) 260px, var(--footer-pre-bg) 100%) !important;
+  background-image: linear-gradient(to right, #0b1220 0, #0b1220 260px, var(--footer-pre-bg) 260px, var(--footer-pre-bg) 100%) !important;
 }
 
 html.dark body #__nuxt .admin-layout.pharmacy-web-page .footer-wave,
 html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-wave {
-  background: #0b1220 !important;
-  background-color: #0b1220 !important;
+  background: #020617 !important;
+  background-color: #020617 !important;
 }
 
 @media (min-width: 1025px) and (max-width: 1280px) {
   html.dark body #__nuxt .admin-layout.pharmacy-web-page .footer-divider,
   html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-divider {
-    background: #0b1220 !important;
-    background-image: none !important;
+    background: linear-gradient(to right, #0b1220 0, #0b1220 230px, var(--footer-pre-bg) 230px, var(--footer-pre-bg) 100%) !important;
+    background-image: linear-gradient(to right, #0b1220 0, #0b1220 230px, var(--footer-pre-bg) 230px, var(--footer-pre-bg) 100%) !important;
   }
 
   html.dark body #__nuxt .admin-layout.pharmacy-web-page .footer-wave,
   html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-wave {
-    background: #0b1220 !important;
-    background-color: #0b1220 !important;
+    background: #020617 !important;
+    background-color: #020617 !important;
   }
 
 }
@@ -3456,14 +3488,14 @@ html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-wave {
   html.dark body #__nuxt .admin-layout.pharmacy-web-page .footer-divider,
   html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-divider,
   html.dark body #__nuxt .admin-layout .footer-divider {
-    background: #0f172a !important;
+    background: var(--footer-pre-bg) !important;
     background-image: none !important;
   }
 
   html.dark body #__nuxt .admin-layout.pharmacy-web-page .footer-wave,
   html.dark body #__nuxt .admin-layout:has(.chat-container--pharma) .footer-wave {
-    background: #0b1220 !important;
-    background-color: #0b1220 !important;
+    background: #020617 !important;
+    background-color: #020617 !important;
   }
 
   html.dark body #__nuxt .admin-layout .footer-wave {

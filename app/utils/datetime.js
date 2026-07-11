@@ -1,7 +1,7 @@
 export const APP_TIMEZONE = 'Asia/Bangkok';
 export const APP_LOCALE = 'th-TH';
 
-/** แปลงค่าเวลาจาก API/DB ให้เป็น Date (timestamp ไม่มี timezone → ถือเป็น UTC เหมือน Supabase) */
+/** แปลงค่าเวลาจาก API/DB ให้เป็น Date (timestamp ไม่มี timezone → ถือเป็น UTC จาก Supabase) */
 export function parseAppDateTime(value) {
     if (value == null || value === '') return new Date(NaN);
     if (value instanceof Date) return value;
@@ -29,4 +29,18 @@ export function formatChatMessageTime(msg) {
     const preset = String(msg?.display_time || '').trim();
     if (preset) return preset;
     return formatChatBubbleTime(msg?.created_at);
+}
+
+/** วันที่+เวลาแชทแบบเต็ม — บังคับ Asia/Bangkok */
+export function formatChatDateTime(value) {
+    const d = parseAppDateTime(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString(APP_LOCALE, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: APP_TIMEZONE,
+    });
 }

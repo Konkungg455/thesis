@@ -235,16 +235,14 @@
 }
 
 /* ============================================================
-   Dark Mode
+   Dark Mode — โครงคลื่นเหมือน light mode เป๊ะ (เปลี่ยนเฉพาะสี)
    ============================================================ */
 html.dark .hero-wave-wrap {
     background: #0f172a !important;
 }
 
 html.dark .hero {
-    background:
-        radial-gradient(circle at 74% 35%, rgba(56, 189, 248, 0.16) 0%, transparent 30%),
-        linear-gradient(180deg, #0f172a 0%, #0b1120 100%) !important;
+    background: transparent !important;
 }
 
 html.dark .hero-left {
@@ -281,20 +279,32 @@ html.dark .hero-image {
     filter: drop-shadow(0 26px 32px rgba(0, 0, 0, 0.42));
 }
 
+/* คลื่น — layout เหมือน light mode ทุกจุด */
 html.dark .wave-up {
-    display: block !important;
-    width: 100% !important;
-    height: auto !important;
-    margin-top: -180px !important;
-    margin-bottom: -1px !important;
-    transform: none !important;
-    background: transparent !important;
+    display: block;
+    width: 100%;
+    height: auto;
+    margin-top: -180px;
+    margin-bottom: -1px;
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+    line-height: 0;
+    transform: none;
+    background: transparent;
 }
 
 html.dark .wave-up rect {
-    fill: #0b1120 !important;
+    fill: #0f172a !important;
 }
 
 html.dark .wave-up path {
     fill: #020617 !important;
+}
+
+@media (max-width: 768px) {
+    html.dark .wave-up {
+        margin-top: -60px;
+        margin-bottom: -1px;
+    }
 }
