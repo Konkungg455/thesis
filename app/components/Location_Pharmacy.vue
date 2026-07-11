@@ -85,10 +85,10 @@
 
           <div v-else-if="displayPartners.length > 0" class="pharmacy-grid">
             <div v-for="(shop, index) in displayPartners" :key="`p-${shop.id}`" class="pharmacy-card partner-card">
-              <div v-if="index === 0 && shop.distance_km != null" class="card-badge nearest">
+              <div v-if="index === 0 && shop.distance_km != null" class="shop-badge nearest">
                 <i class="fa-solid fa-circle-check"></i> ใกล้คุณที่สุด
               </div>
-              <div class="partner-card-head">
+              <div class="partner-head">
                 <h3>{{ shop.store_name }}</h3>
                 <div class="partner-badge"><i class="fa-solid fa-handshake"></i> ร้านพันธมิตร</div>
               </div>
@@ -96,7 +96,7 @@
               <p v-if="shop.store_phone" class="phone">
                 <i class="fa-solid fa-phone"></i> {{ shop.store_phone }}
               </p>
-              <div class="card-footer">
+              <div class="shop-foot">
                 <span v-if="shop.distance_km != null" class="distance">
                   📏 {{ shop.distance_km }} กม.
                 </span>
@@ -129,10 +129,10 @@
           </h2>
           <div class="pharmacy-grid">
             <div v-for="(shop, index) in pharmacies" :key="shop.id" class="pharmacy-card">
-              <div v-if="index === 0" class="card-badge">ใกล้คุณที่สุด</div>
+              <div v-if="index === 0" class="shop-badge">ใกล้คุณที่สุด</div>
               <h3>{{ shop.name }}</h3>
               <p class="address"><i class="fa-solid fa-location-dot"></i> {{ shop.address }}</p>
-              <div class="card-footer">
+              <div class="shop-foot">
                 <span class="distance">📏 {{ shop.distance }} กม.</span>
                 <button class="nav-btn" @click="openMap(shop.id, shop.name)">นำทาง</button>
               </div>
@@ -634,9 +634,11 @@ onUnmounted(() => {
   border-left: 5px solid #00469c; 
   text-align: left; 
 }
-.card-badge { background: #28a745; color: white; font-size: 11px; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px; display: inline-block; font-weight: bold; }
+.card-badge,
+.shop-badge { background: #28a745; color: white; font-size: 11px; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px; display: inline-block; font-weight: bold; }
 .address { font-size: 14px; color: #666; margin: 12px 0; line-height: 1.4; }
-.card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; border-top: 1px solid #eee; padding-top: 12px; }
+.card-footer,
+.shop-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; border-top: 1px solid #eee; padding-top: 12px; }
 .distance { font-weight: 800; color: #00469c; font-size: 16px; }
 .nav-btn { background: #00469c; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; gap: 6px; }
 .nav-btn:hover { background: #003a7a; transform: translateY(-1px); }
@@ -654,14 +656,16 @@ onUnmounted(() => {
     position: relative;
     background: linear-gradient(to bottom right, #f0fdf4 0%, #ffffff 60%);
 }
-.partner-card-head {
+.partner-card-head,
+.partner-head {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 10px;
 }
-.partner-card-head h3 {
+.partner-card-head h3,
+.partner-head h3 {
     flex: 1;
     min-width: 0;
     margin: 0;
@@ -683,7 +687,8 @@ onUnmounted(() => {
     white-space: nowrap;
     margin-top: 1px;
 }
-.card-badge.nearest {
+.card-badge.nearest,
+.shop-badge.nearest {
     background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 .phone {
@@ -814,5 +819,113 @@ onUnmounted(() => {
   font-size: 16px;
   transition: background 0.2s;
   box-shadow: 0 4px 10px rgba(40, 167, 69, 0.2);
+}
+
+/* Dark mode — ผลลัพธ์ค้นหาร้านยา */
+html.dark .status-msg.success {
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.28);
+}
+html.dark .status-msg.error {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.28);
+}
+html.dark .status-msg.info {
+  background: rgba(59, 130, 246, 0.14);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.28);
+}
+html.dark .progress-container {
+  background: rgba(148, 163, 184, 0.2);
+}
+html.dark .progress-bar {
+  background: #38bdf8;
+}
+html.dark .results-container {
+  background: rgba(15, 23, 42, 0.72) !important;
+  border-top-color: rgba(125, 211, 252, 0.35);
+  box-shadow: inset 0 1px 0 rgba(148, 163, 184, 0.08);
+}
+html.dark .partner-results {
+  border-top-color: rgba(74, 222, 128, 0.45);
+}
+html.dark .section-subtitle {
+  color: #7dd3fc !important;
+}
+html.dark .result-count {
+  color: #94a3b8 !important;
+}
+html.dark .pharmacy-card {
+  background: #1e293b !important;
+  border-left-color: #38bdf8 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+html.dark .pharmacy-card h3 {
+  color: #f8fafc !important;
+}
+html.dark .partner-card {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.18) 0%, #1e293b 72%) !important;
+  border-left-color: #4ade80 !important;
+}
+html.dark .partner-head,
+html.dark .shop-foot {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+html.dark .shop-badge {
+  background: #28a745 !important;
+}
+html.dark .shop-badge.nearest {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+}
+html.dark .address,
+html.dark .phone {
+  color: #cbd5e1 !important;
+}
+html.dark .shop-foot {
+  border-top-color: rgba(148, 163, 184, 0.22);
+}
+html.dark .distance {
+  color: #7dd3fc !important;
+}
+html.dark .no-distance {
+  color: #94a3b8 !important;
+}
+html.dark .nav-btn {
+  background: linear-gradient(135deg, #2563eb, #0284c7);
+}
+html.dark .nav-btn:hover {
+  background: linear-gradient(135deg, #1d4ed8, #0369a1);
+}
+html.dark .distance-filter {
+  background: rgba(30, 41, 59, 0.92);
+  border-color: rgba(125, 211, 252, 0.22);
+  color: #e2e8f0;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+}
+html.dark .filter-select {
+  background: #0b1220 !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+}
+html.dark .filter-select:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+html.dark .distance-filter.denied-state {
+  background: rgba(124, 45, 18, 0.22);
+  border-color: rgba(251, 146, 60, 0.35);
+  color: #fdba74;
+}
+html.dark .loading-inline {
+  color: #7dd3fc;
+}
+html.dark .empty-filter-state {
+  color: #94a3b8;
+}
+html.dark .empty-filter-state i {
+  color: #64748b;
 }
 </style>

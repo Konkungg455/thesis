@@ -360,13 +360,24 @@ html.dark table {
 }
 
 html.dark .card,
-html.dark [class*="card"]:not([class*="card-top"]):not([class*="card-body"]),
+html.dark [class*="card"]:not([class*="card-top"]):not([class*="card-body"]):not([class*="card-head"]):not([class*="card-footer"]):not([class*="card-badge"]):not([class*="-head"]):not([class*="-foot"]):not([class*="-badge"]),
 html.dark [class*="panel"],
 html.dark [class*="modal"],
 html.dark [class*="dialog"],
 html.dark [class*="box"] {
   background-color: var(--app-surface) !important;
   color: var(--app-text) !important;
+}
+
+/* ส่วนย่อยในการ์ด — ไม่ใส่พื้นหลังทับข้อความ */
+html.dark body #__nuxt .partner-head,
+html.dark body #__nuxt .shop-foot,
+html.dark body #__nuxt .partner-card-head,
+html.dark body #__nuxt .card-footer {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
 }
 
 html.dark table,

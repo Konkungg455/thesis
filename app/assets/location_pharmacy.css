@@ -140,3 +140,9 @@ html.dark .action-btn {
 html.dark .action-btn:hover {
   background: linear-gradient(135deg, #1d4ed8, #0369a1);
 }
+
+/* กัน global [class*="card"] ทับ gradient ของ content-card */
+html.dark .content-card[class*="card"] {
+  background: linear-gradient(135deg, #111827 0%, #0f172a 100%) !important;
+  color: #f8fafc !important;
+}
