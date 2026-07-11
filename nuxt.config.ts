@@ -69,6 +69,10 @@ export default defineNuxtConfig({
     // ใกล้ Supabase ap-southeast-1 — ลด latency DB บน Vercel
     vercel: {
       regions: ['sin1'],
+      functions: {
+        maxDuration: 60,
+        memory: 1024,
+      },
     },
     externals: {
       external: ['puppeteer-core', '@sparticuz/chromium-min', 'puppeteer'],

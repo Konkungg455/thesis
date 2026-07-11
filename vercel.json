@@ -2,11 +2,5 @@
   "framework": "nuxtjs",
   "buildCommand": "npm run build",
   "installCommand": "SKIP_PUPPETEER_CHROME=1 npm install",
-  "regions": ["sin1"],
-  "functions": {
-    "api/**": {
-      "maxDuration": 60,
-      "memory": 1024
-    }
-  }
+  "regions": ["sin1"]
 }
