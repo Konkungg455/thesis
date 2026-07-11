@@ -360,24 +360,58 @@ html.dark table {
 }
 
 html.dark .card,
-html.dark [class*="card"]:not([class*="card-top"]):not([class*="card-body"]):not([class*="card-head"]):not([class*="card-footer"]):not([class*="card-badge"]):not([class*="-head"]):not([class*="-foot"]):not([class*="-badge"]),
+html.dark [class*="card"]:not([class*="card-"]):not([class*="card-top"]):not([class*="card-body"]):not([class*="-head"]):not([class*="-foot"]):not([class*="-badge"]),
 html.dark [class*="panel"],
 html.dark [class*="modal"],
 html.dark [class*="dialog"],
-html.dark [class*="box"] {
+html.dark [class*="box"]:not([class*="notice-box"]) {
   background-color: var(--app-surface) !important;
   color: var(--app-text) !important;
 }
 
 /* ส่วนย่อยในการ์ด — ไม่ใส่พื้นหลังทับข้อความ */
+html.dark body #__nuxt [class*="card-"],
 html.dark body #__nuxt .partner-head,
 html.dark body #__nuxt .shop-foot,
 html.dark body #__nuxt .partner-card-head,
-html.dark body #__nuxt .card-footer {
+html.dark body #__nuxt .card-footer,
+html.dark body #__nuxt .delivery-notice-box,
+html.dark body #__nuxt .delivery-notice-box .notice-text,
+html.dark body #__nuxt .delivery-notice-box .checkbox-wrapper {
   background: transparent !important;
   background-color: transparent !important;
   background-image: none !important;
   box-shadow: none !important;
+}
+
+html.dark body #__nuxt .price-summary-box,
+html.dark body #__nuxt .text-group {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+/* ยกเว้น card-preview — คง gradient บัตรเครดิต */
+html.dark body #__nuxt .card-preview {
+  background: linear-gradient(135deg, #1e3a8a 0%, #0ea5e9 100%) !important;
+  color: #ffffff !important;
+}
+html.dark body #__nuxt .card-preview.brand-visa {
+  background: linear-gradient(135deg, #1a1f71 0%, #0066b2 100%) !important;
+}
+html.dark body #__nuxt .card-preview.brand-mastercard {
+  background: linear-gradient(135deg, #d97706 0%, #b91c1c 100%) !important;
+}
+html.dark body #__nuxt .card-preview.brand-amex {
+  background: linear-gradient(135deg, #047857 0%, #064e3b 100%) !important;
+}
+html.dark body #__nuxt .card-preview.brand-jcb {
+  background: linear-gradient(135deg, #4338ca 0%, #7c3aed 100%) !important;
+}
+html.dark body #__nuxt .card-preview .card-chip {
+  background: linear-gradient(135deg, #fef3c7 0%, #f59e0b 100%) !important;
+  color: #78350f !important;
 }
 
 html.dark table,
@@ -3931,4 +3965,630 @@ html.dark body #__nuxt .admin-layout .overview-view .rank-row-gold .rank-progres
 
 html.dark body #__nuxt .admin-layout .overview-view .rank-store-icon {
   color: #c4b5fd !important;
+}
+
+/* ========== หน้าชำระเงิน /pharmacist/payment ========== */
+html.dark body #__nuxt .payment-page,
+html.dark body #__nuxt .success-page {
+  background: var(--app-bg) !important;
+}
+
+html.dark body #__nuxt .container-payment,
+html.dark body #__nuxt .container-success {
+  background: transparent !important;
+}
+
+html.dark body #__nuxt .payment-card,
+html.dark body #__nuxt .success-card {
+  background: linear-gradient(135deg, #111827 0%, #0f172a 100%) !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.38) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .payment-card .title,
+html.dark body #__nuxt .success-card .title {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .payment-card .section-label,
+html.dark body #__nuxt .payment-card .input-block label,
+html.dark body #__nuxt .payment-card .label-text,
+html.dark body #__nuxt .payment-card .see-all {
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .payment-card .req {
+  color: #fca5a5 !important;
+}
+
+html.dark body #__nuxt .payment-card .custom-input {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .payment-card .custom-input::placeholder {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .payment-card .custom-input:focus {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+}
+
+html.dark body #__nuxt .payment-card .method-btn {
+  background: #1e293b !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .payment-card .method-btn.active {
+  background: rgba(14, 165, 233, 0.18) !important;
+  border-color: rgba(56, 189, 248, 0.55) !important;
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .payment-card .delivery-tick-box {
+  background: rgba(30, 41, 59, 0.72) !important;
+  border-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+html.dark body #__nuxt .payment-card .custom-check {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.36) !important;
+}
+
+html.dark body #__nuxt .payment-card .secure-note {
+  background: rgba(34, 197, 94, 0.12) !important;
+  border-color: rgba(74, 222, 128, 0.28) !important;
+  color: #86efac !important;
+}
+
+html.dark body #__nuxt .payment-card .hint-msg,
+html.dark body #__nuxt .payment-card .qr-countdown-label {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .payment-card .back-arrow {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .payment-card .privilege-badge {
+  background: rgba(251, 191, 36, 0.14) !important;
+  color: #fde68a !important;
+}
+
+/* ========== หน้าชำระเงินสำเร็จ /pharmacist/payment-success ========== */
+html.dark body #__nuxt .success-card .subtitle,
+html.dark body #__nuxt .success-card .hint-text {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .success-card .info-box {
+  background: rgba(30, 41, 59, 0.72) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+html.dark body #__nuxt .success-card .redirect-text {
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .success-card .seconds {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .success-card .progress-bar {
+  background: rgba(148, 163, 184, 0.24) !important;
+}
+
+html.dark body #__nuxt .success-card .progress-fill {
+  background: #38bdf8 !important;
+}
+
+html.dark body #__nuxt .success-card .btn-primary {
+  background: linear-gradient(135deg, #2563eb, #0284c7) !important;
+}
+
+/* ========== หน้ารอเภสัช /pharmacist/pharma_waiting ========== */
+html.dark body #__nuxt .telepharmacy-loading-page {
+  background: var(--app-bg) !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .main-content {
+  background: transparent !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .status-card {
+  background: linear-gradient(135deg, #111827 0%, #0f172a 100%) !important;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .status-title {
+  color: #5eead4 !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .status-subtitle,
+html.dark body #__nuxt .telepharmacy-loading-page .wait-text {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .booking-info-box {
+  background: rgba(30, 41, 59, 0.72) !important;
+  border-color: rgba(125, 211, 252, 0.22) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .booking-info-row span {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .booking-info-row strong {
+  color: #7dd3fc !important;
+  background: transparent !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .loading-bar-container {
+  background: rgba(148, 163, 184, 0.22) !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .countdown-box {
+  background: rgba(67, 56, 202, 0.2) !important;
+  border-color: rgba(129, 140, 248, 0.35) !important;
+  color: #c7d2fe !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .countdown-box--urgent {
+  background: rgba(190, 18, 60, 0.18) !important;
+  border-color: rgba(251, 113, 133, 0.35) !important;
+  color: #fda4af !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .btn-skip {
+  background: transparent !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .tips-box {
+  background: rgba(20, 184, 166, 0.12) !important;
+  color: #99f6e4 !important;
+}
+
+html.dark body #__nuxt .telepharmacy-loading-page .doctor-avatar {
+  background: #1e293b !important;
+}
+
+/* ========== Admin modal — หัวข้อที่อยู่จัดส่ง ========== */
+html.dark body #__nuxt .section-head-inline {
+  color: #bfdbfe !important;
+  border-top-color: rgba(148, 163, 184, 0.28) !important;
+  background: transparent !important;
+}
+
+html.dark body #__nuxt .section-head-inline i {
+  color: #a78bfa !important;
+}
+
+html.dark body #__nuxt .modal-overlay .user-detail-card .section-head-inline {
+  color: #bfdbfe !important;
+}
+
+/* ========== หน้ารายละเอียดเภสัช /pharmacist/[id] ========== */
+html.dark body #__nuxt .pharmacist-detail-page {
+  background: var(--app-bg) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .profile-section {
+  background: linear-gradient(135deg, #111827 0%, #0f172a 100%) !important;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.34) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .details-box,
+html.dark body #__nuxt .pharmacist-detail-page .image-box,
+html.dark body #__nuxt .pharmacist-detail-page .header-info {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .staff-name {
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .location-text {
+  color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .location-text i.fa-store {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .address-text {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .info-grid {
+  background: rgba(30, 41, 59, 0.72) !important;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .info-item {
+  border-bottom-color: rgba(148, 163, 184, 0.2) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .info-item .label {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .info-item .value {
+  color: #f1f5f9 !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .info-item .highlight {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .schedule-box {
+  background: rgba(30, 41, 59, 0.55) !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .schedule-title {
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .schedule-title i {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .schedule-item {
+  background: rgba(15, 23, 42, 0.72) !important;
+  border-color: rgba(148, 163, 184, 0.22) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .schedule-item.is-today {
+  background: linear-gradient(135deg, rgba(22, 163, 74, 0.28) 0%, rgba(21, 128, 61, 0.18) 100%) !important;
+  border-color: rgba(74, 222, 128, 0.45) !important;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.18) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .schedule-day {
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .schedule-item.is-today .schedule-day {
+  color: #86efac !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .schedule-time {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .schedule-item.is-today .schedule-time {
+  color: #6ee7b7 !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .next-open-text {
+  color: #94a3b8 !important;
+  border-top-color: rgba(148, 163, 184, 0.22) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .next-open-text strong {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .status-tag-green {
+  background: rgba(22, 163, 74, 0.18) !important;
+  color: #86efac !important;
+  border-color: rgba(74, 222, 128, 0.35) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .status-tag-orange {
+  background: rgba(245, 158, 11, 0.16) !important;
+  color: #fcd34d !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .status-tag-red {
+  background: rgba(239, 68, 68, 0.16) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(248, 113, 113, 0.35) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .status-tag-gray {
+  background: rgba(148, 163, 184, 0.16) !important;
+  color: #cbd5e1 !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .distance-badge {
+  background: rgba(22, 163, 74, 0.14) !important;
+  color: #86efac !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .distance-badge i {
+  color: #4ade80 !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .back-content {
+  background: rgba(30, 41, 59, 0.72) !important;
+  color: #7dd3fc !important;
+  border-color: rgba(125, 211, 252, 0.35) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .back-link:hover .back-content {
+  background: linear-gradient(135deg, #2563eb, #0284c7) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .image-box img {
+  background: #1e293b !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .verified-badge {
+  background: linear-gradient(135deg, #2563eb, #0284c7) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .btn-chat {
+  background: linear-gradient(135deg, #2563eb, #0284c7) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .btn-chat:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1d4ed8, #0369a1) !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .btn-chat:disabled {
+  background: rgba(100, 116, 139, 0.45) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .loading-container {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .loader {
+  border-color: rgba(148, 163, 184, 0.25) !important;
+  border-top-color: #38bdf8 !important;
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .error-box {
+  background: linear-gradient(135deg, #111827 0%, #0f172a 100%) !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(125, 211, 252, 0.2);
+}
+
+html.dark body #__nuxt .pharmacist-detail-page .error-id {
+  color: #94a3b8 !important;
+}
+
+/* ========== หน้าเลือกช่องทางปรึกษา /pharmacist/consult-selection ========== */
+html.dark body #__nuxt .selection-page {
+  background: var(--app-bg) !important;
+}
+
+html.dark body #__nuxt .container-selection {
+  background: transparent !important;
+}
+
+html.dark body #__nuxt .selection-card {
+  background: linear-gradient(135deg, #111827 0%, #0f172a 100%) !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.38) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .selection-card .title,
+html.dark body #__nuxt .selection-card .duration {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .selection-card .back-arrow {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .selection-card .method-card {
+  background: rgba(30, 41, 59, 0.55) !important;
+  border-color: rgba(125, 211, 252, 0.35) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .selection-card .method-card.active {
+  background: linear-gradient(135deg, #2563eb, #0284c7) !important;
+  border-color: rgba(56, 189, 248, 0.55) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .selection-card .method-card .price {
+  color: inherit !important;
+}
+
+html.dark body #__nuxt .selection-card .delivery-notice-box {
+  background: transparent !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+html.dark body #__nuxt .selection-card .delivery-notice-box.active-notice {
+  background: transparent !important;
+  border-color: rgba(56, 189, 248, 0.55) !important;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.12) !important;
+}
+
+html.dark body #__nuxt .selection-card .notice-text,
+html.dark body #__nuxt .selection-card .checkbox-wrapper {
+  background: transparent !important;
+}
+
+html.dark body #__nuxt .selection-card .custom-check {
+  background: #0b1220 !important;
+  border-color: rgba(148, 163, 184, 0.36) !important;
+}
+
+html.dark body #__nuxt .selection-card .custom-check.checked {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .selection-card .delivery-label {
+  color: #f1f5f9 !important;
+}
+
+html.dark body #__nuxt .selection-card .delivery-sub {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .selection-card .summary-total {
+  color: #e2e8f0 !important;
+  border-top-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+html.dark body #__nuxt .selection-card .total-amount {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .selection-card .warning-text {
+  color: #4ade80 !important;
+}
+
+html.dark body #__nuxt .selection-card .btn-submit {
+  background: linear-gradient(135deg, #2563eb, #0284c7) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .selection-card .btn-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1d4ed8, #0369a1) !important;
+}
+
+html.dark body #__nuxt .selection-card .btn-submit:disabled {
+  background: rgba(100, 116, 139, 0.45) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .selection-card.gold-theme {
+  border-color: rgba(251, 191, 36, 0.55) !important;
+}
+
+html.dark body #__nuxt .selection-card.gold-theme .method-card {
+  border-color: rgba(251, 191, 36, 0.45) !important;
+  color: #fde68a !important;
+}
+
+html.dark body #__nuxt .selection-card.gold-theme .method-card.active {
+  background: linear-gradient(135deg, #d97706, #b45309) !important;
+  color: #fff7ed !important;
+}
+
+html.dark body #__nuxt .selection-card.gold-theme .btn-submit {
+  background: linear-gradient(135deg, #d97706, #b45309) !important;
+  color: #fff7ed !important;
+}
+
+html.dark body #__nuxt .selection-card .emergency-note {
+  background: rgba(190, 18, 60, 0.14) !important;
+  border-color: rgba(251, 113, 133, 0.35) !important;
+  color: #fda4af !important;
+}
+
+/* ========== หน้าเลือกการติดต่อเภสัช /pharmacist/booking-type ========== */
+html.dark body #__nuxt .booking-page {
+  background: var(--app-bg) !important;
+}
+
+html.dark body #__nuxt .container-booking {
+  background: transparent !important;
+}
+
+html.dark body #__nuxt .booking-card {
+  background: linear-gradient(135deg, #111827 0%, #0f172a 100%) !important;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.38) !important;
+  color: #f8fafc !important;
+}
+
+html.dark body #__nuxt .booking-card .title {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .booking-card .back-arrow {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .booking-card .status-mini-badge {
+  background: rgba(251, 191, 36, 0.16) !important;
+  color: #fde68a !important;
+}
+
+html.dark body #__nuxt .booking-card .option-item {
+  background: rgba(30, 41, 59, 0.55) !important;
+  border-color: rgba(125, 211, 252, 0.35) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .booking-card .option-item.active {
+  background: linear-gradient(135deg, #2563eb, #0284c7) !important;
+  border-color: rgba(56, 189, 248, 0.55) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .booking-card .option-item:not(.active) .icon,
+html.dark body #__nuxt .booking-card .option-item:not(.active) .icon-clock {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .booking-card .option-item .label {
+  color: inherit !important;
+}
+
+html.dark body #__nuxt .booking-card .option-item small,
+html.dark body #__nuxt .booking-card .text-group small {
+  color: rgba(226, 232, 240, 0.82) !important;
+}
+
+html.dark body #__nuxt .booking-card .option-item:not(.active) small,
+html.dark body #__nuxt .booking-card .option-item:not(.active) .text-group small {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .booking-card .price-summary-box {
+  background: transparent !important;
+  border-top-color: rgba(148, 163, 184, 0.28) !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .booking-card .price-summary-box strong {
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .booking-card .btn-submit {
+  background: linear-gradient(135deg, #2563eb, #0284c7) !important;
+  color: #ffffff !important;
+}
+
+html.dark body #__nuxt .booking-card .btn-submit:hover {
+  background: linear-gradient(135deg, #1d4ed8, #0369a1) !important;
+}
+
+html.dark body #__nuxt .booking-card.gold-theme {
+  border-color: rgba(251, 191, 36, 0.45) !important;
+}
+
+html.dark body #__nuxt .booking-card.gold-theme .option-item.active {
+  background: linear-gradient(135deg, #d97706, #b45309) !important;
+  color: #fff7ed !important;
+}
+
+html.dark body #__nuxt .booking-card.gold-theme .active .label {
+  color: #fff7ed !important;
+}
+
+html.dark body #__nuxt .booking-card.gold-theme .btn-submit {
+  background: linear-gradient(135deg, #d97706, #b45309) !important;
+  color: #fff7ed !important;
 }
