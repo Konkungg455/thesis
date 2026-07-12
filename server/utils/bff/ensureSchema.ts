@@ -48,6 +48,30 @@ export async function ensureBffSchema() {
         await tryAlter(sql, `ALTER TABLE chat_messages_archive ALTER COLUMN service_code TYPE VARCHAR(32)`);
         await tryAlter(sql, `ALTER TABLE chat_messages ALTER COLUMN deleted_by_role TYPE VARCHAR(32)`);
         await tryAlter(sql, `ALTER TABLE chat_messages_archive ALTER COLUMN deleted_by_role TYPE VARCHAR(32)`);
+
+        await sql`
+            CREATE TABLE IF NOT EXISTS store_transactions (
+                id_store_transaction SERIAL PRIMARY KEY,
+                id_store INT NOT NULL,
+                tx_type VARCHAR(20) NOT NULL,
+                source_id INT NOT NULL,
+                doc_no VARCHAR(64),
+                customer_name VARCHAR(255),
+                id_pharma INT,
+                pharmacist_name VARCHAR(255),
+                amount NUMERIC(12, 2) NOT NULL DEFAULT 0,
+                slip_image VARCHAR(255),
+                tx_status VARCHAR(20) NOT NULL DEFAULT 'active',
+                tx_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                UNIQUE (tx_type, source_id)
+            )
+        `;
+        await sql.unsafe(`
+            CREATE INDEX IF NOT EXISTS idx_store_transactions_store_tx_at
+            ON store_transactions (id_store, tx_at DESC)
+        `);
     }).catch(() => {
         schemaReady = false;
     });

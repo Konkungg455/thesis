@@ -5,7 +5,7 @@ import { buildPrescriptionHtml, type PrescriptionRow } from './receiptHtml';
 let browserPromise: Promise<Browser> | null = null;
 
 const DEFAULT_CHROMIUM_PACK_URL =
-    'https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.tar.br';
+    'https://github.com/Sparticuz/chromium/releases/download/v141.0.0/chromium-v141.0.0-pack.x64.tar';
 
 function isServerlessRuntime(): boolean {
     return !!(
@@ -153,7 +153,7 @@ export async function buildPrescriptionPdfBinary(data: PrescriptionRow): Promise
     const page = await browser.newPage();
 
     try {
-        await page.setContent(html, { waitUntil: 'networkidle0' });
+        await page.setContent(html, { waitUntil: 'domcontentloaded' });
         const pdf = await page.pdf({
             format: 'A4',
             printBackground: true,

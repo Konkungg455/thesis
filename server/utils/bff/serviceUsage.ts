@@ -39,6 +39,7 @@ export async function syncServiceUsageForConsult(sql: DbSql, consultId: number) 
     const rows = await sql`
         SELECT cr.id, cr.id_account, cr.id_pharma, cr.status, cr.privilege,
                cr.consult_method, cr.booking_type, cr.delivery_prepaid, cr.created_at,
+               COALESCE(cr.is_deleted, 0) AS is_deleted,
                TRIM(CONCAT(COALESCE(a.firstname, ''), ' ', COALESCE(a.lastname, ''))) AS account_full_name,
                COALESCE(NULLIF(TRIM(a.username_account), ''), '') AS account_username,
                TRIM(CONCAT(COALESCE(p.firstname_pharma, ''), ' ', COALESCE(p.lastname_pharma, ''))) AS pharma_full_name,
@@ -54,13 +55,14 @@ export async function syncServiceUsageForConsult(sql: DbSql, consultId: number) 
         LEFT JOIN phamacy_store_details d ON d.id_store_accounts = p.id_store
         LEFT JOIN phamacy_store_accounts sa ON sa.id_store_accounts = p.id_store
         WHERE cr.id = ${consultId}
-          AND COALESCE(cr.is_deleted, 0) = 0
         LIMIT 1
     `;
     const row = rows[0];
     if (!row) return;
 
-    const serviceStatus = mapServiceStatus(String(row.status || ''));
+    const isDeleted = Number(row.is_deleted) === 1;
+    const rawStatus = String(row.status || '');
+    const serviceStatus = isDeleted ? 'cancelled' : mapServiceStatus(rawStatus);
     const userName = String(row.account_full_name || '').trim()
         || String(row.account_username || '').trim()
         || `ผู้ใช้ #${Number(row.id_account || 0)}`;
@@ -69,7 +71,6 @@ export async function syncServiceUsageForConsult(sql: DbSql, consultId: number) 
         || `เภสัช #${Number(row.id_pharma || 0)}`;
     const serviceType = mapServiceType(String(row.privilege || 'normal'));
     const serviceFormat = mapServiceFormat(String(row.consult_method || 'chat'));
-    const rawStatus = String(row.status || '');
 
     const existing = await sql`
         SELECT id_service_usage, service_code
@@ -78,6 +79,8 @@ export async function syncServiceUsageForConsult(sql: DbSql, consultId: number) 
         LIMIT 1
     `;
     const serviceCode = buildServiceCode(consultId, String(existing[0]?.service_code || ''));
+
+    if (isDeleted && !existing[0]) return;
 
     if (existing[0]) {
         await sql`

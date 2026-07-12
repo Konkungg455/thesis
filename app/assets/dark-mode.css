@@ -699,6 +699,10 @@ html.dark body #__nuxt .profile-schedule-row select {
   color: #f8fafc !important;
 }
 
+html.dark body #__nuxt .profile-schedule-sep {
+  color: #94a3b8 !important;
+}
+
 html.dark body #__nuxt .profile-field input.readonly {
   background: #0b1220 !important;
   color: #cbd5e1 !important;

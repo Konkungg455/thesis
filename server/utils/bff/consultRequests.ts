@@ -142,6 +142,12 @@ async function enrichUserConsultStatus(
         if (rv[0]) data.reviewed = 1;
     }
 
+    data.has_any_review = 0;
+    const anyReview = await sql`
+        SELECT 1 FROM reviews WHERE user_id = ${uId} LIMIT 1
+    `;
+    if (anyReview[0]) data.has_any_review = 1;
+
     return data;
 }
 
@@ -317,7 +323,7 @@ export async function handleCreateConsultRequest(event: H3Event) {
 
     const ok = await dbQuery(async (sql) => {
         await ensureAppointmentColumns(sql);
-        await sql`
+        const cancelledWaiting = await sql`
             UPDATE consult_requests
             SET status = 'cancelled',
                 is_deleted = 1,
@@ -325,7 +331,11 @@ export async function handleCreateConsultRequest(event: H3Event) {
                 deleted_by = ${uId},
                 deleted_by_role = 'user'
             WHERE id_account = ${uId} AND status = 'waiting'
+            RETURNING id
         `;
+        for (const row of cancelledWaiting) {
+            await syncServiceUsageForConsult(sql, Number(row.id || 0));
+        }
 
         const closingRows = await sql`
             SELECT id FROM consult_requests

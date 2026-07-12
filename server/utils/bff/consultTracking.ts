@@ -7,6 +7,62 @@ const TRACKING_PLACEHOLDER_MED = 'รอเภสัชกรบันทึก�
 
 let trackingSchemaReady = false;
 
+/**
+ * sync แถวใน tracking_advice ให้ตรงกับ prescriptions
+ * (ตารางนี้เคยถูกเขียนจากโค้ดเก่า แต่แอปปัจจุบันอัปเดตแค่ prescriptions — ทำให้ข้อมูลค้าง)
+ */
+export async function syncTrackingAdviceFromPrescription(
+    sql: ReturnType<typeof useDb>,
+    prescriptionId: number,
+): Promise<void> {
+    if (prescriptionId <= 0) return;
+
+    try {
+        await sql`
+            INSERT INTO tracking_advice (
+                id_prescription, id_consult_request, id_account, id_pharma,
+                service_code, patient_name, medicine_list, symptom_name,
+                tracking_status, tracking_base, tracking_completed_at,
+                recorded_at, created_at, updated_at
+            )
+            SELECT
+                p.id,
+                COALESCE(NULLIF(p.id_consult_request, 0), 0),
+                COALESCE(p.id_account, 0),
+                COALESCE(p.id_pharma, 0),
+                CASE
+                    WHEN COALESCE(NULLIF(p.id_consult_request, 0), 0) > 0
+                        THEN 'SRV-' || p.id_consult_request::text
+                    ELSE COALESCE(NULLIF(TRIM(p.doc_no), ''), '')
+                END,
+                COALESCE(NULLIF(TRIM(p.patient_name), ''), ''),
+                COALESCE(NULLIF(TRIM(p.med_details), ''), ''),
+                'ทั่วไป',
+                COALESCE(NULLIF(TRIM(p.tracking_status), ''), 'active'),
+                COALESCE(p.last_followup_at, p.created_at, NOW()),
+                p.tracking_completed_at,
+                COALESCE(p.created_at, NOW()),
+                COALESCE(p.created_at, NOW()),
+                NOW()
+            FROM prescriptions p
+            WHERE p.id = ${prescriptionId}
+            ON CONFLICT (id_prescription) DO UPDATE SET
+                id_consult_request = EXCLUDED.id_consult_request,
+                id_account = EXCLUDED.id_account,
+                id_pharma = EXCLUDED.id_pharma,
+                service_code = EXCLUDED.service_code,
+                patient_name = EXCLUDED.patient_name,
+                medicine_list = EXCLUDED.medicine_list,
+                tracking_status = EXCLUDED.tracking_status,
+                tracking_base = COALESCE(tracking_advice.tracking_base, EXCLUDED.tracking_base),
+                tracking_completed_at = EXCLUDED.tracking_completed_at,
+                updated_at = NOW()
+        `;
+    } catch (err) {
+        console.warn('[syncTrackingAdvice] failed for rx', prescriptionId, err);
+    }
+}
+
 async function ensureTrackingColumns(sql: ReturnType<typeof useDb>) {
     if (trackingSchemaReady) return;
     trackingSchemaReady = true;
@@ -75,6 +131,7 @@ export async function ensureConsultTrackingRecord(
                 WHERE id = ${rxId}
             `;
         }
+        await syncTrackingAdviceFromPrescription(sql, rxId);
         invalidateConsultCaches(idPharma, idAccount);
         return rxId;
     }
@@ -109,6 +166,7 @@ export async function ensureConsultTrackingRecord(
                 END
             WHERE id = ${rxId}
         `;
+        await syncTrackingAdviceFromPrescription(sql, rxId);
         invalidateConsultCaches(idPharma, idAccount);
         return rxId;
     }
@@ -148,6 +206,7 @@ export async function ensureConsultTrackingRecord(
     `;
 
     const rxId = Number(inserted[0]?.id || 0);
+    await syncTrackingAdviceFromPrescription(sql, rxId);
     invalidateConsultCaches(idPharma, idAccount);
     return rxId;
 }
@@ -185,6 +244,9 @@ export async function consolidateDuplicateActiveTracking(
           AND r.rn > 1
         RETURNING p.id
     `;
+    for (const row of closed) {
+        await syncTrackingAdviceFromPrescription(sql, Number(row.id));
+    }
     return closed.length;
 }
 
@@ -277,6 +339,7 @@ export async function handleCompleteTracking(event: H3Event) {
                     last_followup_at = NOW()
                 WHERE id = ${rxId}
             `;
+            await syncTrackingAdviceFromPrescription(sql, rxId);
             invalidateConsultCaches(pId, uId);
             return { ok: true, reopened: true };
         }
@@ -288,6 +351,7 @@ export async function handleCompleteTracking(event: H3Event) {
             WHERE id = ${rxId}
             RETURNING tracking_completed_at
         `;
+        await syncTrackingAdviceFromPrescription(sql, rxId);
         invalidateConsultCaches(pId, uId);
         return {
             ok: true,

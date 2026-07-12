@@ -379,25 +379,46 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div v-for="p in filteredList" :key="p.id_pharma" class="data-card shadow-sm" :class="{ 'register-card': currentMenu === 'register' }">
-            <div class="info-group register-click" @click="currentMenu === 'register' ? openDetail(p) : null">
+          <div v-if="currentMenu === 'register'" v-for="p in filteredList" :key="p.id_pharma" class="data-card shadow-sm register-card">
+            <div class="info-group register-click" @click="openDetail(p)">
               <div class="avatar"><img :src="avatarUrl(p)" @error="$event.target.src = DEFAULT_AVATAR"></div>
               <div class="details">
-                <span class="name">{{ currentMenu === 'register' ? pharmaDisplayName(p) : p.fullname }}</span>
-                <span class="role">{{ currentMenu === 'staff' ? 'เภสัชกรประจำร้าน' : 'Pharmacist' }}</span>
+                <span class="name">{{ pharmaDisplayName(p) }}</span>
+                <span class="role">Pharmacist</span>
               </div>
             </div>
             <div class="actions">
-              <template v-if="currentMenu === 'staff'">
-                <button class="btn-link" @click="openDetail(p)">แสดงรายละเอียด</button>
-                <button class="btn-yellow" @click="rejectPharma(p)">นำออก</button>
-              </template>
-              <template v-else>
-                <button class="btn-green btn-add-network" @click.stop="openDetail(p)">
-                  <i class="fa-solid fa-plus"></i> เพิ่มเข้าข่าย
-                </button>
-              </template>
+              <button class="btn-green btn-add-network" @click.stop="openDetail(p)">
+                <i class="fa-solid fa-plus"></i> เพิ่มเข้าข่าย
+              </button>
             </div>
+          </div>
+
+          <div v-if="currentMenu === 'staff' && filteredList.length" class="data-table-wrap shadow-sm">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>เภสัชกร</th>
+                  <th>บทบาท</th>
+                  <th class="th-actions">จัดการ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in filteredList" :key="'tbl-' + p.id_pharma">
+                  <td>
+                    <div class="tbl-person">
+                      <img :src="avatarUrl(p)" class="tbl-avatar" @error="$event.target.src = DEFAULT_AVATAR" alt="">
+                      <span>{{ p.fullname }}</span>
+                    </div>
+                  </td>
+                  <td>เภสัชกรประจำร้าน</td>
+                  <td class="td-actions">
+                    <button class="btn-link" @click="openDetail(p)">รายละเอียด</button>
+                    <button class="btn-yellow" @click="rejectPharma(p)">นำออก</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </section>
       </div>
@@ -499,21 +520,33 @@ onMounted(async () => {
               <i class="fa-solid fa-receipt"></i>
               <p>ยังไม่มีรายการธุรกรรม</p>
             </div>
-            <div v-for="t in transactions" :key="`${t.type}-${t.id}`" class="transaction-item" :class="{ 'is-slip': t.type === 'slip' }">
-              <div class="tx-row-top">
-                <span class="tx-type-badge" :class="`type-${t.type}`">
-                  <i :class="t.type === 'slip' ? 'fa-solid fa-money-check-dollar' : 'fa-solid fa-file-prescription'"></i>
-                  {{ t.type === 'slip' ? 'โอนเข้าบัญชี' : 'ใบสรุปรายการยา' }}
-                </span>
-                <img v-if="t.type === 'slip' && t.slip_image" :src="slipUrl(t.slip_image)" class="tx-slip-thumb" @click="openSlipPreview(t.slip_image)" title="ดูสลิป" />
-              </div>
-              <p class="user-name">{{ t.patient_name }}<small v-if="t.type !== 'slip'"> (ผู้ใช้บริการ)</small></p>
-              <p class="staff-ref">โดย : {{ t.pharmacist_name }}</p>
-              <div class="meta-info">
-                <span>{{ formatDateThai(t.created_at) }}</span>
-                <span>{{ t.time }} น.</span>
-                <span class="price">฿ {{ formatMoney(t.amount) }}</span>
-              </div>
+            <div v-else class="data-table-wrap tx-table-wrap">
+              <table class="data-table tx-table">
+                <thead>
+                  <tr>
+                    <th>ประเภท</th>
+                    <th>ลูกค้า</th>
+                    <th>เภสัช</th>
+                    <th>วันที่</th>
+                    <th class="th-num">จำนวนเงิน</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="t in transactions" :key="`${t.type}-${t.id}`" :class="{ 'row-slip': t.type === 'slip' }">
+                    <td>
+                      <span class="tx-type-badge" :class="`type-${t.type}`">
+                        <i :class="t.type === 'slip' ? 'fa-solid fa-money-check-dollar' : 'fa-solid fa-file-prescription'"></i>
+                        {{ t.type === 'slip' ? 'โอนเข้าบัญชี' : 'ใบสรุปรายการยา' }}
+                      </span>
+                      <img v-if="t.type === 'slip' && t.slip_image" :src="slipUrl(t.slip_image)" class="tx-slip-thumb" @click="openSlipPreview(t.slip_image)" title="ดูสลิป" />
+                    </td>
+                    <td>{{ t.patient_name || '-' }}</td>
+                    <td>{{ t.pharmacist_name || '-' }}</td>
+                    <td>{{ formatDateThai(t.created_at) }}</td>
+                    <td class="td-num">฿ {{ formatMoney(t.amount) }}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -1067,6 +1100,46 @@ onMounted(async () => {
 }
 .sch-edit-btn:hover { background: #3b82f6; color: white; border-color: #3b82f6; transform: scale(1.05); }
 .status-badge.closed { background: #fee2e2; color: #991b1b; }
+.data-table-wrap {
+  margin-top: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow-x: auto;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.data-table th,
+.data-table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid #eef2f7;
+  vertical-align: middle;
+}
+.data-table th {
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.data-table tbody tr:hover { background: #f8fbff; }
+.data-table .th-actions,
+.data-table .td-actions { text-align: right; white-space: nowrap; }
+.data-table .th-num,
+.data-table .td-num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: #00469c; }
+.tbl-person { display: flex; align-items: center; gap: 10px; }
+.tbl-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  object-fit: cover; border: 2px solid #e2e8f0;
+}
+.tx-table-wrap { margin-top: 0; border: none; border-radius: 0; }
+.tx-table .row-slip { background: #f0fdf4; }
+.tx-table .tx-type-badge { display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; }
+.tx-table .tx-slip-thumb { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; cursor: pointer; vertical-align: middle; }
+
 .transaction-item { padding: 12px; border: 1px solid #eee; border-radius: 10px; margin-top: 10px; font-size: 0.85rem; }
 .transaction-item.is-slip { background: #f0fdf4; border-color: #bbf7d0; border-left: 4px solid #22c55e; }
 .tx-row-top {

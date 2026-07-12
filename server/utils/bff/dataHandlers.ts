@@ -11,6 +11,7 @@ import {
     notifyRegistrationReview,
 } from '../../utils/registrationNotifications';
 import { resolveRequestOrigin } from '../../utils/requestOrigin';
+import { ensureBffSchema } from './ensureSchema';
 
 const consolidateCooldown = new Map<number, number>();
 const CONSOLIDATE_COOLDOWN_MS = 60_000;
@@ -917,88 +918,66 @@ export async function handleGetStoreStatement(event: H3Event) {
         return { status: 'error', message: 'ไม่พบรหัสร้าน' };
     }
 
-    const prescRows = await dbQuery(async (sql) => {
+    await ensureBffSchema();
+
+    const txRows = await dbQuery(async (sql) => {
         if (period === 'today') {
             return sql`
-                SELECT p.id, p.id_account, p.doc_no, p.patient_name, p.total_amount, p.created_at,
-                       ph.id_pharma, ph.firstname_pharma, ph.lastname_pharma
-                FROM prescriptions p
-                LEFT JOIN pharmacist_account ph ON p.id_pharma = ph.id_pharma
-                WHERE ph.id_store = ${storeId} AND DATE(p.created_at) = CURRENT_DATE
-                ORDER BY p.created_at DESC LIMIT 100
+                SELECT id_store_transaction, tx_type, source_id, doc_no, customer_name,
+                       id_pharma, pharmacist_name, amount, slip_image, tx_at
+                FROM store_transactions
+                WHERE id_store = ${storeId} AND tx_status = 'active'
+                  AND DATE(tx_at) = CURRENT_DATE
+                ORDER BY tx_at DESC LIMIT 200
             `;
         }
         if (period === 'week') {
             return sql`
-                SELECT p.id, p.id_account, p.doc_no, p.patient_name, p.total_amount, p.created_at,
-                       ph.id_pharma, ph.firstname_pharma, ph.lastname_pharma
-                FROM prescriptions p
-                LEFT JOIN pharmacist_account ph ON p.id_pharma = ph.id_pharma
-                WHERE ph.id_store = ${storeId} AND p.created_at >= NOW() - INTERVAL '7 days'
-                ORDER BY p.created_at DESC LIMIT 100
+                SELECT id_store_transaction, tx_type, source_id, doc_no, customer_name,
+                       id_pharma, pharmacist_name, amount, slip_image, tx_at
+                FROM store_transactions
+                WHERE id_store = ${storeId} AND tx_status = 'active'
+                  AND tx_at >= NOW() - INTERVAL '7 days'
+                ORDER BY tx_at DESC LIMIT 200
             `;
         }
         if (period === 'month') {
             return sql`
-                SELECT p.id, p.id_account, p.doc_no, p.patient_name, p.total_amount, p.created_at,
-                       ph.id_pharma, ph.firstname_pharma, ph.lastname_pharma
-                FROM prescriptions p
-                LEFT JOIN pharmacist_account ph ON p.id_pharma = ph.id_pharma
-                WHERE ph.id_store = ${storeId} AND p.created_at >= NOW() - INTERVAL '30 days'
-                ORDER BY p.created_at DESC LIMIT 100
+                SELECT id_store_transaction, tx_type, source_id, doc_no, customer_name,
+                       id_pharma, pharmacist_name, amount, slip_image, tx_at
+                FROM store_transactions
+                WHERE id_store = ${storeId} AND tx_status = 'active'
+                  AND tx_at >= NOW() - INTERVAL '30 days'
+                ORDER BY tx_at DESC LIMIT 200
             `;
         }
         return sql`
-            SELECT p.id, p.id_account, p.doc_no, p.patient_name, p.total_amount, p.created_at,
-                   ph.id_pharma, ph.firstname_pharma, ph.lastname_pharma
-            FROM prescriptions p
-            LEFT JOIN pharmacist_account ph ON p.id_pharma = ph.id_pharma
-            WHERE ph.id_store = ${storeId}
-            ORDER BY p.created_at DESC LIMIT 100
+            SELECT id_store_transaction, tx_type, source_id, doc_no, customer_name,
+                   id_pharma, pharmacist_name, amount, slip_image, tx_at
+            FROM store_transactions
+            WHERE id_store = ${storeId} AND tx_status = 'active'
+            ORDER BY tx_at DESC LIMIT 200
         `;
     });
 
     let incomePrescriptions = 0;
-    const prescriptions = (prescRows || []).map((r) => {
-        const amount = Number(r.total_amount || 0);
-        incomePrescriptions += amount;
-        return {
-            type: 'prescription',
-            id: Number(r.id),
-            doc_no: r.doc_no,
-            patient_name: r.patient_name,
-            amount,
-            pharmacist_name: `${r.firstname_pharma || ''} ${r.lastname_pharma || ''}`.trim(),
-            created_at: r.created_at,
-        };
-    });
-
-    const slipRows = await dbQuery(async (sql) => sql`
-        SELECT b.id, b.amount, b.created_at, b.reviewed_at, b.slip_image,
-               ph.firstname_pharma, ph.lastname_pharma
-        FROM pharmacy_billing_slips b
-        LEFT JOIN pharmacist_account ph ON b.id_pharma = ph.id_pharma
-        WHERE b.id_store = ${storeId} AND b.status = 'approved'
-        ORDER BY b.reviewed_at DESC LIMIT 100
-    `);
-
     let incomeSlips = 0;
-    const slips = (slipRows || []).map((r) => {
+    const transactions = (txRows || []).map((r) => {
         const amount = Number(r.amount || 0);
-        incomeSlips += amount;
+        const type = String(r.tx_type || 'prescription');
+        if (type === 'slip') incomeSlips += amount;
+        else incomePrescriptions += amount;
         return {
-            type: 'slip',
-            id: Number(r.id),
+            type,
+            id: Number(r.source_id || 0),
+            doc_no: r.doc_no,
+            patient_name: r.customer_name,
             amount,
-            pharmacist_name: `${r.firstname_pharma || ''} ${r.lastname_pharma || ''}`.trim(),
-            created_at: r.reviewed_at || r.created_at,
+            pharmacist_name: String(r.pharmacist_name || '').trim(),
+            created_at: r.tx_at,
             slip_image: r.slip_image,
         };
     });
-
-    const transactions = [...prescriptions, ...slips].sort((a, b) =>
-        String(b.created_at || '').localeCompare(String(a.created_at || '')),
-    );
 
     const dayLabels: Record<string, string> = {
         Mon: 'จันทร์', Tue: 'อังคาร', Wed: 'พุธ', Thu: 'พฤหัสบดี',

@@ -244,6 +244,9 @@ const consultTimeLeftText = ref('--:--');
 const warnedAt = ref(new Set());
 const isConsultEnded = ref(false);
 const isFollowupActive = ref(false);
+const userHasAnyReview = ref(false);
+const consultEndedByPharma = ref(false);
+const reviewPromptReason = ref('timeout');
 // ✨ โหมดติดตามอาการ (3 วัน) เมื่อเภสัชหรือผู้ใช้กดเริ่มต่ออีกครั้ง
 const isTrackingMode = ref(false);
 const trackingStartedAt = ref(null); // last_followup_at
@@ -382,7 +385,6 @@ const applyChatTimerSync = (serverSec, { reset = false } = {}) => {
     }
     const drift = Math.floor((Date.now() - lastSyncAt.value) / 1000);
     const clientSec = Math.max(0, serverRemaining.value - drift);
-    // กัน server ตอบค่าเก่า (เช่น 900) ขณะ client นับลงไปแล้ว → ไม่ให้เวลากระโดดกลับ 15:00
     if (sec <= clientSec + 2) {
         serverRemaining.value = sec;
         lastSyncAt.value = Date.now();
@@ -542,6 +544,7 @@ const reopenConsultForFollowup = (opts = { showBanner: true, requestId: 0 }) => 
     }
     cancelAutoRedirect(); // กัน auto-redirect ไป review ระหว่างกำลังจะคุยต่อ
     isConsultEnded.value = false;
+    consultEndedByPharma.value = false;
     isFollowupActive.value = !!opts.showBanner;
     warnedAt.value = new Set();
     if (opts.requestId > 0) {
@@ -554,11 +557,10 @@ const reopenConsultForFollowup = (opts = { showBanner: true, requestId: 0 }) => 
     startConsultCountdown({ force: true }); // เริ่มนาฬิกาใหม่ 15 นาทีอีกครั้ง
 };
 
-// ===== Polling: ตรวจสถานะ consult ฝั่งเภสัชกรแบบ live =====
-//   - เภสัชกรกด "จบบทสนทนา" (accepted → completed) → เด้งไป /review_write
-//   - เภสัชกรเปิด follow-up หรือรับคำขอใหม่ → ปลดล็อก + รีเซ็ตเวลา 15:00
+// ===== เภสัชกรจบบทสนทนา (accepted → completed) =====
 const handleConsultEndedByPharma = async () => {
     if (isConsultEnded.value) return;
+    consultEndedByPharma.value = true;
     clearConsultCountdown();
     await checkForFollowup();
     if (isTrackingMode.value) {
@@ -578,8 +580,8 @@ const handleConsultEndedByPharma = async () => {
     isConsultEnded.value = true;
     consultTimeLeftText.value = '00:00';
     // เภสัชกรปิดเอง → ไม่ต้องเรียก markConsultCompleted ซ้ำ (backend ทำให้แล้ว)
-    if (!isFollowupActive.value) {
-        startAutoRedirectToReview();
+    if (!isFollowupActive.value && shouldPromptReview()) {
+        startAutoRedirectToReview('pharma');
     }
 };
 
@@ -600,6 +602,7 @@ const checkForFollowup = async () => {
 
         const reqId = Number(data.id) || 0;
         const newStatus = String(data.status || '');
+        userHasAnyReview.value = Number(data.has_any_review) === 1;
         const matchesCurrentPharma = Number(data.id_pharma) === Number(activePatientId.value);
         if (!matchesCurrentPharma) {
             lastKnownConsultStatus = newStatus;
@@ -764,9 +767,13 @@ const cancelAutoRedirect = () => {
     redirectCountdown.value = REDIRECT_COUNTDOWN_SECONDS;
 };
 
-const startAutoRedirectToReview = () => {
+const shouldPromptReview = () => !userHasAnyReview.value;
+
+const startAutoRedirectToReview = (reason = 'timeout') => {
     if (!import.meta.client) return;
     if (isRedirectingToReview.value) return;
+    if (!shouldPromptReview()) return;
+    reviewPromptReason.value = reason;
     isRedirectingToReview.value = true;
     redirectCountdown.value = REDIRECT_COUNTDOWN_SECONDS;
 
@@ -774,13 +781,18 @@ const startAutoRedirectToReview = () => {
         redirectCountdown.value -= 1;
         if (redirectCountdown.value <= 0) {
             cancelAutoRedirect();
-            router.push('/review_write');
+            const cid = resolveViewConsultId() || Number(timerRequestId.value) || Number(activeRequestId.value) || 0;
+            router.push({
+                path: '/review_write',
+                query: cid > 0 ? { consult_id: String(cid) } : {},
+            });
         }
     }, 1000);
 };
 
 const handleConsultTimeout = async () => {
     if (isConsultEnded.value) return;
+    consultEndedByPharma.value = false;
     clearConsultCountdown();
     await markConsultCompleted();
     await checkForFollowup();
@@ -801,9 +813,9 @@ const handleConsultTimeout = async () => {
     isConsultEnded.value = true;
     consultTimeLeftText.value = '00:00';
 
-    // หลังบันทึก consult เป็น completed → ดีเลย์สั้น ๆ ให้ผู้ใช้เห็นข้อความก่อน แล้ว auto-redirect ไป review_write
-    if (!isFollowupActive.value) {
-        startAutoRedirectToReview();
+    // หลังบันทึก consult เป็น completed → ดีเลย์สั้น ๆ ให้ผู้ใช้เห็นข้อความก่อน แล้ว auto-redirect ไป review_write (เฉพาะผู้ใช้ที่ยังไม่เคยรีวิว)
+    if (!isFollowupActive.value && shouldPromptReview()) {
+        startAutoRedirectToReview('timeout');
     }
 };
 
@@ -920,7 +932,11 @@ const startConsultCountdown = async ({ force = false } = {}) => {
 
 const goToPharmaReview = () => {
     cancelAutoRedirect();
-    router.push('/review_write');
+    const cid = resolveViewConsultId() || Number(timerRequestId.value) || Number(activeRequestId.value) || 0;
+    router.push({
+        path: '/review_write',
+        query: cid > 0 ? { consult_id: String(cid) } : {},
+    });
 };
 
 const clearConsultCountdown = () => {
@@ -1425,22 +1441,35 @@ const closePreview = () => {
 
                 <div v-if="isConsultEnded && !isTrackingEnded && !isTrackingMode" class="consult-ended-bar">
                     <div class="consult-ended-icon">
-                        <i class="fa-solid fa-user-doctor"></i>
+                        <i :class="consultEndedByPharma ? 'fa-solid fa-handshake' : 'fa-solid fa-user-doctor'"></i>
                     </div>
                     <div class="consult-ended-text">
-                        <strong>ครบเวลาให้คำปรึกษา 15 นาทีแล้ว</strong>
-                        <p v-if="isRedirectingToReview">
+                        <strong v-if="consultEndedByPharma">เภสัชกรจบการสนทนาแล้ว</strong>
+                        <strong v-else>ครบเวลาให้คำปรึกษา 15 นาทีแล้ว</strong>
+                        <p v-if="isRedirectingToReview && reviewPromptReason === 'pharma'">
+                            คุณยังไม่เคยเขียนรีวิว — ระบบจะพาไปหน้าเขียนรีวิวในอีก
+                            <strong class="redirect-num">{{ redirectCountdown }}</strong> วินาที...
+                        </p>
+                        <p v-else-if="isRedirectingToReview">
                             กำลังพาคุณไปหน้าประเมินเภสัชกรในอีก
                             <strong class="redirect-num">{{ redirectCountdown }}</strong> วินาที...
                         </p>
-                        <p v-else>กรุณาไปหน้าประเมินผลการปรึกษากับเภสัชกร</p>
+                        <p v-else-if="consultEndedByPharma && shouldPromptReview()">
+                            ช่วยเขียนรีวิวการให้บริการครั้งแรกของคุณ เพื่อพัฒนาระบบให้ดียิ่งขึ้น
+                        </p>
+                        <p v-else-if="consultEndedByPharma">
+                            ขอบคุณที่ใช้บริการ — คุณยังดูประวัติแชทนี้ได้ตามปกติ
+                        </p>
+                        <p v-else-if="shouldPromptReview()">กรุณาไปหน้าประเมินผลการปรึกษากับเภสัชกร</p>
+                        <p v-else>การสนทนาสิ้นสุดแล้ว — คุณยังดูประวัติแชทนี้ได้ตามปกติ</p>
                     </div>
-                    <div class="ended-bar-actions">
+                    <div v-if="shouldPromptReview()" class="ended-bar-actions">
                         <button v-if="isRedirectingToReview" type="button" class="btn-cancel-redirect" @click="cancelAutoRedirect">
                             ยกเลิก
                         </button>
                         <button type="button" class="btn-go-pharma-review" @click="goToPharmaReview">
-                            <i class="fa-solid fa-arrow-right"></i> ไปประเมินเภสัชเลย
+                            <i class="fa-solid fa-star"></i>
+                            {{ consultEndedByPharma ? 'เขียนรีวิวเลย' : 'ไปประเมินเภสัชเลย' }}
                         </button>
                     </div>
                 </div>
@@ -1465,17 +1494,26 @@ const closePreview = () => {
                                 </svg>
                                 <div class="redirect-count">{{ redirectCountdown }}</div>
                             </div>
-                            <h3 class="redirect-title">ครบเวลาให้คำปรึกษาแล้ว</h3>
+                            <h3 class="redirect-title">
+                                {{ reviewPromptReason === 'pharma' ? 'เภสัชกรจบการสนทนาแล้ว' : 'ครบเวลาให้คำปรึกษาแล้ว' }}
+                            </h3>
                             <p class="redirect-desc">
-                                ระบบจะพาคุณไปหน้าประเมินเภสัชกรอัตโนมัติ
-                                ในอีก <strong>{{ redirectCountdown }}</strong> วินาที
+                                <template v-if="reviewPromptReason === 'pharma'">
+                                    คุณยังไม่เคยเขียนรีวิว — ช่วยแบ่งปันประสบการณ์ครั้งแรกของคุณ
+                                    ระบบจะพาไปหน้าเขียนรีวิวในอีก <strong>{{ redirectCountdown }}</strong> วินาที
+                                </template>
+                                <template v-else>
+                                    ระบบจะพาคุณไปหน้าประเมินเภสัชกรอัตโนมัติ
+                                    ในอีก <strong>{{ redirectCountdown }}</strong> วินาที
+                                </template>
                             </p>
                             <div class="redirect-actions">
                                 <button type="button" class="redirect-btn cancel" @click="cancelAutoRedirect">
-                                    ยังไม่ประเมินตอนนี้
+                                    ยังไม่เขียนรีวิวตอนนี้
                                 </button>
                                 <button type="button" class="redirect-btn confirm" @click="goToPharmaReview">
-                                    <i class="fa-solid fa-arrow-right"></i> ไปประเมินเลย
+                                    <i class="fa-solid fa-star"></i>
+                                    {{ reviewPromptReason === 'pharma' ? 'เขียนรีวิวเลย' : 'ไปประเมินเลย' }}
                                 </button>
                             </div>
                         </div>

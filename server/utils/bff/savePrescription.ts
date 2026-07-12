@@ -2,6 +2,8 @@ import type { H3Event } from 'h3';
 import { getAuthContext } from './sessionContext';
 import { sendPrescriptionEmailInternal, buildPrescriptionEmailPreviewInternal } from '../../utils/prescription/email';
 import { resolveAccountPatientName } from './patientInfo';
+import { syncTrackingAdviceFromPrescription } from './consultTracking';
+import { syncStoreTransactionFromPrescription } from './storeTransactions';
 
 type RxPayload = Record<string, unknown>;
 
@@ -175,6 +177,8 @@ export async function handleSavePrescription(event: H3Event) {
                     `;
                 }
             }
+            await syncTrackingAdviceFromPrescription(sql, insertedId);
+            await syncStoreTransactionFromPrescription(sql, insertedId);
         }
 
         let notifySent = false;

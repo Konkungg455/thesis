@@ -513,7 +513,6 @@ const applyChatTimerSync = (serverSec, { reset = false } = {}) => {
     }
     const drift = Math.floor((Date.now() - lastSyncAt.value) / 1000);
     const clientSec = Math.max(0, serverRemaining.value - drift);
-    // กัน server ตอบค่าเก่า (เช่น 900) ขณะ client นับลงไปแล้ว → ไม่ให้เวลากระโดดกลับ 15:00
     if (sec <= clientSec + 2) {
         serverRemaining.value = sec;
         lastSyncAt.value = Date.now();

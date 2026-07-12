@@ -328,35 +328,37 @@ onMounted(loadProfile);
 
                     <div class="profile-field full">
                         <label>ตารางเวลาปฏิบัติงาน <span class="req">*</span></label>
-                        <div
-                            v-for="(row, index) in schedules"
-                            :key="index"
-                            class="profile-schedule-row"
-                        >
-                            <select v-model="row.day" class="editable">
-                                <option v-for="d in DAYS" :key="d" :value="d">{{ DAY_LABELS[d] || d }}</option>
-                            </select>
-                            <input v-model="row.start" type="time" class="editable" />
-                            <span style="font-size: 12px; color: #64748b;">ถึง</span>
-                            <input v-model="row.end" type="time" class="editable" />
-                            <button
-                                v-if="index === 0"
-                                type="button"
-                                class="profile-btn-icon profile-btn-add"
-                                title="เพิ่มช่วงเวลา"
-                                @click="addSchedule"
+                        <div class="profile-schedule-list">
+                            <div
+                                v-for="(row, index) in schedules"
+                                :key="index"
+                                class="profile-schedule-row"
                             >
-                                <i class="fa-solid fa-plus"></i>
-                            </button>
-                            <button
-                                v-else
-                                type="button"
-                                class="profile-btn-icon profile-btn-remove"
-                                title="ลบ"
-                                @click="removeSchedule(index)"
-                            >
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
+                                <select v-model="row.day" class="editable">
+                                    <option v-for="d in DAYS" :key="d" :value="d">{{ DAY_LABELS[d] || d }}</option>
+                                </select>
+                                <input v-model="row.start" type="time" class="editable" />
+                                <span class="profile-schedule-sep">ถึง</span>
+                                <input v-model="row.end" type="time" class="editable" />
+                                <button
+                                    v-if="index === 0"
+                                    type="button"
+                                    class="profile-btn-icon profile-btn-add"
+                                    title="เพิ่มช่วงเวลา"
+                                    @click="addSchedule"
+                                >
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                                <button
+                                    v-else
+                                    type="button"
+                                    class="profile-btn-icon profile-btn-remove"
+                                    title="ลบ"
+                                    @click="removeSchedule(index)"
+                                >
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
 

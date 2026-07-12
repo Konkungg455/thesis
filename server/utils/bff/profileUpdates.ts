@@ -3,6 +3,7 @@ import type { H3Event } from 'h3';
 import { getArrayField, readMultipartRequest } from './formData';
 import { getAuthContext, parsePositiveInt } from './sessionContext';
 import { uploadMediaFile, downloadMediaFile, mimeFromExt } from '../../utils/storageUpload';
+import { syncStoreTransactionFromSlip } from './storeTransactions';
 
 const VALID_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -722,6 +723,11 @@ export async function handleReviewBillingSlip(event: H3Event) {
     if (!reviewed?.id) {
         return { status: 'error', message: 'ไม่พบสลิปหรืออัปเดตไม่สำเร็จ' };
     }
+
+    await dbQuery(async (sql) => {
+        await syncStoreTransactionFromSlip(sql, Number(reviewed.id));
+        return true;
+    });
 
     if (action === 'approve') {
         const marker = String(reviewed.note || '').match(/\[BILLING_CTX:patient=(\d+);rx=(\d+)\]/);
