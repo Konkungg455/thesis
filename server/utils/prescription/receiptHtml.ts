@@ -1,4 +1,4 @@
-import receiptPrintCss from '../assets/receipt-print.css?raw';
+import receiptPrintCss from '../../assets/receipt-print.css?raw';
 
 export type PrescriptionRow = Record<string, unknown>;
 
