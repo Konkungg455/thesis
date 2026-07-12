@@ -1,0 +1,218 @@
+/** Bundled receipt layout CSS — avoids ?raw import issues on Vercel/Nitro build. */
+export const RECEIPT_PRINT_CSS = `/* ใบสรุปรายการยา — layout มาตรฐาน (prescription-view + Summary + PDF อีเมล) */
+.receipt-card {
+  box-sizing: border-box;
+  font-family: Tahoma, 'Sarabun', sans-serif;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #000;
+  background: #fff;
+}
+
+.receipt-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+table.receipt-top,
+table.info-grid {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+}
+
+table.receipt-top { margin-bottom: 14px; }
+table.receipt-top td,
+table.info-grid td { vertical-align: top; }
+
+.info-col-right { text-align: right; }
+
+.brand-name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  line-height: 1.5;
+}
+
+.brand-web {
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 2px;
+}
+
+.page-no {
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+.receipt-title-box {
+  border: 2px solid #000;
+  text-align: center;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  padding: 9px 0;
+  margin-bottom: 16px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 24px;
+  margin-bottom: 16px;
+}
+
+.info-col--right .info-row { justify-content: flex-end; }
+
+.info-row {
+  display: flex;
+  gap: 6px;
+  padding: 5px 0 7px;
+  font-size: 12px;
+  line-height: 1.6;
+  align-items: baseline;
+}
+
+.info-label {
+  font-weight: 700;
+  min-width: 72px;
+  white-space: nowrap;
+}
+
+.info-value,
+.info-input {
+  border-bottom: 1px dotted #444;
+  min-width: 160px;
+  padding: 0 4px 2px;
+  text-align: left;
+  font-family: inherit;
+  font-size: 12px;
+  background: transparent;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  outline: none;
+}
+
+.info-col--right .info-value,
+.info-col--right .info-input {
+  text-align: right;
+}
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #000;
+  table-layout: fixed;
+  margin-bottom: 0;
+}
+
+.items-table th,
+.items-table td {
+  padding: 8px 7px;
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.items-table th {
+  text-align: center;
+  font-weight: 700;
+  border: 1px solid #000;
+}
+
+.items-table tbody td {
+  border: none;
+  border-left: 1px solid #000;
+}
+
+.items-table tbody td:last-child {
+  border-right: 1px solid #000;
+}
+
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+
+.col-no { width: 6%; }
+.col-name { width: 44%; }
+.col-qty { width: 12%; }
+.col-price { width: 19%; }
+.col-total { width: 19%; }
+
+.totals-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #000;
+  border-top: none;
+}
+
+.totals-spacer {
+  min-height: 1px;
+}
+
+.totals-right {
+  padding: 14px 18px;
+  border-left: 1px solid #000;
+}
+
+.total-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 5px 6px;
+  line-height: 1.6;
+}
+
+.total-num,
+.total-input {
+  font-weight: 700;
+  min-width: 100px;
+  text-align: right;
+  border: none;
+  border-bottom: 1px dotted #444;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.total-line--grand {
+  border: 2px solid #000;
+  background: #f3f4f6;
+  padding: 11px 14px;
+  margin-top: 10px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+}
+
+.total-line--grand .total-num {
+  font-size: 15px;
+  border-bottom: none;
+}
+
+.total-words {
+  border-top: 1px dashed #999;
+  padding-top: 9px;
+  margin-top: 9px;
+  font-size: 12px;
+  font-style: italic;
+  color: #333;
+  text-align: right;
+  line-height: 1.6;
+}
+
+.cell-input,
+.cell-select {
+  width: 100%;
+  border: none;
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 4px 6px;
+  outline: none;
+  background: transparent;
+  box-sizing: border-box;
+}`;

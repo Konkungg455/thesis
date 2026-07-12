@@ -1,4 +1,4 @@
-import receiptPrintCss from '../../assets/receipt-print.css?raw';
+import { RECEIPT_PRINT_CSS } from './receiptPrintCss';
 
 export type PrescriptionRow = Record<string, unknown>;
 
@@ -32,7 +32,7 @@ function isPlaceholderText(v: unknown): boolean {
 }
 
 function getReceiptPrintCss(): string {
-    return receiptPrintCss;
+    return RECEIPT_PRINT_CSS;
 }
 
 const RECEIPT_DOMPDF_EXTRA_CSS = `
