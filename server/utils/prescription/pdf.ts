@@ -153,7 +153,8 @@ export async function buildPrescriptionPdfBinary(data: PrescriptionRow): Promise
     const page = await browser.newPage();
 
     try {
-        await page.setContent(html, { waitUntil: 'domcontentloaded' });
+        await page.setContent(html, { waitUntil: 'networkidle0', timeout: 25000 });
+        await page.evaluate(() => document.fonts?.ready);
         const pdf = await page.pdf({
             format: 'A4',
             printBackground: true,

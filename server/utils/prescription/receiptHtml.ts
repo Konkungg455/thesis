@@ -1,5 +1,4 @@
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import receiptPrintCss from '../assets/receipt-print.css?raw';
 
 export type PrescriptionRow = Record<string, unknown>;
 
@@ -33,11 +32,7 @@ function isPlaceholderText(v: unknown): boolean {
 }
 
 function getReceiptPrintCss(): string {
-    try {
-        return readFileSync(join(process.cwd(), 'server/assets/receipt-print.css'), 'utf8');
-    } catch {
-        return '';
-    }
+    return receiptPrintCss;
 }
 
 const RECEIPT_DOMPDF_EXTRA_CSS = `
@@ -261,13 +256,28 @@ export function buildPrescriptionHtml(d: PrescriptionRow): string {
     return `<!doctype html>
 <html lang="th"><head>
 <meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
 <style>
+@font-face {
+  font-family: 'Sarabun';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/sarabun/v17/DtVjJx26TKEr37c9WBI.ttf) format('truetype');
+}
+@font-face {
+  font-family: 'Sarabun';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/sarabun/v17/DtVmJx26TKEr37c9YK5sulw.ttf) format('truetype');
+}
 @page { size: A4; margin: 14mm 16mm 16mm; }
 * { box-sizing: border-box; }
 html, body {
   margin: 0; padding: 0;
-  font-family: Tahoma, 'Sarabun', sans-serif;
+  font-family: 'Sarabun', Tahoma, sans-serif;
   color: #000; font-size: 12px;
   line-height: 1.55;
   background: #fff;
