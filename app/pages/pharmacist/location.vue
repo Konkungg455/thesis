@@ -140,6 +140,10 @@ const handleSearchNearMe = async () => {
 
 onMounted(() => {
   document.addEventListener('visibilitychange', onVisibilityChange);
+  const em = String(route.query.emergency || '').trim();
+  if (em !== '1' && em !== 'true') {
+    try { localStorage.removeItem('telebot_skip_delivery_fee'); } catch {}
+  }
 });
 
 onBeforeUnmount(() => {

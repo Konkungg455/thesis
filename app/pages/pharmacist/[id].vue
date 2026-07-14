@@ -113,9 +113,15 @@ watch(pharmacistId, fetchPharmacist);
 
 // --- 3. ฟังก์ชันเริ่มปรึกษา ---
 const handleConsult = () => {
+    const em = String(route.query.emergency || '').trim();
+    const sid = String(route.query.bot_session_id || '').trim();
     router.push({
         path: '/pharmacist/consult-selection',
-        query: { id: pharmacistId.value }
+        query: {
+            id: pharmacistId.value,
+            ...((em === '1' || em === 'true') ? { emergency: '1' } : {}),
+            ...(sid ? { bot_session_id: sid } : {}),
+        }
     });
 };
 </script>

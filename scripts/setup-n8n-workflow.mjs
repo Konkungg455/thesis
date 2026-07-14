@@ -9,7 +9,9 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(scriptDir, '..');
 const n8nData = join(projectRoot, '.tools', 'n8n-data');
-const workflowFile = join(projectRoot, 'n8n_workflow_telebot_chat.json');
+const workflowFile = existsSync(join(projectRoot, 'n8n_workflow_32_symptoms.json'))
+  ? join(projectRoot, 'n8n_workflow_32_symptoms.json')
+  : join(projectRoot, 'n8n_workflow_telebot_chat.json');
 const credsFile = join(projectRoot, 'n8n_credentials_ollama.json');
 const webhookId = '1f5ea30f-2ff0-4d32-b211-eccb342ee0df';
 const n8nVersion = '1.91.2';
@@ -33,6 +35,7 @@ function n8nEnv(nodeTools) {
     ...process.env,
     N8N_USER_FOLDER: n8nData,
     N8N_RUNNERS_ENABLED: 'true',
+    N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: 'true',
   };
   if (nodeTools.nodeDir) {
     const sep = process.platform === 'win32' ? ';' : ':';

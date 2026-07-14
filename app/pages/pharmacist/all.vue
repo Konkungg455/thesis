@@ -1,9 +1,10 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useApiBase } from '~/composables/useApiBase';
 import { usePharmacistStatus } from '~/composables/usePharmacistStatus';
 
+const route = useRoute();
 const router = useRouter();
 const { apiUrl, imagesPharma } = useApiBase();
 const { computeStatus } = usePharmacistStatus();
@@ -122,7 +123,16 @@ const filteredPharmacists = computed(() => {
 });
 
 const goToDetail = (id) => {
-    router.push(`/pharmacist/${id}`);
+    const em = String(route.query.emergency || '').trim();
+    const sid = String(route.query.bot_session_id || '').trim();
+    const query = {
+        ...((em === '1' || em === 'true') ? { emergency: '1' } : {}),
+        ...(sid ? { bot_session_id: sid } : {}),
+    };
+    router.push({
+        path: `/pharmacist/${id}`,
+        ...(Object.keys(query).length ? { query } : {}),
+    });
 };
 
 const DEFAULT_AVATAR = imagesPharma('default.png');

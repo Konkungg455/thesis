@@ -24,3 +24,6 @@ logs
 .env.*
 !.env.example
 import.env
+
+.vercel
+.env*

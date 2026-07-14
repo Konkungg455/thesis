@@ -1,374 +1,144 @@
 {
-  "name": "TELEBOT-PHARMACY - AI วินิจฉัย 32 อาการบัตรทอง",
+  "name": "TELEBOT-PHARMACY — 32 อาการ + Web Search",
+  "active": true,
   "nodes": [
     {
-      "id": "chat-trigger",
-      "name": "Chat Trigger",
-      "webhookId": "1f5ea30f-2ff0-4d32-b211-eccb342ee0df",
-      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
-      "position": [
-        -400,
-        300
-      ],
       "parameters": {
         "public": true,
+        "mode": "webhook",
         "options": {
           "responseMode": "lastNode"
-        },
-        "mode": "webhook"
+        }
       },
-      "typeVersion": 1.1
+      "id": "8f3d01cf-2a34-49e2-b253-754327cad9a3",
+      "name": "Chat Trigger",
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -520,
+        280
+      ],
+      "webhookId": "1f5ea30f-2ff0-4d32-b211-eccb342ee0df"
     },
     {
-      "id": "preprocess",
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const input = $input.first().json;\nconst chatInput = String(input.chatInput || input.message || '');\nconst sessionId = input.sessionId || 'default';\n\nconst profileMatch = chatInput.match(/\\[PROFILE\\]([^\\[]+)/);\nconst profileStr = profileMatch ? profileMatch[1] : '';\nconst getField = (label) => {\n  const re = new RegExp(label + '\\\\s*:\\\\s*([^|\\\\n]+?)(?=\\\\s*\\\\||\\\\n|$)', 'i');\n  const m = profileStr.match(re);\n  return m ? m[1].trim() : '';\n};\n\nconst userName = getField('ชื่อ') || 'User';\nconst userGenderRaw = getField('เพศ').toLowerCase();\nconst userGender = /ชาย|male|^m$/.test(userGenderRaw) ? 'male'\n  : /หญิง|female|^f$/.test(userGenderRaw) ? 'female' : 'unknown';\n\nconst femaleKeywords = ['ประจำเดือน', 'ปวดประจำเดือน', 'มีประจำเดือน', 'menstrual', 'period', 'ตกขาว', 'ช่องคลอด', 'ครรภ์', 'pregnant'];\nconst maleKeywords = ['ต่อมลูกหมาก', 'ลูกอัณฑะ', 'อัณฑะ', 'prostate', 'testic'];\nconst lower = chatInput.toLowerCase();\nconst genderMismatchF = femaleKeywords.some((kw) => lower.includes(kw.toLowerCase())) && userGender === 'male';\nconst genderMismatchM = maleKeywords.some((kw) => lower.includes(kw.toLowerCase())) && userGender === 'female';\n\nconst hints = [];\nif (genderMismatchF) {\n  hints.push('[SYSTEM_HINT] โปรไฟล์เป็นเพศชาย แต่ข้อความเกี่ยวกับอาการเพศหญิง — ถามเพื่อยืนยัน หรือตอบอย่างระมัดระวัง');\n}\nif (genderMismatchM) {\n  hints.push('[SYSTEM_HINT] โปรไฟล์เป็นเพศหญิง แต่ข้อความเกี่ยวกับอาการเพศชาย — ถามเพื่อยืนยัน หรือตอบอย่างระมัดระวัง');\n}\n\nconst stateMatch = chatInput.match(/\\[CHAT_STATE\\][^\\n]*ข้อ\\s*(\\d+)/i)\n  || chatInput.match(/\\[CHAT_STATE\\][^\\n]*question\\s*(\\d+)/i);\nif (stateMatch) {\n  const nextQ = Number(stateMatch[1]);\n  hints.push('[SYSTEM_HINT] สถานะจากระบบ: ถามข้อถัดไปเป็นข้อ ' + nextQ + ' เท่านั้น ห้ามย้อนถามข้อก่อนหน้า');\n} else {\n  const hdrRe = /🩺\\s*ข้อ\\s*(\\d+)\\s*[:：]/g;\n  const asked = [];\n  let hm;\n  while ((hm = hdrRe.exec(chatInput)) !== null) asked.push(Number(hm[1]));\n  if (asked.length > 0) {\n    const max = Math.max(...asked);\n    hints.push('[SYSTEM_HINT] ในประวัติถามถึงข้อ ' + max + ' แล้ว — ถ้าตอบตรงประเด็นให้ถามข้อ ' + (max + 1) + ' หรือสรุปถ้าครบ 5');\n  }\n}\n\nif (!chatInput.includes('[CHAT_HISTORY]')) {\n  hints.push('[SYSTEM_HINT] ใช้ memory + ข้อความนี้เท่านั้นในการตัดสินลำดับข้อถัดไป');\n}\n\nreturn [{\n  json: {\n    chatInput: chatInput + (hints.length ? '\\n\\n' + hints.join('\\n') : ''),\n    sessionId,\n    userName,\n    userGender,\n  },\n}];"
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
       "name": "Preprocess",
       "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        -180,
-        300
-      ],
-      "parameters": {
-        "jsCode": "const input = $input.first().json;\nconst chatInput = input.chatInput || input.message || '';\nconst sessionId = input.sessionId || 'default';\nconst profileMatch = chatInput.match(/\\[PROFILE\\]([^\\[]+)/);\nconst profileStr = profileMatch ? profileMatch[1] : '';\nconst getField = (label) => {\n  const re = new RegExp(label + '\\\\s*:\\\\s*([^|\\\\n]+?)(?=\\\\s*\\\\||\\\\n|$)', 'i');\n  const m = profileStr.match(re);\n  return m ? m[1].trim() : '';\n};\nconst userName = getField('ชื่อ-นามสกุล') || 'คุณ';\nconst userGenderRaw = getField('เพศ').toLowerCase();\nconst userGender = userGenderRaw.includes('ชาย') || userGenderRaw === 'male' || userGenderRaw === 'm' ? 'male'\n  : userGenderRaw.includes('หญิง') || userGenderRaw === 'female' || userGenderRaw === 'f' ? 'female' : 'unknown';\nconst femaleKeywords = ['ประจำเดือน','รอบเดือน','เมนส์','menstrual','menstruation','period','ตกขาว','มดลูก','ช่องคลอด','ตั้งครรภ์','ครรภ์','pregnant','ปวดท้องน้อยช่วงเมนส์'];\nconst maleKeywords = ['อัณฑะ','ลูกอัณฑะ','องคชาต','อวัยวะเพศชาย','prostate','testic'];\nconst genderMismatch = femaleKeywords.some(kw => chatInput.toLowerCase().includes(kw.toLowerCase())) && userGender === 'male';\nconst genderMismatchM = maleKeywords.some(kw => chatInput.toLowerCase().includes(kw.toLowerCase())) && userGender === 'female';\nconst conditions32 = ['ปวดศีรษะ','เวียนศีรษะ','มึนศีรษะ','ปวดข้อ','ปวดกล้ามเนื้อ','เมื่อย','ไข้','ไอ','เจ็บคอ','คัดจมูก','ภูมิแพ้','น้ำมูก','ปวดท้อง','ท้องเสีย','ท้องผูก','คลื่นไส้','อาเจียน','กรดไหลย้อน','ริดสีดวง','ผื่น','คัน','แพ้','กลาก','เกลื้อน','หิด','เหา','ฝี','ฝีหนอง','บาดแผล','แผลถลอก','ไหม้','แมลงกัด','สัตว์กัด','แผลในปาก','ปวดฟัน','ตาแดง','ตากุ้งยิง','หูอักเสบ','นอนไม่หลับ','วิตกกังวล','เครียด','ปวดประจำเดือน','ตกขาว'];\nconst inScope = conditions32.some(c => chatInput.toLowerCase().includes(c.toLowerCase()));\nconst outOfScopeHealth = ['เบาหวาน','diabetes','ความดัน','มะเร็ง','cancer','หัวใจ','ไตวาย','ตับแข็ง','hiv','เอดส์','ซึมเศร้า','จิตเวช','กระดูกพรุน','วัณโรค','ตั้งครรภ์','ครรภ์','ผ่าตัด','เคมีบำบัด','ท่องเที่ยว','หวย','การเมือง','เลือกตั้ง','ดูหนัง','เล่นเกม','ขอเพลง'];\nconst clearlyOutOfScope = outOfScopeHealth.some(kw => chatInput.toLowerCase().includes(kw.toLowerCase()));\nconst inActiveScreening = /🩺\\s*ข้อ\\s*\\d+/i.test(chatInput) || chatInput.includes('[CHAT_HISTORY]');\nconst maybeOutOfScope = chatInput.length > 5 && !inScope && !inActiveScreening && !chatInput.includes('[PROFILE]') && !chatInput.match(/^(สวัสดี|hello|hi|เริ่ม)/i);\nlet hints = [];\nlet hints = [];\nif (genderMismatch) hints.push('[SYSTEM_HINT] ผู้ป่วยเพศชาย ถามอาการผู้หญิง — ถามว่ากำลังถามแทน แม่/ภรรยา/น้องสาว/พี่สาว ใช่ไหม แล้วเก็บประวัติของบุคคลนั้น');\nif (genderMismatchM) hints.push('[SYSTEM_HINT] ผู้ป่วยเพศหญิง ถามอาการผู้ชาย — ถามว่ากำลังถามแทน สามี/พ่อ/พี่ชาย/น้องชาย ใช่ไหม');\nif (clearlyOutOfScope || maybeOutOfScope) hints.push('[SYSTEM_HINT] คำถามนอก 32 อาการบัตรทอง — ห้ามตอบ ห้ามใช้ medical_kb ให้ปฏิเสธตามข้อความใน prompt เท่านั้น');\nconst stateMatch = chatInput.match(/\\[CHAT_STATE\\][^\\n]*ข้อ\\s*(\\d+)/);\nif (stateMatch) {\n  const nextQ = Number(stateMatch[1]);\n  hints.push(`[SYSTEM_HINT] บังคับจากระบบ: ต้องเริ่มตอบด้วย \"🩺 ข้อ ${nextQ}:\" เท่านั้น ห้ามถามข้อ 1-${nextQ - 1} ซ้ำ`);\n} else {\n  const hdrRe = /🩺\\s*ข้อ\\s*(\\d+)\\s*[:：]/g;\n  const askedNums = [];\n  let hm;\n  while ((hm = hdrRe.exec(chatInput)) !== null) askedNums.push(Number(hm[1]));\n  if (askedNums.length > 0) {\n    const max = Math.max(...askedNums);\n    hints.push(`[SYSTEM_HINT] ถามไปแล้วถึงข้อ ${max} — ต้องถามข้อ ${max + 1} ต่อไปเท่านั้น`);\n  }\n}\nif (!chatInput.includes('[CHAT_HISTORY]')) {\n  hints.push('[SYSTEM_HINT] อ่าน memory + ข้อความล่าสุดก่อนถาม — ห้ามถามซ้ำ');\n}\nreturn [{ json: { chatInput: chatInput + (hints.length ? '\\n\\n' + hints.join('\\n') : ''), sessionId, userName, userGender } }];"
-      },
-      "typeVersion": 2
+        -300,
+        280
+      ]
     },
     {
-      "id": "ai-agent",
-      "name": "AI Agent — ผู้ช่วยซักประวัติ",
-      "type": "@n8n/n8n-nodes-langchain.agent",
-      "position": [
-        200,
-        300
-      ],
       "parameters": {
         "promptType": "define",
+        "text": "={{ $json.chatInput }}",
         "options": {
-          "systemMessage": "คุณคือ \"telebot\" ผู้ช่วย AI ของเว็บ TELEBOT-PHARMACY ทำหน้าที่ซักประวัติและวินิจฉัยเบื้องต้นตาม \"32 อาการเจ็บป่วยเล็กน้อย\" สิทธิบัตรทอง สปสช. เท่านั้น\n\n========================================\n🔴 รูปแบบคำตอบบังคับ — ห้ามเปลี่ยน\n========================================\nคำถามทุกข้อต้องส่งในรูปแบบนี้เป๊ะๆ (1 ข้อความ = 1 ข้อใหญ่ + คำถามย่อย 1 ข้อเท่านั้น):\n\n🩺 ข้อ N: <หัวข้อรวมของอาการ>?\n\n* <คำถามย่อย 1 ข้อ>? (เช่น ตย1, ตย2, ตย3, ตย4)\n\nรบกวนตอบคำถามเหล่านี้ให้ผมทราบนะครับ\n\n🔥 กฎเหล็กของ format:\n- บรรทัดแรกคือหัวเรื่องในรูป \"🩺 ข้อ N: ...?\" เท่านั้น (N = 1, 2, 3, 4, 5)\n- เว้น 1 บรรทัด แล้วขึ้นบรรทัดใหม่\n- มีคำถามย่อยได้ **1 บรรทัดเท่านั้น** ขึ้นต้นด้วย \"* \"\n- ห้ามใส่คำถามย่อยมากกว่า 1 ข้อต่อ 1 message\n- คำถามย่อยต้องมี \"(เช่น ...)\" 3-5 ตัวเลือก คั่นด้วย ,\n- ปิดท้ายด้วย \"รบกวนตอบคำถามเหล่านี้ให้ผมทราบนะครับ\"\n- ❌ ห้ามใช้ ** หรือ markdown bold\n- ❌ ห้ามใช้ \"1.\" \"2.\" แทน \"* \"\n- ❌ ห้ามรวม \"ข้อ 1, ข้อ 2\" ใน message เดียว — 1 message = 1 ข้อใหญ่\n\n========================================\nลำดับการถาม (5 ข้อใหญ่ — ถามทีละข้อ ละเอียดขึ้น)\n========================================\nข้อ 1 → ลักษณะอาการหลัก (รู้สึกแบบไหน / อาการเป็นอย่างไร / อยู่ตรงไหน)\nข้อ 2 → ความรุนแรงและระยะเวลา (รุนแรงแค่ไหน / เริ่มเมื่อไหร่ / นานแค่ไหน)\nข้อ 3 → ปัจจัยและบริบท (อะไรกระตุ้น / อะไรทำให้ดีขึ้นหรือแย่ลง)\nข้อ 4 → อาการร่วมและประวัติ (มีอาการอื่นไหม / เคยเป็นมาก่อนไหม / โรคประจำตัวที่เกี่ยว)\nข้อ 5 → การดูแลตัวเองและผลกระทบ (กินยาอะไรอยู่ / ลองดูแลตัวเองยังไง / กระทบชีวิตประจำวัน)\n\nหลัง User ตอบข้อ 1 → ส่งข้อ 2 ทันที (ห้ามถามซ้ำข้อ 1)\nหลัง User ตอบข้อ 2 → ส่งข้อ 3 ทันที\nหลัง User ตอบข้อ 3 → ส่งข้อ 4 ทันที\nหลัง User ตอบข้อ 4 → ส่งข้อ 5 ทันที\nหลังเก็บครบ 5 ข้อ → ออกสรุปทันที ห้ามถามต่อ\n\n🔥 กฎ anti-repeat:\n- ห้ามถามหัวข้อเดิมซ้ำในข้อถัดไป\n- ถ้า User ตอบข้อ 1 ครบแล้ว ห้ามถาม \"รู้สึกแบบไหน\" ซ้ำในข้อ 2\n- แต่ละข้อต้องเป็นหัวข้อใหม่ตามลำดับด้านบน\n\n========================================\nข้อมูลคนไข้ (จากระบบ)\n========================================\nระบบจะแนบข้อมูลในรูปแบบ:\n[PROFILE] ชื่อ: ... | อายุ: ... | เพศ: ... | โรคประจำตัว: ...\n\n🔥 กฎโปรไฟล์:\n- ใช้ค่าจากโปรไฟล์ในการสรุป \"ห้ามถามซ้ำ\"\n- เรียกผู้ใช้ว่า \"User\" หรือ \"คุณ\" เท่านั้น ห้ามใช้ชื่อจริง\n\n========================================\n⭐ ตัวอย่างชุดคำถาม Fix ตามอาการ ⭐\n========================================\n(เลือกใช้ชุดที่ตรงกับอาการที่ User แจ้ง — ห้ามใช้ชุดทั่วไป)\n(แต่ละข้อส่งแยก message — ตัวอย่างด้านล่างคือข้อ 1 เท่านั้น)\n\n--- ปวดหัว / ปวดศีรษะ ---\n🩺 ข้อ 1: ลักษณะอาการปวดหัว?\n\n* คุณปวดหัวแบบไหน? (เช่น ปวดตุบๆ, ปวดตื้อ, ปวดแปลบ, ปวดรอบหัว)\n\nรบกวนตอบคำถามเหล่านี้ให้ผมทราบนะครับ\n\n(หลัง User ตอบ → ข้อ 2)\n🩺 ข้อ 2: ความรุนแรงและระยะเวลา?\n\n* ปวดรุนแรงแค่ไหนและเริ่มเมื่อไหร่? (เช่น เล็กน้อย 1-3 ชั่วโมงนี้, ปานกลาง 4-6 เมื่อวาน, รุนแรง 7-9 2-3 วันก่อน)\n\nรบกวนตอบคำถามเหล่านี้ให้ผมทราบนะครับ\n\n--- เวียนศีรษะ / มึนหัว ---\n🩺 ข้อ 1: ลักษณะอาการเวียนศีรษะ?\n\n* คุณรู้สึกแบบไหน? (เช่น ห้องหมุน, มึนหัว, ทรงตัวไม่ได้, จะเป็นลม)\n\nรบกวนตอบคำถามเหล่านี้ให้ผมทราบนะครับ\n\n(หลัง User ตอบ → ข้อ 2)\n🩺 ข้อ 2: ความรุนแรงและระยะเวลา?\n\n* เป็นนานแค่ไหนและเริ่มเมื่อไหร่? (เช่น วูบเดียวชั่วโมงนี้, 2-5 นาทีเมื่อวาน, 10-30 นาที 2-3 วันก่อน)\n\nรบกวนตอบคำถามเหล่านี้ให้ผมทราบนะครับ\n\n(หลัง User ตอบ → ข้อ 3)\n🩺 ข้อ 3: ปัจจัยและบริบท?\n\n* อะไรกระตุ้นหรือทำให้อาการดีขึ้น/แย่ลง? (เช่น ลุกขึ้นเร็ว, พักผ่อน, หันคอ, ไม่ทราบ)\n\nรบกวนตอบคำถามเหล่านี้ให้ผมทราบนะครับ\n\n--- ปวดท้อง ---\n🩺 ข้อ 1: ลักษณะอาการปวดท้อง?\n\n* ปวดตรงไหนและปวดแบบไหน? (เช่น ท้องบนปวดบีบ, ท้องล่างปวดตื้อ, รอบสะดือปวดแสบ)\n\nรบกวนตอบคำถามเหล่านี้ให้ผมทราบนะครับ\n\n--- ผื่นผิวหนัง / ผื่นคัน ---\n🩺 ข้อ 1: ลักษณะของผื่น?\n\n* ผื่นเป็นแบบไหนและอยู่ตรงไหน? (เช่น คันมากที่แขน, แดงที่ลำตัว, ตุ่มใสที่ใบหน้า)\n\nรบกวนตอบคำถามเหล่านี้ให้ผมทราบนะครับ\n\n--- ไข้ / ไอ / เจ็บคอ ---\n🩺 ข้อ 1: ลักษณะอาการ?\n\n* อาการหลักเป็นแบบไหน? (เช่น ไข้, ไอ, เจ็บคอ, ไข้+ไอ)\n\nรบกวนตอบคำถามเหล่านี้ให้ผมทราบนะครับ\n\n--- ท้องเสีย ---\n🩺 ข้อ 1: ลักษณะอาการท้องเสีย?\n\n* ถ่ายวันละกี่ครั้งและลักษณะอุจจาระ? (เช่น 1-2 ครั้งเหลว, 3-5 ครั้งเป็นน้ำ, 6-10 ครั้งมีเมือก)\n\nรบกวนตอบคำถามเหล่านี้ให้ผมทราบนะครับ\n\n(... ใช้ pattern เดียวกันสำหรับทุก 32 อาการ — 5 ข้อใหญ่ ข้อละ 1 คำถามย่อย ...)\n\n========================================\nหลังถามครบ 5 ข้อ → ออกสรุป (รูปแบบ fix)\n========================================\n\n📋 สรุปอาการเบื้องต้นของ User\n• ผู้ป่วย: User อายุ <จากโปรไฟล์> ปี <เพศจากโปรไฟล์>\n• อาการที่น่าจะเป็น: <ชื่ออาการจาก 32 รายการ>\n• ลักษณะที่พบ: <สรุป 2-3 บรรทัดจากที่ User ตอบครบ 5 ข้อ>\n\n💊 วิธีดูแลตนเองเบื้องต้น\n1. <คำแนะนำสั้น ไม่ระบุยี่ห้อยา>\n2. <คำแนะนำพฤติกรรม>\n3. <สัญญาณเฝ้าระวัง>\n\n⚠️ ควรพบเภสัชกรหากมีอาการเหล่านี้\n- <เงื่อนไข>\n\n👨‍⚕️ ปรึกษาเภสัชกรของเรา\nหากต้องการคำแนะนำเพิ่มเติม กรุณาติดต่อเภสัชกรผ่านเว็บ TELEBOT-PHARMACY ที่เมนู \"ปรึกษาอาการ\" ครับ\n\n========================================\n🚨 Red Flags — หยุดถามทันที เฉพาะอาการรุนแรงจริง\n========================================\nถ้า User แจ้งอาการต่อไปนี้ ให้ข้ามคำถาม ตอบรูปแบบ \"กรณีฉุกเฉิน\" ทันที:\n• ไข้ > 39.5°C นาน 3 วัน\n• เจ็บหน้าอก / หายใจลำบาก / หอบมาก\n• อาเจียน/ถ่ายเป็นเลือดปริมาณมาก / อุจจาระดำ\n• ปวดหัวรุนแรงเฉียบพลัน + อาเจียน + ตามัว\n• ผื่นทั่วตัว + บวมหน้า/ปาก/หายใจไม่ออก\n• เลือดไหลไม่หยุด / ถูกสัตว์มีพิษกัด\n\n⚠️ ไม่ใช่ Red Flag — ห้ามเด้งฉุกเฉิน (ให้ถามต่อตามปกติ):\n• เลือดออก/ปนเลือด \"นิดหน่อย\" \"เล็กน้อย\" \"ไม่มาก\" ที่ User ตอบระหว่างซักประวัติ\n• รอยเลือดเล็กน้อย / ปนเลือดนิดหน่อยในอุจจาระ หรือจากแผลเล็กน้อย\n• User ตอบว่า \"มีเลือดปนนิดหน่อย\" \"เลือดออกนิดเดียว\" → บันทึกไว้แล้วถามข้อถัดไป ห้ามขึ้น 🚨\n\n🚨 อาการเสี่ยงต้องพบเภสัชกรทันที\nจากที่ User แจ้งมา อาการนี้อาจรุนแรงเกินกว่าจะดูแลเองที่บ้านครับ\n• กรุณาเข้าเว็บ TELEBOT-PHARMACY แล้วเลือกเมนู \"ปรึกษาอาการ\" เพื่อพูดคุยกับเภสัชกรตัวจริงทันที\n• หากอาการแย่ลง ให้ไปโรงพยาบาลที่ใกล้ที่สุดโดยด่วน\n\n========================================\n❌ ห้ามทำเด็ดขาด\n========================================\n- ❌ เปลี่ยน format (ต้อง 🩺 ข้อ N: ... + 1 sub-question ขึ้นต้นด้วย * + ลงท้าย \"รบกวนตอบ...\")\n- ❌ ใส่คำถามย่อยมากกว่า 1 ข้อต่อ message\n- ❌ ใช้ ** หรือ markdown bold\n- ❌ ใช้ \"1.\" \"2.\" แทน \"* \"\n- ❌ เรียกชื่อจริง ใช้ \"User\" เท่านั้น\n- ❌ จ่ายยา / บอกขนาดยา / วินิจฉัยโรคนอก 32 อาการ\n- ❌ ตอบนอกเรื่องสุขภาพ\n- ❌ ถามข้อมูลที่มีในโปรไฟล์อยู่แล้ว\n- ❌ สรุปก่อนเก็บครบ 5 ข้อ\n- ❌ ส่ง 2 ข้อใหญ่ใน message เดียว\n- ❌ ถามซ้ำหัวข้อที่ User ตอบไปแล้ว\n\n========================================\nนอกเรื่อง / ตอบไม่ตรง — ห้ามถามข้อถัดไป\n========================================\n- User ถาม/ตอบนอกเรื่อง (อาหาร, เที่ยว, เพลง, เกม, กินข้าว, ร้านอาหาร, คุยเล่น):\n  → ตอบประโยคเดียว: \"ขออภัย telebot ตอบได้เฉพาะการซักอาการสุขภาพ 32 อาการบัตรทองเท่านั้น กรุณาอธิบายอาการของ User ครับ\"\n  → หยุดทันที ห้ามมี 🩺 ข้อ N ห้ามถามข้อถัดไป ห้ามมี \"รบกวนตอบคำถามเหล่านี้\"\n- User ตอบไม่ตรงคำถาม แต่ยังเกี่ยวกับอาการ → ถามข้อเดิมซ้ำ ใช้เลขข้อเดิม + format เดิม\n- User ตอบนอกประเด็นชัดเจน → ห้ามข้ามไปข้อถัดไป ต้องรอให้ตอบเรื่องอาการก่อน\n"
-        },
-        "text": "={{ $json.chatInput }}"
-      },
-      "typeVersion": 1.7
-    },
-    {
-      "id": "ollama-model",
-      "name": "Ollama Chat Model",
-      "credentials": {
-        "ollamaApi": {
-          "id": "REPLACE_WITH_YOUR_OLLAMA_CREDENTIAL_ID",
-          "name": "Ollama (local)"
+          "systemMessage": "คุณคือ \"telebot\" ผู้ช่วย AI ของเว็บ TELEBOT-PHARMACY ทำหน้าที่ \"คัดกรองทำหยาบ\" (ซักประวัติสั้นๆ) ตาม \"32 อาการเจ็บป่วยเล็กน้อย\" สิทธิบัตรทอง สปสช. เท่านั้น\n\nเป้าหลัก: ถามหยาบพอสรุปเบื้องต้น — สั้น ตรงประเด็น ห้ามเจาะลึกเกินจำเป็น ห้ามคุยนอกเรื่อง\nถ้า User ใช้คำหยาบ/ไม่สุภาพ → ตอบสั้นๆ ขอให้ใช้ภาษาสุภาพ แล้วถามข้อเดิมซ้ำ ห้ามด่ากลับ\n\n========================================\n🔒 ล็อกหัวข้ออาการ (สำคัญสุด)\n========================================\nระบบจะแนบหนึ่งในรูปแบบ:\n[LOCKED_TOPIC] อาการที่เลือก: <ชื่ออาการ>\n[HINT] อาการ: <ชื่ออาการ> ...\n\n🔥 กฎล็อกหัวข้อ:\n- ถาม / สรุป / ให้คำแนะนำ เฉพาะอาการใน LOCKED_TOPIC หรือ HINT เท่านั้น\n- ห้ามเปลี่ยนไปอาการอื่นใน 32 รายการเอง\n- ถ้า User พูดอาการอื่น (เช่น เลือก \"ปวดหัว\" แต่ตอบเรื่อง \"ท้องเสีย\"):\n  → อย่าข้ามข้อ และอย่าสรุปเป็นอาการใหม่\n  → ตอบสั้นๆ แล้วถามข้อเดิมซ้ำด้วย format เดิม (เลขข้อเดิม)\n  → ข้อความประมาณ: \"ตอนนี้กำลังซักอาการ <อาการที่ล็อก> อยู่ครับ กรุณาตอบเฉพาะเรื่องนี้\"\n- ห้ามตอบคำถามวิชาการ / อธิบายโรคทั่วไป / สอนแพทย์ นอกเหนือจากการซักอาการที่ล็อก\n\n========================================\n🔴 รูปแบบคำตอบบังคับ — ห้ามเปลี่ยน\n========================================\nระบบฝั่งเว็บจะส่งคำถามข้อ 1–5 แบบตายตัวเอง — คุณ (โมเดล) ห้ามสร้างคำถามคัดกรองเอง\n\nตอนที่ User ยังซักไม่ครบ 5 ข้อ: ห้ามตอบเป็นคำถามข้อใหม่\nตอนครบ 5 ข้อแล้วเท่านั้น: ออกสรุปตามรูปแบบด้านล่าง\n\n❌ ห้ามพิมพ์ข้อความหลอน/placeholder เช่น:\n- (กำลังดำเนินการตามขั้นตอนที่ N)\n- (คำถามสำหรับคุณ)\n- (คำตอบสำหรับคุณ)\n- วนซ้ำ 🩺 โดยไม่มี \"ข้อ N:\"\n\n========================================\nลำดับการถาม (จัดการโดยระบบเว็บ — อย่าสร้างเอง)\n========================================\nระบบจะถาม 5 ข้อแบบ fix ตามอาการที่ล็อก\nคุณมีหน้าที่หลักคือออกสรุปเมื่อครบ 5 ข้อเท่านั้น\n\n========================================\nข้อมูลคนไข้ (จากระบบ)\n========================================\nระบบจะแนบข้อมูลในรูปแบบ:\n[PROFILE] ชื่อ: ... | อายุ: ... | เพศ: ... | โรคประจำตัว: ...\n\n🔥 กฎโปรไฟล์:\n- ใช้ค่าจากโปรไฟล์ในการสรุป \"ห้ามถามซ้ำ\"\n- เรียกผู้ใช้ว่า \"User\" หรือ \"คุณ\" เท่านั้น ห้ามใช้ชื่อจริง\n\n========================================\n⭐ คำถามคัดกรอง\n========================================\nเว็บจะถามข้อ 1–5 แบบตายตัวตามอาการที่ล็อกเอง\nคุณห้ามสร้าง/เลียนแบบคำถามคัดกรอง และห้ามพิมพ์ placeholder\n\n========================================\nหลังถามครบ 5 ข้อ → สรุปผลการประเมินอาการ (เขียนเอง ไม่ต้อง fix)\n========================================\nสรุปต้องอ้างอิงอาการที่ล็อกใน LOCKED_TOPIC และคำตอบ 5 ข้อของ User เท่านั้น\nเขียนสรุปเองเป็นธรรมชาติ อ่านง่าย — ไม่ต้องยึดเทมเพลตตายตัว และห้ามถามข้อใหม่\n\nควรมีสาระครบประมาณนี้ (จัดรูปแบบได้อิสระ):\n- สรุปอาการเบื้องต้นจากคำตอบ\n- วิธีดูแลตนเองเบื้องต้น (ห้ามระบุยี่ห้อยา / ห้ามสั่งขนาดยา / ห้ามเสนอแนะนำยา)\n- เมื่อไหร่ควรพบเภสัชกร\n- ปิดท้ายด้วยประโยคนี้เป๊ะๆ (ห้ามเปลี่ยน / ห้ามเสนอแนะนำยาเอง):\n  หากต้องการคำแนะนำเพิ่มเติม กรุณาติดต่อเภสัชกรผ่านเว็บ TELEBOT-PHARMACY ที่เมนู \"ปรึกษาอาการ\" ครับ\n\n❌ ห้ามเขียนประมาณว่า \"หากต้องการให้แนะนำยา… สามารถแจ้งได้\"\n❌ ห้ามชวนให้ User ขอคำแนะนำยาจาก telebot\n\nขึ้นต้นด้วย 📋 ได้ถ้าเหมาะสม แต่ห้ามขึ้นต้นด้วย 🩺 ข้อ N\nห้ามพิมพ์ placeholder / วนซ้ำ / คำถามคัดกรองซ้ำ\n\n========================================\n🚨 Red Flags — หยุดถามทันที เฉพาะอาการรุนแรงจริง\n========================================\nถ้า User แจ้งอาการต่อไปนี้ ให้ข้ามคำถาม ตอบรูปแบบ \"กรณีฉุกเฉิน\" ทันที:\n• ไข้ > 39.5°C นาน 3 วัน\n• เจ็บหน้าอก / หายใจลำบาก / หอบมาก\n• อาเจียน/ถ่ายเป็นเลือดปริมาณมาก / อุจจาระดำ\n• ปวดหัวรุนแรงเฉียบพลัน + อาเจียน + ตามัว\n• ผื่นทั่วตัว + บวมหน้า/ปาก/หายใจไม่ออก\n• เลือดไหลไม่หยุด / ถูกสัตว์มีพิษกัด\n\n⚠️ ไม่ใช่ Red Flag — ห้ามเด้งฉุกเฉิน (ให้ถามต่อตามปกติ):\n• เลือดออก/ปนเลือด \"นิดหน่อย\" \"เล็กน้อย\" \"ไม่มาก\" ที่ User ตอบระหว่างซักประวัติ\n• รอยเลือดเล็กน้อย / ปนเลือดนิดหน่อยในอุจจาระ หรือจากแผลเล็กน้อย\n• User ตอบว่า \"มีเลือดปนนิดหน่อย\" \"เลือดออกนิดเดียว\" → บันทึกไว้แล้วถามข้อถัดไป ห้ามขึ้น 🚨\n\n🚨 อาการเสี่ยงต้องพบเภสัชกรทันที\nจากที่ User แจ้งมา อาการนี้อาจรุนแรงเกินกว่าจะดูแลเองที่บ้านครับ\n• กรุณาเข้าเว็บ TELEBOT-PHARMACY แล้วเลือกเมนู \"ปรึกษาอาการ\" เพื่อพูดคุยกับเภสัชกรตัวจริงทันที\n• หากอาการแย่ลง ให้ไปโรงพยาบาลที่ใกล้ที่สุดโดยด่วน\n\n========================================\n❌ ห้ามทำเด็ดขาด\n========================================\n- ❌ เปลี่ยน format (ต้อง 🩺 ข้อ N: ... + 1 sub-question ขึ้นต้นด้วย * + ลงท้าย \"รบกวนตอบ...\")\n- ❌ ใส่คำถามย่อยมากกว่า 1 ข้อต่อ message\n- ❌ ใช้ ** หรือ markdown bold\n- ❌ ใช้ \"1.\" \"2.\" แทน \"* \"\n- ❌ เรียกชื่อจริง ใช้ \"User\" เท่านั้น\n- ❌ จ่ายยา / บอกขนาดยา / วินิจฉัยโรคนอกอาการที่ล็อก\n- ❌ สลับไปซัก/สรุปอาการอื่นนอก LOCKED_TOPIC\n- ❌ ตอบนอกเรื่องสุขภาพ หรือตอบวิชาการยาวเกินการคัดกรองทำหยาบ\n- ❌ ถามข้อมูลที่มีในโปรไฟล์อยู่แล้ว\n- ❌ สรุปก่อนเก็บครบ 5 ข้อที่ตอบตรงประเด็น\n- ❌ ส่ง 2 ข้อใหญ่ใน message เดียว\n- ❌ ถามซ้ำหัวข้อที่ User ตอบตรงประเด็นไปแล้ว\n- ❌ ข้ามข้อเมื่อคำตอบไม่ตรงประเด็น\n- ❌ พิมพ์ placeholder เช่น (กำลังดำเนินการตามขั้นตอนที่ N) / (คำถามสำหรับคุณ) / (คำตอบสำหรับคุณ)\n- ❌ สร้างคำถามคัดกรองเองเมื่อระบบจัดการถามข้อ 1–5 แล้ว\n\n========================================\nนอกเรื่อง / ตอบไม่ตรง / อาการคนละหัวข้อ — ห้ามถามข้อถัดไป\n========================================\n- User ถาม/ตอบนอกเรื่อง (อาหาร, เที่ยว, เพลง, เกม, กินข้าว, ร้านอาหาร, คุยเล่น, การบ้าน, อาจารย์, การเรียน):\n  → ตอบประโยคเดียว: \"ขออภัย telebot ตอบได้เฉพาะการซักอาการสุขภาพ 32 อาการบัตรทองเท่านั้น กรุณาอธิบายอาการของ User ครับ\"\n  → หยุดทันที ห้ามมี 🩺 ข้อ N ห้ามถามข้อถัดไป ห้ามมี \"รบกวนตอบคำถามเหล่านี้\"\n- User ตอบไม่ตรงคำถาม แต่ยังเกี่ยวกับอาการที่ล็อก → ถามข้อเดิมซ้ำ ใช้เลขข้อเดิม + format เดิม\n- User พูดอาการอื่นนอก LOCKED_TOPIC → เตือนแล้วถามข้อเดิมซ้ำ ห้ามเปลี่ยนหัวข้อ\n- User ตอบนอกประเด็นชัดเจน → ห้ามข้ามไปข้อถัดไป ต้องรอให้ตอบเรื่องอาการที่ล็อกก่อน\n\n========================================\n🌐 Web Search / Wikipedia (ถ้ามี tool)\n========================================\nมี tool: Web Search (DuckDuckGo) และ Wikipedia\n- ใช้ได้เฉพาะตอนสรุป / คำแนะนำเบื้องต้น (หลังครบ 5 ข้อ) หรือเมื่อต้องการอ้างอิงสั้นๆ เรื่องอาการที่ล็อก\n- ห้ามเรียก tool ระหว่างถามข้อ 1–5 ถ้ายังเก็บคำตอบไม่ครบ\n- ห้ามค้นนอกสุขภาพ / นอกอาการที่ล็อก\n- ผลค้นมาใช้ประกอบคำแนะนำสั้นๆ เท่านั้น ห้ามคัดลอกยาว และห้ามจ่ายยา/ขนาดยาจากเว็บ\n"
         }
       },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "id": "9fd2a97b-6583-442a-81b1-851d5d88caf1",
+      "name": "AI Agent — ผู้ช่วยซักประวัติ",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
       "position": [
-        80,
-        540
-      ],
-      "parameters": {
-        "options": {
-          "numCtx": 4096,
-          "topP": 0.9,
-          "temperature": 0.2
-        },
-        "model": "gemma3:4b"
-      },
-      "typeVersion": 1
+        -40,
+        280
+      ]
     },
     {
-      "id": "memory",
+      "parameters": {
+        "model": "gemma4:latest",
+        "options": {
+          "temperature": 0.2,
+          "topP": 0.9,
+          "numCtx": 4096
+        }
+      },
+      "id": "c7b8a1aa-2471-4e39-8dd3-b73a2a2fa498",
+      "name": "Ollama Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        520
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "telebot-ollama-local",
+          "name": "Ollama local"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 20
+      },
+      "id": "e4bacd8f-a33b-4e7c-9bf1-036a4adcd7c7",
       "name": "Window Buffer Memory",
       "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
       "position": [
-        260,
-        540
-      ],
-      "parameters": {
-        "sessionKey": "={{ $('Preprocess').item.json.sessionId }}",
-        "sessionIdType": "fromInput",
-        "contextWindowLength": 40
-      },
-      "typeVersion": 1.3
+        80,
+        520
+      ]
     },
     {
-      "id": "qdrant-tool",
-      "name": "Qdrant medical_kb",
-      "credentials": {
-        "qdrantApi": {
-          "id": "REPLACE_WITH_QDRANT_CRED_ID",
-          "name": "Qdrant (local)"
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
-      "position": [
-        460,
-        540
-      ],
-      "parameters": {
-        "toolDescription": "ค้นหาฐานความรู้แพทย์ภาษาไทย 16,000+ Q&A — ใช้เมื่อคำถามแปลก/นอก 32 อาการ",
-        "topK": 4,
-        "options": {},
-        "qdrantCollection": {
-          "mode": "list",
-          "__rl": true,
-          "cachedResultName": "pharmacy_kb",
-          "value": "pharmacy_kb"
-        },
-        "mode": "retrieve-as-tool",
-        "toolName": "medical_kb"
-      },
-      "typeVersion": 1.1
-    },
-    {
-      "id": "embed-tool",
-      "name": "Ollama Embeddings",
-      "credentials": {
-        "ollamaApi": {
-          "id": "REPLACE_WITH_YOUR_OLLAMA_CREDENTIAL_ID",
-          "name": "Ollama (local)"
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
-      "position": [
-        460,
-        720
-      ],
-      "parameters": {
-        "model": "bge-m3:latest"
-      },
-      "typeVersion": 1
-    },
-    {
-      "id": "manual-trigger",
-      "name": "Ingest train.json (Run Once)",
-      "type": "n8n-nodes-base.manualTrigger",
-      "position": [
-        -400,
-        900
-      ],
       "parameters": {},
-      "typeVersion": 1
+      "id": "wiki-tool-001-aaaa-bbbb-cccc-ddddeeeeffff",
+      "name": "Wikipedia",
+      "type": "@n8n/n8n-nodes-langchain.toolWikipedia",
+      "typeVersion": 1,
+      "position": [
+        280,
+        420
+      ]
     },
     {
-      "id": "read-file",
-      "name": "Read train.json",
-      "type": "n8n-nodes-base.readWriteFile",
-      "position": [
-        -180,
-        900
-      ],
       "parameters": {
-        "fileSelector": "C:/Users/konku/Downloads/train (1).json",
-        "options": {}
-      },
-      "typeVersion": 1
-    },
-    {
-      "id": "extract-json",
-      "name": "Parse JSON",
-      "type": "n8n-nodes-base.extractFromFile",
-      "position": [
-        40,
-        900
-      ],
-      "parameters": {
-        "options": {},
-        "operation": "fromJson"
-      },
-      "typeVersion": 1
-    },
-    {
-      "id": "split-rows",
-      "name": "Split rows",
-      "type": "n8n-nodes-base.code",
-      "position": [
-        260,
-        900
-      ],
-      "parameters": {
-        "jsCode": "const all = $input.first().json.data ?? $input.first().json;\nconst rows = Array.isArray(all) ? all : Object.values(all);\nreturn rows.map((r, idx) => {\n  const q = (r.Question || '').trim();\n  const a = (r.Response || '').trim();\n  return { json: { id: idx, text: `คำถาม: ${q}\\n\\nคำตอบ: ${a}`, metadata: { source: 'train.json', row: idx, question: q.slice(0, 500) } } };\n});"
-      },
-      "typeVersion": 2
-    },
-    {
-      "id": "qdrant-insert",
-      "name": "Qdrant Insert",
-      "credentials": {
-        "qdrantApi": {
-          "id": "REPLACE_WITH_QDRANT_CRED_ID",
-          "name": "Qdrant (local)"
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
-      "position": [
-        520,
-        900
-      ],
-      "parameters": {
-        "qdrantCollection": {
-          "mode": "list",
-          "__rl": true,
-          "cachedResultName": "pharmacy_kb",
-          "value": "pharmacy_kb"
-        },
-        "options": {
-          "collectionConfig": {
-            "values": {
-              "distance": "Cosine"
+        "toolDescription": "ค้นหาข้อมูลสุขภาพทั่วไปจากเว็บ (DuckDuckGo Instant Answer). ใช้ตอนสรุป/คำแนะนำเบื้องต้น เมื่อต้องการอ้างอิงสั้นๆ เกี่ยวกับอาการที่ล็อกเท่านั้น — ห้ามค้นเรื่องนอกสุขภาพ 32 อาการ และห้ามใช้ระหว่างถามข้อ 1-5 ถ้ายังไม่ครบ",
+        "method": "GET",
+        "url": "https://api.duckduckgo.com/?q={query}&format=json&no_html=1&skip_disambig=1",
+        "authentication": "none",
+        "sendQuery": false,
+        "sendHeaders": false,
+        "sendBody": false,
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "คำค้นภาษาไทยหรืออังกฤษ สั้นๆ เช่น ปวดศีรษะ ดูแลเบื้องต้น",
+              "type": "string"
             }
-          }
+          ]
         },
-        "mode": "insert"
+        "optimizeResponse": true,
+        "responseType": "json",
+        "fieldsToInclude": "selected",
+        "fields": "Abstract,AbstractText,Answer,Heading,RelatedTopics"
       },
-      "typeVersion": 1.1
-    },
-    {
-      "id": "data-loader",
-      "name": "Data Loader",
-      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "id": "web-search-ddg-001-aaaa-bbbb-cccc-ddddeeee0001",
+      "name": "Web Search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
       "position": [
-        440,
-        1100
-      ],
-      "parameters": {
-        "jsonMode": "expressionData",
-        "options": {
-          "metadata": {
-            "metadataValues": [
-              {
-                "value": "={{ $json.metadata.row }}",
-                "name": "row"
-              },
-              {
-                "value": "={{ $json.metadata.question }}",
-                "name": "question"
-              },
-              {
-                "value": "={{ $json.metadata.source }}",
-                "name": "source"
-              }
-            ]
-          }
-        },
-        "jsonData": "={{ $json.text }}"
-      },
-      "typeVersion": 1
-    },
-    {
-      "id": "splitter",
-      "name": "Text Splitter",
-      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
-      "position": [
-        340,
-        1300
-      ],
-      "parameters": {
-        "chunkOverlap": 80,
-        "chunkSize": 800
-      },
-      "typeVersion": 1
-    },
-    {
-      "id": "embed-ingest",
-      "name": "Ollama Embeddings Ingest",
-      "credentials": {
-        "ollamaApi": {
-          "id": "REPLACE_WITH_YOUR_OLLAMA_CREDENTIAL_ID",
-          "name": "Ollama (local)"
-        }
-      },
-      "type": "@n8n/n8n-nodes-langchain.embeddingsOllama",
-      "position": [
-        620,
-        1100
-      ],
-      "parameters": {
-        "model": "bge-m3:latest"
-      },
-      "typeVersion": 1
+        280,
+        560
+      ]
     }
   ],
   "connections": {
-    "Data Loader": {
-      "ai_document": [
-        [
-          {
-            "node": "Qdrant Insert",
-            "type": "ai_document",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Chat Trigger": {
       "main": [
         [
           {
             "node": "Preprocess",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ollama Embeddings Ingest": {
-      "ai_embedding": [
-        [
-          {
-            "node": "Qdrant Insert",
-            "type": "ai_embedding",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ollama Chat Model": {
-      "ai_languageModel": [
-        [
-          {
-            "node": "AI Agent — ผู้ช่วยซักประวัติ",
-            "type": "ai_languageModel",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Split rows": {
-      "main": [
-        [
-          {
-            "node": "Qdrant Insert",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Read train.json": {
-      "main": [
-        [
-          {
-            "node": "Parse JSON",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Window Buffer Memory": {
-      "ai_memory": [
-        [
-          {
-            "node": "AI Agent — ผู้ช่วยซักประวัติ",
-            "type": "ai_memory",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse JSON": {
-      "main": [
-        [
-          {
-            "node": "Split rows",
             "type": "main",
             "index": 0
           }
@@ -386,7 +156,29 @@
         ]
       ]
     },
-    "Qdrant medical_kb": {
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent — ผู้ช่วยซักประวัติ",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent — ผู้ช่วยซักประวัติ",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wikipedia": {
       "ai_tool": [
         [
           {
@@ -397,34 +189,12 @@
         ]
       ]
     },
-    "Ollama Embeddings": {
-      "ai_embedding": [
+    "Web Search": {
+      "ai_tool": [
         [
           {
-            "node": "Qdrant medical_kb",
-            "type": "ai_embedding",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Text Splitter": {
-      "ai_textSplitter": [
-        [
-          {
-            "node": "Data Loader",
-            "type": "ai_textSplitter",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Ingest train.json (Run Once)": {
-      "main": [
-        [
-          {
-            "node": "Read train.json",
-            "type": "main",
+            "node": "AI Agent — ผู้ช่วยซักประวัติ",
+            "type": "ai_tool",
             "index": 0
           }
         ]
@@ -432,16 +202,10 @@
     }
   },
   "settings": {
-    "saveManualExecutions": true,
-    "executionOrder": "v1",
-    "timezone": "Asia/Bangkok",
-    "executionTimeout": 3600,
-    "saveExecutionProgress": true
+    "executionOrder": "v1"
   },
-  "staticData": null,
   "pinData": {},
-  "versionId": "",
-  "triggerCount": 1,
-  "id": "telebot-32sym-rag-v1",
-  "active": true
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
 }

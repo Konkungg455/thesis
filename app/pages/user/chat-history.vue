@@ -6,6 +6,7 @@ import { useRoute, useRouter } from 'vue-router';
 // และจำกัด scope แค่ route นี้ (ไม่กระทบ chat.css ของ /user/chat)
 import '@/assets/chat_bot.css';
 import '@/assets/chat-history-page.css';
+import { formatThaiSessionListTime } from '@/utils/datetime';
 
 // 🆕 หน้านี้เปิดได้แม้ไม่ล็อกอิน (guest mode)
 //    → ไม่ใส่ middleware 'user-only'; global guard จะเช็คผ่าน PUBLIC_PATH_PREFIXES
@@ -114,18 +115,7 @@ const startNewChat = () => {
     closeSidebar();
 };
 
-const formatSessionTimeShort = (ts) => {
-    if (!ts) return '';
-    try {
-        const d = new Date(ts.replace(' ', 'T'));
-        const now = new Date();
-        const sameDay = d.toDateString() === now.toDateString();
-        const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
-        if (sameDay) return d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-        if (d.toDateString() === yesterday.toDateString()) return 'เมื่อวาน';
-        return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
-    } catch { return ''; }
-};
+const formatSessionTimeShort = (ts) => formatThaiSessionListTime(ts);
 
 const previewSessionMsg = (s) => {
     const t = String(s || '').trim();
@@ -218,11 +208,52 @@ const persistActiveBotSession = (sid) => {
 // ส่งทั้ง localStorage และ query string ไปด้วย — กันพลาดถ้า localStorage ถูกล้าง/ไม่ทำงาน
 const goToPharmacist = () => {
     persistActiveBotSession(sessionId.value);
+    try { localStorage.removeItem('telebot_skip_delivery_fee'); } catch {}
     router.push({
         path: '/pharmacist/location',
         query: sessionId.value ? { bot_session_id: sessionId.value } : {}
     });
-}
+};
+
+/** อาการฉุกเฉิน → ไปหน้าเลือกเภสัชใกล้คุณ (พร้อม bot_session) */
+const goToEmergency = async () => {
+    persistActiveBotSession(sessionId.value);
+    try { localStorage.setItem('telebot_skip_delivery_fee', '1'); } catch {}
+    const q = {
+        initialRadius: '500',
+        fallbackRadius: '1000',
+        emergency: '1',
+        ...(sessionId.value ? { bot_session_id: sessionId.value } : {}),
+    };
+
+    const pushPhamacy = (lat, lng) => {
+        router.push({
+            path: '/user/phamacy',
+            query: {
+                ...q,
+                lat: String(lat),
+                lng: String(lng),
+            },
+        });
+    };
+
+    try {
+        if (!import.meta.client || !navigator.geolocation) {
+            pushPhamacy(14.3654, 100.4872);
+            return;
+        }
+        const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: false,
+                timeout: 10000,
+                maximumAge: 120000,
+            });
+        });
+        pushPhamacy(pos.coords.latitude, pos.coords.longitude);
+    } catch {
+        pushPhamacy(14.3654, 100.4872);
+    }
+};
 
 /* ================= Sidebar mobile drawer ================= */
 const isSidebarOpen = ref(false);
@@ -230,7 +261,7 @@ const openSidebar = () => { isSidebarOpen.value = true; };
 const closeSidebar = () => { isSidebarOpen.value = false; };
 
 // ใช้กฎร่วม (32 อาการบัตรทอง / red flag / off-topic) จาก composable
-const { classifyInput, parseAiMessage, getOptions, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, REPLY_REDFLAG, REPLY_IRRELEVANT, REPLY_THANKS } = useAiChatRules();
+const { classifyInput, parseAiMessage, getOptions, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, buildOffSymptomReply, rewritePharmacyConsultCta, resolveUserGender, adaptScreeningPartsForGender, REPLY_REDFLAG, REPLY_IRRELEVANT, REPLY_PROFANITY, REPLY_THANKS } = useAiChatRules();
 const { apiUrl } = useApiBase();
 
 /** ชื่อ-นามสกุลเต็ม จากโปรไฟล์ */
@@ -288,7 +319,7 @@ const sanitizeAiText = (text) => {
             out = out.replace(new RegExp(`คุณ(?!\\s)(?=${safeFirst})`, 'g'), 'คุณ ');
         }
     }
-    return out;
+    return rewritePharmacyConsultCta(out);
 };
 
 /** แปลงข้อความจาก DB → object ใน state (รองรับ meta_json + fallback parse) */
@@ -326,8 +357,12 @@ const mapStoredMessage = (msg) => {
 
 /** ใช้ใน template — ใช้ parts ที่บันทึกไว้ก่อน แล้วค่อย parse ใหม่ */
 const getMessageParts = (msg) => {
-    if (msg.parts?.length) return msg.parts;
-    return parseAiMessage(normalizeMessageText(msg.text));
+    const raw = msg.parts?.length ? msg.parts : parseAiMessage(normalizeMessageText(msg.text));
+    return adaptScreeningPartsForGender(
+        raw,
+        symptomName.value || queryParam('category'),
+        resolveUserGender(userProfile.value),
+    );
 };
 
 // 🆕 guest mode: หน้านี้ใช้งานได้แม้ไม่ login → ตั้ง isGuest=true เงียบ ๆ ถ้าไม่ผ่าน
@@ -337,6 +372,16 @@ const fetchUserProfile = async () => {
         const res = await $fetch(apiUrl('vue-get-user-profile.php'), { credentials: 'include' });
         if (res?.status === 'success') {
             userProfile.value = res.data;
+            try {
+                const stored = JSON.parse(localStorage.getItem('user_data') || 'null') || {};
+                if (res.data?.gender != null && String(res.data.gender).trim() !== '') {
+                    stored.gender = res.data.gender;
+                }
+                if (res.data?.id_account) stored.id_account = res.data.id_account;
+                if (res.data?.firstname) stored.firstname = res.data.firstname;
+                if (res.data?.lastname) stored.lastname = res.data.lastname;
+                localStorage.setItem('user_data', JSON.stringify(stored));
+            } catch { /* ignore */ }
             const fullName = [res.data.firstname, res.data.lastname].filter(Boolean).join(' ').trim();
             const username = String(res.data.username_account || '').trim();
             if (fullName) userName.value = fullName;
@@ -476,8 +521,26 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         return;
     }
 
+    if (kind === 'profanity') {
+        const last = chatMessages.value[chatMessages.value.length - 1];
+        if (last?.role === 'user') last.skipProgress = true;
+        await addMessage('assistant', REPLY_PROFANITY);
+        isLoading.value = false;
+        return;
+    }
+
     if (kind === 'irrelevant') {
+        const last = chatMessages.value[chatMessages.value.length - 1];
+        if (last?.role === 'user') last.skipProgress = true;
         await addMessage('assistant', REPLY_IRRELEVANT);
+        isLoading.value = false;
+        return;
+    }
+
+    if (kind === 'off_topic_symptom') {
+        const last = chatMessages.value[chatMessages.value.length - 1];
+        if (last?.role === 'user') last.skipProgress = true;
+        await addMessage('assistant', buildOffSymptomReply(symptomName.value));
         isLoading.value = false;
         return;
     }
@@ -492,36 +555,58 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
     }
 
     try {
+        // คำถามข้อ 1–5 ใช้ชุด fix — ไม่เรียก AI
+        const fixed = getFixedScreeningReply(chatMessages.value, symptomName.value, {
+            gender: resolveUserGender(userProfile.value),
+            profile: userProfile.value,
+        });
+        if (fixed?.text) {
+            await new Promise(r => setTimeout(r, 350));
+            await addMessage('assistant', fixed.text);
+            isLoading.value = false;
+            await scrollToBottom();
+            return;
+        }
+
+        const progress = getChatProgress(chatMessages.value);
         const profileLine = buildProfileContext();
-        const screeningHint = buildScreeningHint(chatMessages.value, symptomName.value);
-        const enhancedInput = [profileLine, screeningHint, textToSend].filter(Boolean).join('\n\n');
+        // ครบ 5 ข้อ → ให้ AI เขียนสรุปเอง (ไม่ใช้เทมเพลต fix)
+        const enhancedInput = (progress.readyForSummary || progress.highestAsked >= 5)
+            ? buildSummaryChatInput(chatMessages.value, symptomName.value, profileLine, textToSend)
+            : [profileLine, buildScreeningHint(chatMessages.value, symptomName.value), textToSend].filter(Boolean).join('\n\n');
+
         const response = await $fetch(useNuxtApp().$n8nChatUrl(), {
             method: 'POST',
             timeout: 180000, // Ollama อาจใช้เวลา 30–120 วินาที (ครั้งแรกช้ากว่า)
             body: {
                 chatInput: enhancedInput,
                 sessionId: sessionId.value,
-                userName: userName.value
+                userName: userName.value,
+                symptom: symptomName.value || '',
+                category: symptomName.value || '',
             }
         });
 
-        const rawOutput = response.output || '';
+        let rawOutput = response.output || '';
         if (!rawOutput || /workflow.*activ|npm run dev|n8n/i.test(rawOutput)) {
             throw new Error('invalid ai output');
         }
+        const coerced = coerceSummaryOrPass(chatMessages.value, symptomName.value, rawOutput);
+        rawOutput = coerced.text;
         const aiOutput = sanitizeAiText(stripOffTopicLeak(rawOutput, textToSend, classifyOpts));
         const meta = buildAssistantMeta(aiOutput);
+        const isSummary = response.isFinalSummary || meta.isSummary || coerced.isSummary
+            || progress.readyForSummary || progress.highestAsked >= 5;
 
         await addMessage('assistant', aiOutput, {
             options: meta.isReview ? [] : (response.options || []),
-            isSummary: response.isFinalSummary || meta.isSummary,
+            isSummary,
             isRedFlag: meta.isRedFlag,
             isReview: meta.isReview,
             parts: meta.parts,
         });
 
-        // ถ้าเป็นข้อความสรุป → ส่งข้อความเชิญเขียนรีวิวตามมา
-        if ((response.isFinalSummary || meta.isSummary) && !meta.isRedFlag) {
+        if (isSummary && !meta.isRedFlag) {
             await new Promise(r => setTimeout(r, 800));
             const thxName = displayUserName.value;
             await addMessage('assistant',
@@ -544,7 +629,9 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
 const handleOptionClick = (option) => {
     if (option.includes('รีวิว')) {
         router.push('/review_write');
-    } else if (option.includes('เภสัชกร') || option.includes('🚑')) {
+    } else if (option.includes('ติดต่อเภสัชกรของเราทันที') || option.includes('🚑')) {
+        goToEmergency();
+    } else if (option.includes('เภสัชกร')) {
         goToPharmacist();
     } else if (option.includes('หน้าหลัก')) {
         router.push('/');
@@ -768,8 +855,8 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
                                 <div v-if="msg.isRedFlag" class="bubble-action-area">
                                     <hr>
                                     <p>เพื่อความปลอดภัย กรุณาพบผู้เชี่ยวชาญทันที:</p>
-                                    <button @click="goToPharmacist" class="action-link-btn">
-                                        ไปหน้าแชทเภสัชกร (คลิก) 👩‍⚕️
+                                    <button @click="goToEmergency" class="action-link-btn">
+                                        🚑 ติดต่อเภสัชกรของเราทันที
                                     </button>
                                 </div>
 

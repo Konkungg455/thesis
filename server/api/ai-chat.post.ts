@@ -15,16 +15,22 @@ export default defineEventHandler(async (event) => {
     const config = useRuntimeConfig();
     const body = await readBody(event);
 
-    const chatInput = String(body?.chatInput ?? '').trim();
+    const rawChatInput = String(body?.chatInput ?? '').trim();
     const sessionId = String(body?.sessionId ?? 'guest-session');
     const userName = String(body?.userName ?? body?.user ?? 'guest');
+    const symptom = String(body?.symptom ?? body?.category ?? '').trim();
 
-    if (!chatInput) {
+    if (!rawChatInput) {
         throw createError({
             statusCode: 400,
             statusMessage: 'chatInput is required',
         });
     }
+
+    const hasLockedTopic = /\[LOCKED_TOPIC\]/i.test(rawChatInput);
+    const chatInput = (!hasLockedTopic && symptom && symptom !== 'ทั่วไป')
+        ? `[LOCKED_TOPIC] อาการที่เลือก: ${symptom} — ถาม/สรุปเฉพาะอาการนี้ ห้ามเปลี่ยนหัวข้อ ห้ามตอบนอกอาการนี้\n\n${rawChatInput}`
+        : rawChatInput;
 
     if (shouldUseCloudAi(config)) {
         if (!hasAiApiKey(config)) {

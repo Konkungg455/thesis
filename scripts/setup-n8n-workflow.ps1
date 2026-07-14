@@ -6,7 +6,10 @@ param([switch]$Quiet)
 $ErrorActionPreference = "Continue"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $N8nData = Join-Path $ProjectRoot ".tools\n8n-data"
-$WorkflowFile = Join-Path $ProjectRoot "n8n_workflow_telebot_chat.json"
+$WorkflowFile = Join-Path $ProjectRoot "n8n_workflow_32_symptoms.json"
+if (-not (Test-Path $WorkflowFile)) {
+    $WorkflowFile = Join-Path $ProjectRoot "n8n_workflow_telebot_chat.json"
+}
 $CredsFile = Join-Path $ProjectRoot "n8n_credentials_ollama.json"
 $WebhookId = "1f5ea30f-2ff0-4d32-b211-eccb342ee0df"
 $N8nVersion = "1.91.2"
@@ -100,6 +103,7 @@ $n8nStart += @(
     "`$env:N8N_PORT='5678'"
     "`$env:N8N_SECURE_COOKIE='false'"
     "`$env:N8N_RUNNERS_ENABLED='true'"
+    "`$env:N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE='true'"
     "& '$npx' --yes n8n@$N8nVersion start"
 )
 Start-Process powershell -ArgumentList @(

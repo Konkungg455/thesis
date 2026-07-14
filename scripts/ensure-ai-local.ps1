@@ -10,7 +10,7 @@ $ErrorActionPreference = "Continue"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $N8nData = Join-Path $ProjectRoot ".tools\n8n-data"
 $OllamaExe = Join-Path $env:LOCALAPPDATA "Programs\Ollama\Ollama.exe"
-$Model = "gemma3:4b"
+$Model = "gemma4:latest"
 $N8nVersion = "1.91.2"
 
 function Write-AiLog([string]$Text, [string]$Color = "Gray") {
@@ -53,6 +53,7 @@ function Start-N8nBackground {
         "`$env:N8N_DIAGNOSTICS_ENABLED='false'"
         "`$env:N8N_PERSONALIZATION_ENABLED='false'"
         "`$env:N8N_RUNNERS_ENABLED='true'"
+        "`$env:N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE='true'"
         "Write-Host 'n8n -> http://127.0.0.1:5678' -ForegroundColor Cyan"
         "& '$n8nNpx' --yes n8n@$N8nVersion start"
     )

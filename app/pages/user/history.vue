@@ -1,4 +1,6 @@
 <script setup>
+import { formatThaiDate, formatThaiTimeShort } from '@/utils/datetime';
+
 definePageMeta({ middleware: 'user-only' });
 
 const { getHistory, deleteSession } = useChatApi();
@@ -63,23 +65,9 @@ const viewChat = (sessionId) => {
     navigateTo(`/user/chat-history?session_id=${sessionId}`);
 };
 
-const formatDate = (ts) => {
-    if (!ts) return '';
-    try {
-        return new Date(ts.replace(' ', 'T')).toLocaleDateString('th-TH', {
-            day: 'numeric', month: 'long', year: 'numeric'
-        });
-    } catch { return ts; }
-};
+const formatDate = (ts) => formatThaiDate(ts);
 
-const formatTimeShort = (ts) => {
-    if (!ts) return '';
-    try {
-        return new Date(ts.replace(' ', 'T')).toLocaleTimeString('th-TH', {
-            hour: '2-digit', minute: '2-digit'
-        });
-    } catch { return ''; }
-};
+const formatTimeShort = (ts) => formatThaiTimeShort(ts);
 
 const previewMessage = (msg) => {
     const t = String(msg || '').trim();

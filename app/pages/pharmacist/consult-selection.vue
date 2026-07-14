@@ -18,6 +18,18 @@ const resolveBotSessionId = () => {
     return '';
 };
 
+/** มาจากปุ่ม "ติดต่อเภสัชกรของเราทันที" → ซ่อนรับทราบค่าส่ง 50 บาท */
+const isEmergencyConsult = computed(() => {
+    const q = String(route.query.emergency || '').trim();
+    if (q === '1' || q === 'true') return true;
+    if (import.meta.client) {
+        try {
+            return localStorage.getItem('telebot_skip_delivery_fee') === '1';
+        } catch { /* ignore */ }
+    }
+    return false;
+});
+
 // สถานะการเลือกช่องทาง
 const selectedMethod = ref('chat');
 
@@ -27,22 +39,24 @@ const hasAcceptedDeliveryFee = ref(false);
 // ค่าปรึกษา (ไม่บวก 50 บาทค่าส่ง)
 const totalPrice = computed(() => 100);
 
+const canSubmit = computed(() => isEmergencyConsult.value || hasAcceptedDeliveryFee.value);
+
 // ไปหน้าถัดไปพร้อมส่งค่าทั้งหมดไปใน Query
 const handleNext = () => {
-    // ป้องกันการลืมกดยอมรับค่าส่ง (ถ้าจำเป็น)
-    if (!hasAcceptedDeliveryFee.value) {
+    if (!isEmergencyConsult.value && !hasAcceptedDeliveryFee.value) {
         alert("กรุณากดยืนยันรับทราบค่าจัดส่งยาเพิ่มเติมกรณีมีการออกใบสรุปรายการยา");
         return;
     }
 
     router.push({
         path: '/pharmacist/booking-type',
-        query: { 
-            id: route.query.id, 
+        query: {
+            id: route.query.id,
             method: selectedMethod.value,
             privilege: 'normal',
-            delivery_accepted: hasAcceptedDeliveryFee.value ? 'true' : 'false',
+            delivery_accepted: (!isEmergencyConsult.value && hasAcceptedDeliveryFee.value) ? 'true' : 'false',
             amount: totalPrice.value,
+            ...(isEmergencyConsult.value ? { emergency: '1' } : {}),
             ...(resolveBotSessionId() ? { bot_session_id: resolveBotSessionId() } : {}),
         }
     });
@@ -55,7 +69,7 @@ const handleNext = () => {
         <div class="container-selection">
 
             <div class="selection-card">
-                
+
                 <button class="back-arrow" @click="router.back()">
                     <span class="icon">↩</span>
                 </button>
@@ -67,14 +81,14 @@ const handleNext = () => {
 
                 <!-- รายการช่องทาง -->
                 <div class="method-group">
-                    <div 
+                    <div
                         v-for="method in [
                             { id: 'video', label: 'โทรแบบวิดีโอ', icon: '📹' },
                             { id: 'voice', label: 'โทรแบบเสียง', icon: '📞' },
                             { id: 'chat', label: 'พิมพ์แชท', icon: '💬' }
-                        ]" 
+                        ]"
                         :key="method.id"
-                        class="method-card" 
+                        class="method-card"
                         :class="{ active: selectedMethod === method.id }"
                         @click="selectedMethod = method.id"
                     >
@@ -86,8 +100,13 @@ const handleNext = () => {
                     </div>
                 </div>
 
-                <!-- 🚩 ส่วนแจ้งเตือนค่าส่ง (กดยืนยันรับทราบ) -->
-                <div class="delivery-notice-box" @click="hasAcceptedDeliveryFee = !hasAcceptedDeliveryFee" :class="{ 'active-notice': hasAcceptedDeliveryFee }">
+                <!-- รับทราบค่าส่ง — ซ่อนเมื่อมาจากเส้นทางฉุกเฉิน -->
+                <div
+                    v-if="!isEmergencyConsult"
+                    class="delivery-notice-box"
+                    @click="hasAcceptedDeliveryFee = !hasAcceptedDeliveryFee"
+                    :class="{ 'active-notice': hasAcceptedDeliveryFee }"
+                >
                     <div class="checkbox-wrapper">
                         <div class="custom-check" :class="{ checked: hasAcceptedDeliveryFee }">
                             <span v-if="hasAcceptedDeliveryFee">✓</span>
@@ -110,7 +129,7 @@ const handleNext = () => {
                 </p>
 
                 <div class="button-group">
-                    <button class="btn-submit" @click="handleNext" :disabled="!hasAcceptedDeliveryFee">
+                    <button class="btn-submit" @click="handleNext" :disabled="!canSubmit">
                         ถัดไป
                     </button>
                 </div>
@@ -124,7 +143,6 @@ const handleNext = () => {
 <style scoped>
 @import "@/assets/consult-selection.css";
 
-/* 🚩 ปรับปรุง CSS สำหรับ Notice Box */
 .delivery-notice-box {
     display: flex;
     justify-content: space-between;

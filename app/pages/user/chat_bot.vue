@@ -25,11 +25,53 @@ const persistActiveBotSession = (sid) => {
 }
 const goToPharmacist = () => {
     persistActiveBotSession(sessionId.value);
+    try { localStorage.removeItem('telebot_skip_delivery_fee'); } catch {}
     router.push({
         path: '/pharmacist/location',
         query: sessionId.value ? { bot_session_id: sessionId.value } : {}
     });
-}
+};
+
+/** อาการฉุกเฉิน → ไปหน้าเลือกเภสัชใกล้คุณ (พร้อม bot_session) */
+const goToEmergency = async () => {
+    persistActiveBotSession(sessionId.value);
+    try { localStorage.setItem('telebot_skip_delivery_fee', '1'); } catch {}
+    const q = {
+        initialRadius: '500',
+        fallbackRadius: '1000',
+        emergency: '1',
+        ...(sessionId.value ? { bot_session_id: sessionId.value } : {}),
+    };
+
+    const pushPhamacy = (lat, lng) => {
+        router.push({
+            path: '/user/phamacy',
+            query: {
+                ...q,
+                lat: String(lat),
+                lng: String(lng),
+            },
+        });
+    };
+
+    try {
+        if (!import.meta.client || !navigator.geolocation) {
+            pushPhamacy(14.3654, 100.4872);
+            return;
+        }
+        const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: false,
+                timeout: 10000,
+                maximumAge: 120000,
+            });
+        });
+        pushPhamacy(pos.coords.latitude, pos.coords.longitude);
+    } catch {
+        // GPS ไม่ได้ → ใช้พิกัดสำรองแล้วให้เลือกเภสัชได้ทันที
+        pushPhamacy(14.3654, 100.4872);
+    }
+};
 
 const { apiUrl } = useApiBase();
 const { saveMessage: saveChatMessage, rememberGuestSession } = useChatApi();
@@ -93,7 +135,7 @@ const sanitizeAiText = (text) => {
             out = out.replace(new RegExp(`คุณ(?!\\s)(?=${safeFirst})`, 'g'), 'คุณ ');
         }
     }
-    return out;
+    return rewritePharmacyConsultCta(out);
 };
 
 /** ตรวจว่าเป็นข้อความขอบคุณ/รีวิวหรือไม่ */
@@ -112,6 +154,16 @@ const fetchUserProfile = async () => {
         const res = await $fetch(apiUrl('vue-get-user-profile.php'), { credentials: 'include' });
         if (res?.status === 'success') {
             userProfile.value = res.data;
+            try {
+                const stored = JSON.parse(localStorage.getItem('user_data') || 'null') || {};
+                if (res.data?.gender != null && String(res.data.gender).trim() !== '') {
+                    stored.gender = res.data.gender;
+                }
+                if (res.data?.id_account) stored.id_account = res.data.id_account;
+                if (res.data?.firstname) stored.firstname = res.data.firstname;
+                if (res.data?.lastname) stored.lastname = res.data.lastname;
+                localStorage.setItem('user_data', JSON.stringify(stored));
+            } catch { /* ignore */ }
             const fullName = [res.data.firstname, res.data.lastname].filter(Boolean).join(' ').trim();
             const username = String(res.data.username_account || '').trim();
             // ใช้ชื่อ-นามสกุลเต็มก่อน เพราะ AI ต้องเรียกชื่อจริง
@@ -164,11 +216,15 @@ const saveMessageToDB = async (role, message, extra = {}) => {
 
 /* ================= ฟังก์ชันหลัก (ส่งข้อความเชื่อม n8n + Logic ต่างๆ) ================= */
 
-const { classifyInput, parseAiMessage, getOptions, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, REPLY_REDFLAG, REPLY_IRRELEVANT, REPLY_THANKS } = useAiChatRules();
+const { classifyInput, parseAiMessage, getOptions, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, buildOffSymptomReply, rewritePharmacyConsultCta, resolveUserGender, adaptScreeningPartsForGender, REPLY_REDFLAG, REPLY_IRRELEVANT, REPLY_PROFANITY, REPLY_THANKS } = useAiChatRules();
 
 const getMessageParts = (msg) => {
-    if (msg.parts?.length) return msg.parts;
-    return parseAiMessage(normalizeMessageText(msg.text));
+    const raw = msg.parts?.length ? msg.parts : parseAiMessage(normalizeMessageText(msg.text));
+    return adaptScreeningPartsForGender(
+        raw,
+        route.query.category,
+        resolveUserGender(userProfile.value),
+    );
 };
 
 const pushAssistant = async (text, extra = {}) => {
@@ -211,9 +267,29 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         return;
     }
 
+    if (kind === 'profanity') {
+        const last = chatMessages.value[chatMessages.value.length - 1];
+        if (last?.role === 'user') last.skipProgress = true;
+        await new Promise(r => setTimeout(r, 400));
+        await pushAssistant(REPLY_PROFANITY);
+        isLoading.value = false;
+        return;
+    }
+
     if (kind === 'irrelevant') {
+        const last = chatMessages.value[chatMessages.value.length - 1];
+        if (last?.role === 'user') last.skipProgress = true;
         await new Promise(r => setTimeout(r, 400));
         await pushAssistant(REPLY_IRRELEVANT);
+        isLoading.value = false;
+        return;
+    }
+
+    if (kind === 'off_topic_symptom') {
+        const last = chatMessages.value[chatMessages.value.length - 1];
+        if (last?.role === 'user') last.skipProgress = true;
+        await new Promise(r => setTimeout(r, 400));
+        await pushAssistant(buildOffSymptomReply(route.query.category));
         isLoading.value = false;
         return;
     }
@@ -229,10 +305,28 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
     }
 
     try {
+        // คำถามข้อ 1–5 ใช้ชุด fix — ไม่เรียก AI
+        const fixed = getFixedScreeningReply(chatMessages.value, route.query.category, {
+            gender: resolveUserGender(userProfile.value),
+            profile: userProfile.value,
+        });
+        if (fixed?.text) {
+            await new Promise(r => setTimeout(r, 350));
+            await pushAssistant(fixed.text);
+            isLoading.value = false;
+            await nextTick();
+            updateJumpButtonVisibility();
+            return;
+        }
+
+        const progress = getChatProgress(chatMessages.value);
         const profileLine = buildProfileContext();
-        const screeningHint = buildScreeningHint(chatMessages.value, route.query.category);
-        const enhancedInput = [profileLine, screeningHint, textToSend].filter(Boolean).join('\n\n');
         const chatUser = profileUsername.value || userName.value || 'guest';
+        // ครบ 5 ข้อ → ให้ AI เขียนสรุปเอง (ไม่ใช้เทมเพลต fix)
+        const enhancedInput = (progress.readyForSummary || progress.highestAsked >= 5)
+            ? buildSummaryChatInput(chatMessages.value, route.query.category, profileLine, textToSend)
+            : [profileLine, buildScreeningHint(chatMessages.value, route.query.category), textToSend].filter(Boolean).join('\n\n');
+
         const response = await $fetch(useNuxtApp().$n8nChatUrl(), {
             method: 'POST',
             timeout: 180000,
@@ -240,24 +334,29 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
                 chatInput: enhancedInput,
                 sessionId: sessionId.value,
                 user: chatUser,
-                userName: chatUser
+                userName: chatUser,
+                symptom: String(route.query.category || ''),
+                category: String(route.query.category || ''),
             }
         });
 
-        const rawOutput = response.output || 'ขออภัยค่ะ AI ตอบไม่ได้ในตอนนี้ ลองพิมพ์อาการของคุณใหม่อีกครั้งนะคะ';
+        let rawOutput = response.output || 'ขออภัยค่ะ AI ตอบไม่ได้ในตอนนี้ ลองพิมพ์อาการของคุณใหม่อีกครั้งนะคะ';
+        const coerced = coerceSummaryOrPass(chatMessages.value, route.query.category, rawOutput);
+        rawOutput = coerced.text;
         const aiOutput = sanitizeAiText(stripOffTopicLeak(rawOutput, textToSend, classifyOpts));
         const meta = buildAssistantMeta(aiOutput);
+        const isSummary = response.isFinalSummary || meta.isSummary || coerced.isSummary
+            || progress.readyForSummary || progress.highestAsked >= 5;
 
         await pushAssistant(aiOutput, {
             options: meta.isReview ? [] : (response.options || []),
-            isSummary: response.isFinalSummary || meta.isSummary,
+            isSummary,
             isRedFlag: meta.isRedFlag,
             isReview: meta.isReview,
             parts: meta.parts,
         });
 
-        // ถ้าเป็นข้อความสรุป → ส่งข้อความเชิญเขียนรีวิวตามมา
-        if ((response.isFinalSummary || meta.isSummary) && !meta.isRedFlag) {
+        if (isSummary && !meta.isRedFlag) {
             await new Promise(r => setTimeout(r, 800));
             const thxName = displayUserName.value;
             await pushAssistant(
@@ -448,8 +547,8 @@ onMounted(async () => {
 
                                 <div v-if="msg.isRedFlag" class="red-flag-action">
                                     <p>กรุณาติดต่อเภสัชกรของเราโดยด่วน:</p>
-                                    <a href="#" class="chat-redirect-link" @click.prevent="goToPharmacist">
-                                        ไปหน้าปรึกษาเภสัชกร 👩‍⚕️
+                                    <a href="#" class="chat-redirect-link" @click.prevent="goToEmergency">
+                                        🚑 ติดต่อเภสัชกรของเราทันที
                                     </a>
                                 </div>
 
@@ -472,8 +571,9 @@ onMounted(async () => {
                             <div v-if="msg.options && msg.options.length > 0 && !msg.isReview" class="options-grid">
                                 <button v-for="opt in msg.options" :key="opt" class="choice-btn" @click="
                                     opt.includes('รีวิว') ? router.push('/review_write') :
-                                        msg.isRedFlag || opt.includes('เภสัชกร') || opt.includes('🚑') ? router.push('/pharmacist/location') :
-                                            sendMessage(opt)
+                                        msg.isRedFlag || opt.includes('ติดต่อเภสัชกรของเราทันที') || opt.includes('🚑') ? goToEmergency() :
+                                            opt.includes('เภสัชกร') ? goToPharmacist() :
+                                                sendMessage(opt)
                                     " :disabled="isLoading">
                                     {{ opt }}
                                 </button>

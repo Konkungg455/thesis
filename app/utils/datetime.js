@@ -13,34 +13,89 @@ export function parseAppDateTime(value) {
     return new Date(s);
 }
 
+/** YYYY-MM-DD ตามเวลาไทย — ใช้เทียบวันเดียวกัน/เมื่อวาน */
+function bangkokDateKey(d) {
+    return d.toLocaleDateString('en-CA', { timeZone: APP_TIMEZONE });
+}
+
 /** เวลาในบับเบิลแชท — บังคับ Asia/Bangkok กัน SSR (UTC) แสดงเวลาเพี้ยน 7 ชม. */
 export function formatChatBubbleTime(value) {
     const d = parseAppDateTime(value);
     if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleTimeString(APP_LOCALE, {
+    const time = d.toLocaleTimeString(APP_LOCALE, {
         hour: '2-digit',
         minute: '2-digit',
+        hour12: false,
         timeZone: APP_TIMEZONE,
     });
+    return `${time} น.`;
 }
 
 /** ใช้ display_time จาก API (คำนวณใน Postgres) ก่อน แล้วค่อย fallback แปลงจาก created_at */
 export function formatChatMessageTime(msg) {
     const preset = String(msg?.display_time || '').trim();
-    if (preset) return preset;
+    if (preset) {
+        // ถ้า API ส่งมาแล้วไม่มี "น." ให้เติมให้เป็นรูปแบบไทย
+        return /น\.?\s*$/.test(preset) ? preset : `${preset} น.`;
+    }
     return formatChatBubbleTime(msg?.created_at);
 }
 
-/** วันที่+เวลาแชทแบบเต็ม — บังคับ Asia/Bangkok */
+/** วันที่+เวลาแชทแบบเต็ม — บังคับ Asia/Bangkok (พ.ศ.) */
 export function formatChatDateTime(value) {
     const d = parseAppDateTime(value);
     if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleString(APP_LOCALE, {
+    const date = d.toLocaleDateString(APP_LOCALE, {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
+        timeZone: APP_TIMEZONE,
+    });
+    const time = d.toLocaleTimeString(APP_LOCALE, {
         hour: '2-digit',
         minute: '2-digit',
+        hour12: false,
+        timeZone: APP_TIMEZONE,
+    });
+    return `${date} ${time} น.`;
+}
+
+/** เฉพาะเวลาสั้น เช่น 14:11 น. */
+export function formatThaiTimeShort(value) {
+    return formatChatBubbleTime(value);
+}
+
+/** เฉพาะวันที่ไทย เช่น 14 ก.ค. 2569 */
+export function formatThaiDate(value) {
+    const d = parseAppDateTime(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(APP_LOCALE, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: APP_TIMEZONE,
+    });
+}
+
+/**
+ * เวลาในรายการประวัติแชท (sidebar / การ์ด)
+ * วันนี้ → 14:11 น. | เมื่อวาน → เมื่อวาน | อื่นๆ → 14 ก.ค.
+ */
+export function formatThaiSessionListTime(value) {
+    const d = parseAppDateTime(value);
+    if (Number.isNaN(d.getTime())) return '';
+    const key = bangkokDateKey(d);
+    const now = new Date();
+    const todayKey = bangkokDateKey(now);
+    if (key === todayKey) return formatChatBubbleTime(d);
+
+    const y = new Date(now);
+    y.setDate(y.getDate() - 1);
+    if (key === bangkokDateKey(y)) return 'เมื่อวาน';
+
+    return d.toLocaleDateString(APP_LOCALE, {
+        day: 'numeric',
+        month: 'short',
         timeZone: APP_TIMEZONE,
     });
 }

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(scriptDir, '..');
 const n8nData = join(projectRoot, '.tools', 'n8n-data');
-const model = 'gemma3:4b';
+const model = 'gemma4:latest';
 const n8nVersion = '1.91.2';
 const quiet = process.argv.includes('--quiet');
 const skipModelPull = process.argv.includes('--skip-model-pull');
@@ -75,6 +75,7 @@ function startN8nBackground(nodeTools) {
     N8N_DIAGNOSTICS_ENABLED: 'false',
     N8N_PERSONALIZATION_ENABLED: 'false',
     N8N_RUNNERS_ENABLED: 'true',
+    N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: 'true',
   };
   if (nodeTools.nodeDir) {
     const sep = process.platform === 'win32' ? ';' : ':';

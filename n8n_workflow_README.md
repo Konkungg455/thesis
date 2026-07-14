@@ -26,7 +26,8 @@ npm run ai:check
 ## ตั้งค่า n8n (ครั้งแรกเท่านั้น)
 
 1. เปิด **http://127.0.0.1:5678** → สมัคร account local (เก็บในเครื่อง ไม่ใช่ cloud)
-2. **Workflows** → **Import from File** → เลือก `n8n_workflow_telebot_chat.json`
+2. **Workflows** → **Import from File** → เลือก `n8n_workflow_32_symptoms.json` (แนะนำ — มี Web Search)  
+   หรือ `n8n_workflow_telebot_chat.json` (แบบเบา ไม่มี tool)
 3. เปิด node **Ollama Chat Model** → Credentials → **Create new Ollama API**
    - Base URL: `http://127.0.0.1:11434`
    - Name: `Ollama (local)`
@@ -40,16 +41,19 @@ http://127.0.0.1:5678/webhook/1f5ea30f-2ff0-4d32-b211-eccb342ee0df/chat
 
 เว็บ Nuxt เรียกผ่าน **`/api/ai-chat`** → proxy ไป URL ด้านบนอัตโนมัติ
 
-## โครงสร้าง workflow
+## โครงสร้าง workflow (`n8n_workflow_32_symptoms.json`)
 
 ```
-[Chat Trigger] → [AI Agent — ผู้ช่วยซักประวัติ]
-                        ↑ Ollama gemma3:4b
-                        ↑ Window Buffer Memory (20)
+[Chat Trigger] → [Preprocess] → [AI Agent — ผู้ช่วยซักประวัติ]
+                                      ↑ Ollama gemma4
+                                      ↑ Window Buffer Memory (20)
+                                      ↑ Wikipedia (tool)
+                                      ↑ Web Search / DuckDuckGo (tool)
 ```
 
-- **ไม่ต้องใช้ Qdrant / Docker** สำหรับ workflow นี้
-- ถ้าต้องการ RAG 32 อาการแบบเต็ม → ใช้ `n8n_workflow_32_symptoms.json` (ต้องมี Qdrant)
+- **ไม่ต้องใช้ Qdrant / Docker / API key** สำหรับ Web Search (ใช้ DuckDuckGo + Wikipedia)
+- อย่า Activate สอง workflow ที่ webhook ID เดียวกันพร้อมกัน
+- สร้างไฟล์ใหม่เมื่อแก้โครง: `node scripts/build-n8n-32-symptoms.mjs`
 
 ## โน้ตบุ๊ค RAM ไม่พอ
 

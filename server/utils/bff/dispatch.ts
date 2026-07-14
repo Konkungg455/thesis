@@ -430,7 +430,7 @@ async function handleGetUserSession(event: H3Event) {
         if (q.id_account) {
             const id = Number(q.id_account);
             const rows = await sql`
-                SELECT username_account, images_account, role_account, is_deleted
+                SELECT username_account, images_account, role_account, is_deleted, gender, firstname, lastname
                 FROM account
                 WHERE id_account = ${id}
                 LIMIT 1
@@ -448,6 +448,9 @@ async function handleGetUserSession(event: H3Event) {
                     username: row.username_account,
                     role: row.role_account,
                     image: row.images_account,
+                    gender: row.gender ?? '',
+                    firstname: row.firstname ?? '',
+                    lastname: row.lastname ?? '',
                 },
             };
         }
@@ -570,7 +573,7 @@ async function handleProcessLogin(event: H3Event, path: string) {
 
     const selectByPath: Record<string, string> = {
         'process-login.php': `SELECT id_account, password_account, salt_account, is_deleted,
-            username_account, images_account, role_account
+            username_account, images_account, role_account, gender, firstname, lastname
             FROM account WHERE email_account = $1 LIMIT 1`,
         'process-login-phamacy.php': `SELECT id_pharma, password_pharma, salt_pharma, is_deleted,
             username_pharma, images_pharma, status_verify
@@ -669,6 +672,12 @@ async function handleProcessLogin(event: H3Event, path: string) {
         role,
         image,
     };
+
+    if (cfg.table === 'account') {
+        user.gender = result.gender ?? '';
+        user.firstname = result.firstname ?? '';
+        user.lastname = result.lastname ?? '';
+    }
 
     if (cfg.table === 'account_admin') {
         user.firstname = result.firstname;

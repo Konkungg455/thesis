@@ -1,13 +1,23 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useApiBase } from '~/composables/useApiBase';
 import { usePharmacistStatus } from '~/composables/usePharmacistStatus';
 
+const route = useRoute();
 const router = useRouter();
 const { imagesPharma } = useApiBase();
 const { computeStatus } = usePharmacistStatus();
 const { pharmacists, isLoading, loadError, refresh, refreshWithGps, clearGpsCache } = usePharmacistsList();
+
+const forwardConsultQuery = () => {
+    const q = {};
+    const em = String(route.query.emergency || '').trim();
+    if (em === '1' || em === 'true') q.emergency = '1';
+    const sid = String(route.query.bot_session_id || '').trim();
+    if (sid) q.bot_session_id = sid;
+    return q;
+};
 
 const userPos = ref(null);          // { lat, lng } ของผู้ใช้ ถ้าอนุญาต GPS
 const locationStatus = ref('idle'); // idle | locating | granted | denied | unavailable
@@ -41,6 +51,11 @@ const getUserPosition = () =>
 
 onMounted(() => {
     clearGpsCache();
+    // เข้าหน้าเภสัชปกติ (ไม่ใช่ฉุกเฉิน) → ต้องแสดงรับทราบค่าส่งอีกครั้ง
+    const em = String(route.query.emergency || '').trim();
+    if (em !== '1' && em !== 'true') {
+        try { localStorage.removeItem('telebot_skip_delivery_fee'); } catch {}
+    }
     getUserPosition().then((pos) => {
         if (pos) {
             userPos.value = pos;
@@ -79,7 +94,19 @@ const sortedPharmacists = computed(() => {
 
 /* ================= 4. Functions ================= */
 const goToDetail = (id) => {
-    router.push(`/pharmacist/${id}`);
+    const query = forwardConsultQuery();
+    router.push({
+        path: `/pharmacist/${id}`,
+        ...(Object.keys(query).length ? { query } : {}),
+    });
+};
+
+const goToAllPharmacists = () => {
+    const query = forwardConsultQuery();
+    router.push({
+        path: '/pharmacist/all',
+        ...(Object.keys(query).length ? { query } : {}),
+    });
 };
 
 const DEFAULT_AVATAR = imagesPharma('default.png');
@@ -180,7 +207,7 @@ const formatDistance = (km) => {
         </div>
 
         <div class="action-footer">
-            <button class="btn-view-all" @click="router.push('/pharmacist/all')">
+            <button class="btn-view-all" @click="goToAllPharmacists">
                 ดูเภสัชทั้งหมด
             </button>
         </div>

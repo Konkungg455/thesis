@@ -39,11 +39,29 @@ export default defineNuxtConfig({
   },
 
   modules: [
-    '@nuxt/image'
+    '@nuxt/image',
+    './modules/fix-unicode-path-imports',
   ],
+
+  // dirs kept for clarity; module above fixes Unicode-path globby miss
+  imports: {
+    dirs: [
+      'composables',
+      'composables/**',
+      'utils',
+      'utils/**',
+    ],
+  },
 
   // ngrok / Cloudflare Tunnel — proxy n8n ผ่าน /n8n (API ใช้ /api/bff + Supabase)
   vite: {
+    optimizeDeps: {
+      include: [
+        '@supabase/supabase-js',
+        '@vue/devtools-core',
+        '@vue/devtools-kit',
+      ]
+    },
     server: {
       allowedHosts: true,
       proxy: {
