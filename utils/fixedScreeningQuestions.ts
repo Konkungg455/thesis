@@ -706,7 +706,12 @@ export function buildFallbackSummary(
 ): string {
   const symptom = symptomDisplayName(symptomName, locale);
   const disease = normalizePersonalDisease(opts.personalDisease);
-  const patient = String(opts.patientName || '').trim() || (locale === 'en' ? 'User' : 'ผู้ใช้');
+  const patient = String(opts.patientName || '').trim()
+    || (locale === 'en' ? 'customer' : 'ผู้ใช้');
+  const patientLine = locale === 'en'
+    && (patient === 'ผู้ใช้' || patient === 'User' || patient === 'ลูกค้า')
+    ? 'customer'
+    : patient;
   const lines = (qaPairs || [])
     .filter((p) => p?.a)
     .slice(0, 5)
@@ -722,7 +727,7 @@ export function buildFallbackSummary(
   if (locale === 'en') {
     return [
       '📋 Preliminary symptom summary',
-      `• Patient: ${patient}`,
+      `• Patient: ${patientLine}`,
       `• Likely symptom: ${symptom}`,
       `• Chronic conditions: ${disease || 'none'}`,
       disease

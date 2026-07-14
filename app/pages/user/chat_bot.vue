@@ -75,6 +75,10 @@ const goToEmergency = async () => {
 
 const { apiUrl } = useApiBase();
 const { saveMessage: saveChatMessage, rememberGuestSession } = useChatApi();
+const { isEnglish } = useAppLocale();
+const chatLocale = computed(() => (isEnglish.value ? 'en' : 'th'));
+/** ชื่อสำรองเมื่อยังไม่มีโปรไฟล์ — TH: ลูกค้า / EN: customer */
+const customerLabel = computed(() => (chatLocale.value === 'en' ? 'customer' : 'ลูกค้า'));
 
 /* ================= Sidebar mobile drawer ================= */
 const isSidebarOpen = ref(false);
@@ -98,14 +102,14 @@ const buildProfileContext = () => {
     if (!p) return '';
     const v = (x) => (x !== null && x !== undefined && String(x).trim() !== '' ? String(x).trim() : '-');
     const fullName = profileFullName.value || v(p.username_account);
-    const callName = fullName !== '-' ? fullName : 'ลูกค้า';
+    const callName = fullName !== '-' ? fullName : customerLabel.value;
     const disease = v(p.personal_disease);
     const loc = chatLocale.value;
     if (loc === 'en') {
         return [
             `[PROFILE] Name: ${fullName} | Age: ${v(p.old)} | Gender: ${v(p.gender)} | Height: ${v(p.height)} | Weight: ${v(p.weight)} | Chronic conditions: ${disease}`,
             `[CHRONIC_CONDITIONS] ${disease}`,
-            `[NAME_RULE] Never call the user "User". Always address them as "you" or by name "${callName}".`,
+            `[NAME_RULE] Never call the user "User". Always address them as "you" or by name "${callName}". Prefer "customer" instead of Thai "ลูกค้า".`,
         ].join('\n');
     }
     return [
@@ -118,37 +122,61 @@ const buildProfileContext = () => {
 /** ชื่อแสดงบนหน้าเว็บ (ใช้ชื่อ-นามสกุลเต็ม) */
 const displayUserName = computed(() => {
     if (profileFullName.value) return profileFullName.value;
-    if (userName.value && userName.value !== 'คุณลูกค้า') return userName.value;
-    return 'ลูกค้า';
+    if (userName.value && userName.value !== 'คุณลูกค้า' && userName.value !== 'Customer') {
+        return userName.value;
+    }
+    return customerLabel.value;
 });
 
-/** 🛡️ Safety net — แทนที่คำว่า "User" ที่ AI ตอบกลับมา ด้วยชื่อ-นามสกุลเต็ม (มีเว้นวรรคหลัง คุณ เสมอ) */
+/** 🛡️ Safety net — แทนที่คำว่า "User" / "ลูกค้า" ตามภาษาที่ใช้งาน */
 const sanitizeAiText = (text) => {
     if (!text) return text;
-    const name = profileFullName.value || displayUserName.value || 'ลูกค้า';
-    const callName = `คุณ ${name}`;
+    const loc = chatLocale.value;
+    const name = profileFullName.value || displayUserName.value || customerLabel.value;
     let out = String(text);
-    out = out.replace(/ความคิดเห็นของ\s*User\b/gi, `ความคิดเห็นของ${callName}`);
-    out = out.replace(/อาการของ\s*User\b/gi, `อาการของ${callName}`);
-    out = out.replace(/ที่\s*User\s*ตอบ/gi, `ที่${callName} ตอบ`);
-    out = out.replace(/ที่\s*User\s*แจ้ง/gi, `ที่${callName} แจ้ง`);
-    out = out.replace(/ผู้ป่วย:\s*User\b/gi, `ผู้ป่วย: ${callName}`);
-    out = out.replace(/เบื้องต้นของ\s*User\b/gi, `เบื้องต้นของ${callName}`);
-    out = out.replace(/ของ\s*User\b/gi, `ของ${callName}`);
-    out = out.replace(/คุณ\s*User\b/gi, callName);
-    out = out.replace(/ผู้ใช้\s*User\b/gi, callName);
-    out = out.replace(/\bUser\b/g, callName);
-    // เพิ่มเว้นวรรคหลัง "คุณ" ถ้า AI ดันต่อชื่อติดกัน เช่น "คุณนนทพัทธ์" → "คุณ นนทพัทธ์"
-    if (name && name !== 'ลูกค้า') {
-        const safeName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        out = out.replace(new RegExp(`คุณ(?!\\s)(?=${safeName})`, 'g'), 'คุณ ');
-        const firstName = name.split(' ')[0];
-        if (firstName && firstName !== name) {
-            const safeFirst = firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            out = out.replace(new RegExp(`คุณ(?!\\s)(?=${safeFirst})`, 'g'), 'คุณ ');
+
+    if (loc === 'en') {
+        const callName = name;
+        out = out.replace(/ความคิดเห็นของ\s*User\b/gi, `feedback from ${callName}`);
+        out = out.replace(/อาการของ\s*User\b/gi, `symptoms of ${callName}`);
+        out = out.replace(/ที่\s*User\s*ตอบ/gi, `that ${callName} answered`);
+        out = out.replace(/ที่\s*User\s*แจ้ง/gi, `that ${callName} reported`);
+        out = out.replace(/ผู้ป่วย:\s*User\b/gi, `Patient: ${callName}`);
+        out = out.replace(/Patient:\s*User\b/gi, `Patient: ${callName}`);
+        out = out.replace(/เบื้องต้นของ\s*User\b/gi, `summary for ${callName}`);
+        out = out.replace(/ของ\s*User\b/gi, `of ${callName}`);
+        out = out.replace(/คุณ\s*User\b/gi, callName);
+        out = out.replace(/ผู้ใช้\s*User\b/gi, callName);
+        out = out.replace(/\bUser\b/g, callName);
+        // แปลคำไทยค้าง → อังกฤษ
+        out = out.replace(/คุณ\s*ลูกค้า/g, 'customer');
+        out = out.replace(/ลูกค้า/g, 'customer');
+        out = out.replace(/\(เช่น\s+/g, '(e.g. ');
+        out = out.replace(/\bเช่น\b/g, 'e.g.');
+    } else {
+        const callName = `คุณ ${name}`;
+        out = out.replace(/ความคิดเห็นของ\s*User\b/gi, `ความคิดเห็นของ${callName}`);
+        out = out.replace(/อาการของ\s*User\b/gi, `อาการของ${callName}`);
+        out = out.replace(/ที่\s*User\s*ตอบ/gi, `ที่${callName} ตอบ`);
+        out = out.replace(/ที่\s*User\s*แจ้ง/gi, `ที่${callName} แจ้ง`);
+        out = out.replace(/ผู้ป่วย:\s*User\b/gi, `ผู้ป่วย: ${callName}`);
+        out = out.replace(/เบื้องต้นของ\s*User\b/gi, `เบื้องต้นของ${callName}`);
+        out = out.replace(/ของ\s*User\b/gi, `ของ${callName}`);
+        out = out.replace(/คุณ\s*User\b/gi, callName);
+        out = out.replace(/ผู้ใช้\s*User\b/gi, callName);
+        out = out.replace(/\bUser\b/g, callName);
+        // เพิ่มเว้นวรรคหลัง "คุณ" ถ้า AI ดันต่อชื่อติดกัน เช่น "คุณนนทพัทธ์" → "คุณ นนทพัทธ์"
+        if (name && name !== 'ลูกค้า' && name !== 'customer') {
+            const safeName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            out = out.replace(new RegExp(`คุณ(?!\\s)(?=${safeName})`, 'g'), 'คุณ ');
+            const firstName = name.split(' ')[0];
+            if (firstName && firstName !== name) {
+                const safeFirst = firstName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                out = out.replace(new RegExp(`คุณ(?!\\s)(?=${safeFirst})`, 'g'), 'คุณ ');
+            }
         }
     }
-    return rewritePharmacyConsultCta(out, chatLocale.value);
+    return rewritePharmacyConsultCta(out, loc);
 };
 
 /** ตรวจว่าเป็นข้อความขอบคุณ/รีวิวหรือไม่ */
@@ -196,8 +224,6 @@ const fetchUserProfile = async () => {
 
 /* ================= Computed (หัวข้อเปลี่ยนตาม Query) ================= */
 const { classifyInput, parseAiMessage, getOptions, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, buildOffSymptomReply, rewritePharmacyConsultCta, resolveUserGender, adaptScreeningPartsForGender, getReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
-const { isEnglish } = useAppLocale();
-const chatLocale = computed(() => (isEnglish.value ? 'en' : 'th'));
 
 const displayTitle = computed(() => {
     const category = route.query.category;
