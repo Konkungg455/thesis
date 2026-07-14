@@ -541,6 +541,31 @@ html.dark .mobile-title {
     line-height: 1.5;
 }
 
+.summary-section-title.is-care {
+    color: #0f766e;
+}
+
+.summary-section-title.is-warn {
+    color: #b45309;
+}
+
+.summary-list-item.is-care {
+    border-left-color: #14b8a6;
+}
+
+.summary-list-item.is-care .summary-list-num {
+    color: #0f766e;
+}
+
+.summary-list-item.is-warn {
+    border-left-color: #f59e0b;
+    background: rgba(255, 247, 237, 0.9);
+}
+
+.summary-list-item.is-warn .summary-list-num {
+    color: #c2410c;
+}
+
 .summary-list-num {
     flex-shrink: 0;
     min-width: 1.4rem;
@@ -551,6 +576,54 @@ html.dark .mobile-title {
 .summary-list-text {
     flex: 1;
     color: #334155;
+}
+
+.summary-cta-banner {
+    margin: 1rem 0 0.35rem;
+    text-align: center;
+}
+
+.summary-cta-rule {
+    height: 1px;
+    margin: 0.55rem 0;
+    border: none;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        #f59e0b 12%,
+        #38bdf8 50%,
+        #f59e0b 88%,
+        transparent 100%
+    );
+    opacity: 0.85;
+}
+
+.summary-cta-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    margin: 0.15rem 0;
+    padding: 0.85rem 1rem;
+    text-align: left;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.92) 0%, rgba(224, 242, 254, 0.88) 100%);
+    border: 1px solid rgba(14, 165, 233, 0.35);
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(14, 165, 233, 0.08);
+}
+
+.summary-cta-icon {
+    flex-shrink: 0;
+    font-size: 1.25rem;
+    line-height: 1.4;
+}
+
+.summary-cta-text {
+    margin: 0;
+    flex: 1;
+    color: #0c4a6e;
+    font-weight: 650;
+    font-size: 0.95rem;
+    line-height: 1.55;
 }
 
 .options-grid {

@@ -3,6 +3,20 @@
  * ใช้แทนการให้โมเดลคิดคำถามเอง — กันหลอน placeholder
  */
 
+import {
+  ALIASES_EN,
+  BANK_EN,
+  DEFAULT_BANK_EN,
+  MENSTRUAL_Q1_FOR_MALE_EN,
+  MENSTRUAL_Q1_FOR_UNKNOWN_EN,
+  PHARMACY_CONSULT_CTA_EN,
+  SEE_PHARMACIST_SECTION_TITLE_EN,
+  SEE_PHARMACIST_WARNING_ITEMS_EN,
+  SYMPTOM_LABEL_EN,
+} from './fixedScreeningQuestions.en';
+
+export type ChatLocale = 'th' | 'en';
+
 export type FixedQuestion = {
   header: string;
   sub: string;
@@ -12,7 +26,41 @@ export type FixedQuestion = {
 export type FixedQuestionOpts = {
   /** เพศจากโปรไฟล์ เช่น ชาย / หญิง / M / F */
   gender?: string;
+  /** ภาษาคำถาม/สรุป — th | en */
+  locale?: ChatLocale;
 };
+
+export function resolveChatLocale(locale?: string | null): ChatLocale {
+  const v = String(locale || '').trim().toLowerCase();
+  if (v === 'en' || v === 'english' || v === 'en-us' || v === 'en-gb') return 'en';
+  return 'th';
+}
+
+/** ค่าโรคประจำตัวจากโปรไฟล์ — คืนค่าว่างถ้าไม่มี/ไม่ระบุ */
+export function normalizePersonalDisease(raw?: string | null): string {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  const lower = s.toLowerCase();
+  if (
+    s === '-'
+    || s === '—'
+    || /^(ไม่มี|ไม่เป็น|ไม่ทราบ|ไม่ระบุ|none|n\/?a|no|nil|null|-)$/i.test(lower)
+  ) {
+    return '';
+  }
+  return s;
+}
+
+export function hasMeaningfulPersonalDisease(raw?: string | null): boolean {
+  return Boolean(normalizePersonalDisease(raw));
+}
+
+export function symptomDisplayName(symptomName: string, locale: ChatLocale = 'th'): string {
+  const key = normalizeSymptomKey(symptomName) || String(symptomName || '').trim();
+  if (!key) return locale === 'en' ? 'selected symptom' : 'อาการที่เลือก';
+  if (locale === 'en') return SYMPTOM_LABEL_EN[key] || key;
+  return key;
+}
 
 /** ผู้ใช้เป็นเพศชายหรือไม่ (จากโปรไฟล์บัญชี) */
 export function isMaleGender(gender?: string): boolean {
@@ -73,8 +121,12 @@ export const MENSTRUAL_Q1_FOR_UNKNOWN: FixedQuestion = {
 };
 
 /** เลือกชุดคำถามข้อ 1 สำหรับปวดประจำเดือน ตามเพศ */
-export function getMenstrualQ1ForGender(gender?: string): FixedQuestion | null {
+export function getMenstrualQ1ForGender(gender?: string, locale: ChatLocale = 'th'): FixedQuestion | null {
   if (isFemaleGender(gender)) return null; // ใช้ชุด default ใน BANK
+  if (locale === 'en') {
+    if (isMaleGender(gender)) return { ...MENSTRUAL_Q1_FOR_MALE_EN };
+    return { ...MENSTRUAL_Q1_FOR_UNKNOWN_EN };
+  }
   if (isMaleGender(gender)) return MENSTRUAL_Q1_FOR_MALE;
   return MENSTRUAL_Q1_FOR_UNKNOWN;
 }
@@ -362,15 +414,26 @@ const ALIASES: Record<string, string> = {
 
 export function normalizeSymptomKey(name: string): string {
   const raw = String(name || '').trim();
-  if (!raw || raw === 'ทั่วไป') return '';
+  if (!raw || raw === 'ทั่วไป' || raw.toLowerCase() === 'general') return '';
   if (BANK[raw]) return raw;
   if (ALIASES[raw]) return ALIASES[raw];
+
   const lower = raw.toLowerCase();
+  if (ALIASES_EN[lower]) return ALIASES_EN[lower];
+  for (const [thKey, enLabel] of Object.entries(SYMPTOM_LABEL_EN)) {
+    if (lower === enLabel.toLowerCase()) return thKey;
+  }
+  for (const [alias, key] of Object.entries(ALIASES_EN)) {
+    if (alias.includes(' ') && lower.includes(alias)) return key;
+  }
   for (const key of Object.keys(BANK)) {
     if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower)) return key;
   }
   for (const [alias, key] of Object.entries(ALIASES)) {
     if (lower.includes(alias.toLowerCase())) return key;
+  }
+  for (const [alias, key] of Object.entries(ALIASES_EN)) {
+    if (lower.includes(alias)) return key;
   }
   return raw;
 }
@@ -382,18 +445,21 @@ export function getFixedQuestion(
 ): FixedQuestion | null {
   const n = Number(questionNum);
   if (!Number.isFinite(n) || n < 1 || n > 5) return null;
+  const locale = resolveChatLocale(opts.locale);
   const key = normalizeSymptomKey(symptomName);
-  const list = (key && BANK[key]) || DEFAULT_BANK;
+  const list = locale === 'en'
+    ? ((key && BANK_EN[key]) || DEFAULT_BANK_EN)
+    : ((key && BANK[key]) || DEFAULT_BANK);
   const q = list[n - 1] || null;
   if (!q) return null;
 
   // ผู้ชาย / ยังไม่ระบุเพศ → ไม่ใช้คำถามแบบถามตัวเองอย่างเดียว
   if (key === 'ปวดประจำเดือน' && n === 1) {
-    const custom = getMenstrualQ1ForGender(opts.gender);
+    const custom = getMenstrualQ1ForGender(opts.gender, locale);
     if (custom) return { ...custom };
   }
 
-  return q;
+  return { ...q };
 }
 
 /** รูปแบบข้อความมาตรฐานที่ UI / repair ใช้ */
@@ -404,6 +470,16 @@ export function formatFixedScreeningQuestion(
 ): string {
   const q = getFixedQuestion(symptomName, questionNum, opts);
   if (!q) return '';
+  const locale = resolveChatLocale(opts.locale);
+  if (locale === 'en') {
+    return [
+      `🩺 Question ${questionNum}: ${q.header}?`,
+      '',
+      `* ${q.sub}? (e.g. ${q.hint})`,
+      '',
+      'Please answer the questions below.',
+    ].join('\n');
+  }
   return [
     `🩺 ข้อ ${questionNum}: ${q.header}?`,
     '',
@@ -421,16 +497,17 @@ export function adaptScreeningPartsForGender(
   parts: any[],
   symptomName: string,
   gender?: string,
+  locale: ChatLocale = 'th',
 ): any[] {
   if (!Array.isArray(parts) || !parts.length) return parts;
 
-  const customQ1 = getMenstrualQ1ForGender(gender);
+  const customQ1 = getMenstrualQ1ForGender(gender, locale);
   if (!customQ1) return parts;
 
   const key = normalizeSymptomKey(symptomName);
   const looksMenstrual =
     key === 'ปวดประจำเดือน'
-    || parts.some((p) => /ปวดประจำเดือน/.test(String(p?.header || p?.text || '')));
+    || parts.some((p) => /ปวดประจำเดือน|menstrual pain/i.test(String(p?.header || p?.text || '')));
   if (!looksMenstrual) return parts;
 
   return parts.map((p) => {
@@ -443,10 +520,12 @@ export function adaptScreeningPartsForGender(
         subQuestions: [{ text: customQ1.sub, hint: customQ1.hint }],
       };
     }
-    if (p.type === 'question' && /ข้อ\s*1\s*[:：]/i.test(String(p.text || ''))) {
+    if (p.type === 'question' && /(?:ข้อ|question)\s*1\s*[:：]/i.test(String(p.text || ''))) {
       return {
         ...p,
-        text: `🩺 ข้อ 1: ${customQ1.header}?`,
+        text: locale === 'en'
+          ? `🩺 Question 1: ${customQ1.header}?`
+          : `🩺 ข้อ 1: ${customQ1.header}?`,
         hint: customQ1.hint,
       };
     }
@@ -460,7 +539,7 @@ export function isHallucinatedScreeningText(text: string): boolean {
   if (!t.trim()) return false;
   if (/(กำลังดำเนินการตามขั้นตอน|คำถามสำหรับคุณ|คำตอบสำหรับคุณ)/.test(t)) return true;
   const stethoscopeLines = t.split(/\r?\n/).filter((l) => /🩺/.test(l));
-  if (stethoscopeLines.length >= 3 && !/ข้อ\s*\d+\s*[:：]/i.test(t)) return true;
+  if (stethoscopeLines.length >= 3 && !/(?:ข้อ|question)\s*\d+\s*[:：]/i.test(t)) return true;
   const placeholderHits = (t.match(/^\s*🩺?\s*\([^)]{0,40}\)\s*$/gm) || []).length;
   if (placeholderHits >= 2) return true;
   return false;
@@ -487,58 +566,204 @@ export function resolveNextFixedQuestionNum(progress: {
 
 /** ประโยคปิดท้ายมาตรฐาน — ห้ามให้ AI เสนอแนะนำยาเอง */
 export const PHARMACY_CONSULT_CTA =
-  'หากต้องการคำแนะนำเพิ่มเติม กรุณาติดต่อเภสัชกรผ่านเว็บ TELEBOT-PHARMACY ไปกดปุ่ม "ปรึกษาเภสัช" ด้านล่างนี้';
+  'หากต้องการคำแนะนำเพิ่มเติม กรุณาติดต่อเภสัชกรผ่านเว็บ TELEBOT-PHARMACY โดยกดปุ่ม "ปรึกษาเภสัชกร" ด้านบน';
+
+export function pharmacyConsultCta(locale: ChatLocale = 'th'): string {
+  return locale === 'en' ? PHARMACY_CONSULT_CTA_EN : PHARMACY_CONSULT_CTA;
+}
 
 /** แทนประโยคชวนแนะนำยา / CTA เก่า ให้เป็นประโยคมาตรฐาน */
-export function rewritePharmacyConsultCta(text: string): string {
+export function rewritePharmacyConsultCta(text: string, locale: ChatLocale = 'th'): string {
   let out = String(text || '');
   if (!out) return out;
+  const cta = pharmacyConsultCta(locale);
 
   out = out.replace(
     /\*?หาก(?:คุณ)?ต้องการให้แนะนำยา[\s\S]{0,160}?ก่อนใช้ยาเสมอ\*?\.?/gi,
-    PHARMACY_CONSULT_CTA,
+    cta,
   );
   out = out.replace(
     /\*?หาก(?:คุณ)?ต้องการ(?:ให้)?แนะนำ(?:ยา|ยาบรรเทา)[\s\S]{0,160}?(?:แพทย์|เภสัชกร)[\s\S]{0,60}?เสมอ\*?\.?/gi,
-    PHARMACY_CONSULT_CTA,
+    cta,
   );
   out = out.replace(
     /สามารถแจ้งได้ครับ\s*แต่ย้ำว่าควรปรึกษาเภสัชกรหรือแพทย์ก่อนใช้ยาเสมอ\.?/gi,
-    PHARMACY_CONSULT_CTA,
+    cta,
+  );
+  out = out.replace(
+    /หากต้องการคำแนะนำเพิ่มเติม\s*กรุณาติดต่อเภสัชกรผ่านเว็บ\s*TELEBOT-PHARMACY\s*(?:ไปกดปุ่ม|โดยกดปุ่ม)\s*["“”]?ปรึกษาเภสัช(?:กร)?["“”]?\s*(?:ด้านล่างนี้|ด้านบน)?\.?/gi,
+    cta,
   );
   out = out.replace(
     /หากต้องการคำแนะนำเพิ่มเติม\s*กรุณาติดต่อเภสัชกรผ่านเว็บ\s*TELEBOT-PHARMACY\s*ที่เมนู\s*["“”]?ปรึกษาอาการ["“”]?\s*ครับ\.?/gi,
-    PHARMACY_CONSULT_CTA,
+    cta,
   );
+  out = out.replace(
+    /For more advice,\s*please contact a pharmacist on\s*TELEBOT-PHARMACY by tapping the\s*["“”]?Consult pharmacist["“”]?\s*button\s*(?:below|above)\.?/gi,
+    cta,
+  );
+  out = out.replace(
+    /If you(?:'d| would)? like(?: me)? to recommend(?: a)? medicine[\s\S]{0,180}?pharmacist[\s\S]{0,80}\.?/gi,
+    cta,
+  );
+  // รวม CTA เก่าอังกฤษ/ไทย → มาตรฐานตาม locale
+  if (locale === 'en' && /หากต้องการคำแนะนำเพิ่มเติม/.test(out)) {
+    out = out.replace(PHARMACY_CONSULT_CTA, PHARMACY_CONSULT_CTA_EN);
+  }
+  if (locale === 'th' && /For more advice, please contact a pharmacist/.test(out)) {
+    out = out.replace(PHARMACY_CONSULT_CTA_EN, PHARMACY_CONSULT_CTA);
+  }
 
   return out;
 }
 
+/** หัวข้อ + รายการเตือนเมื่อควรพบเภสัชกร (บังคับในสรุป) */
+export const SEE_PHARMACIST_SECTION_TITLE = '⚠️ ควรพบเภสัชกรหากมีอาการเหล่านี้';
+
+export const SEE_PHARMACIST_WARNING_ITEMS = [
+  'อาการแย่ลงอย่างรวดเร็ว หรือไม่ดีขึ้นภายใน 1–2 วัน',
+  'มีไข้สูงต่อเนื่อง / ไข้เกิน 39°C',
+  'หายใจลำบาก หอบมาก หรือแน่นหน้าอก',
+  'ปวดรุนแรงมากจนทนไม่ไหว',
+  'มีอาการผิดปกติที่กังวล เช่น เลือดออกผิดปกติ เวียนหัวเดินเซ หรือหมดสติ',
+] as const;
+
+function formatSeePharmacistSection(locale: ChatLocale = 'th'): string {
+  if (locale === 'en') {
+    return [
+      SEE_PHARMACIST_SECTION_TITLE_EN,
+      ...SEE_PHARMACIST_WARNING_ITEMS_EN.map((t, i) => `${i + 1}. ${t}`),
+    ].join('\n');
+  }
+  return [
+    SEE_PHARMACIST_SECTION_TITLE,
+    ...SEE_PHARMACIST_WARNING_ITEMS.map((t, i) => `${i + 1}. ${t}`),
+  ].join('\n');
+}
+
+/**
+ * ถ้าสรุปไม่มีส่วน "ควรพบเภสัชกรหากมีอาการเหล่านี้" ให้แทรกให้ครบก่อน CTA
+ * ถ้ามีแต่รวมด้วย "/" ในบรรทัดเดียว ให้แตกเป็นข้อๆ
+ */
+export function ensureSeePharmacistSection(text: string, locale: ChatLocale = 'th'): string {
+  let out = String(text || '').trim();
+  if (!out) return out;
+  const titleRe = locale === 'en'
+    ? /see a pharmacist if you have these symptoms/i
+    : /ควรพบเภสัชกรหากมีอาการเหล่านี้/i;
+  const titleLine = locale === 'en' ? SEE_PHARMACIST_SECTION_TITLE_EN : SEE_PHARMACIST_SECTION_TITLE;
+  const cta = pharmacyConsultCta(locale);
+
+  if (titleRe.test(out) || /ควรพบเภสัชกรหากมีอาการเหล่านี้|see a pharmacist if you have these symptoms/i.test(out)) {
+    out = out.replace(
+      /((?:⚠️\s*)?(?:ควรพบเภสัชกรหากมีอาการเหล่านี้|See a pharmacist if you have these symptoms))\s*\n([^\n]+)/i,
+      (full, _title, firstLine: string) => {
+        const line = String(firstLine || '').trim();
+        if (!line) return formatSeePharmacistSection(locale);
+        if (/^\d+[\.\)]\s+/.test(line)) return full;
+
+        const raw = line.replace(/^[-•*]\s*/, '').trim();
+        const pieces = raw
+          .split(/\s*\/\s*|\s*[;；]\s*/)
+          .map((s) => s.trim())
+          .filter((s) => s.length >= 2);
+
+        if (pieces.length >= 2) {
+          return [
+            titleLine,
+            ...pieces.map((t, i) => `${i + 1}. ${t}`),
+          ].join('\n');
+        }
+        return `${titleLine}\n1. ${pieces[0] || raw}`;
+      },
+    );
+    return out;
+  }
+
+  const section = formatSeePharmacistSection(locale);
+  const ctaIdx = out.indexOf(cta);
+  const thCtaIdx = out.indexOf(PHARMACY_CONSULT_CTA);
+  const enCtaIdx = out.indexOf(PHARMACY_CONSULT_CTA_EN);
+  const insertAt = ctaIdx >= 0 ? ctaIdx : (thCtaIdx >= 0 ? thCtaIdx : enCtaIdx);
+  if (insertAt >= 0) {
+    return `${out.slice(0, insertAt).trimEnd()}\n\n${section}\n\n${out.slice(insertAt)}`;
+  }
+  if (/👨‍⚕️|ปรึกษาเภสัชกรของเรา|Consult (?:our )?pharmacist/i.test(out)) {
+    return out.replace(
+      /(👨‍⚕️[^\n]*|ปรึกษาเภสัชกรของเรา[^\n]*|Consult (?:our )?pharmacist[^\n]*)/i,
+      `${section}\n\n$1`,
+    );
+  }
+  return `${out}\n\n${section}`;
+}
+
 /** สรุปสำรองเมื่อ AI หลุดกลับไปถามข้อใหม่หลังครบ 5 ข้อ */
-export function buildFallbackSummary(symptomName: string, qaPairs: Array<{ q: string; a: string }> = []): string {
-  const symptom = normalizeSymptomKey(symptomName) || symptomName || 'อาการที่เลือก';
+export function buildFallbackSummary(
+  symptomName: string,
+  qaPairs: Array<{ q: string; a: string }> = [],
+  locale: ChatLocale = 'th',
+  opts: { personalDisease?: string; patientName?: string } = {},
+): string {
+  const symptom = symptomDisplayName(symptomName, locale);
+  const disease = normalizePersonalDisease(opts.personalDisease);
+  const patient = String(opts.patientName || '').trim() || (locale === 'en' ? 'User' : 'ผู้ใช้');
   const lines = (qaPairs || [])
     .filter((p) => p?.a)
     .slice(0, 5)
-    .map((p, i) => `- ข้อ ${i + 1}: ${String(p.a).trim()}`);
+    .map((p, i) => (locale === 'en'
+      ? `- Q${i + 1}: ${String(p.a).trim()}`
+      : `- ข้อ ${i + 1}: ${String(p.a).trim()}`));
   const detail = lines.length
     ? lines.join('\n')
-    : '- ผู้ใช้ตอบครบ 5 ข้อคัดกรองแล้ว';
+    : (locale === 'en'
+      ? '- The user completed all 5 screening questions.'
+      : '- ผู้ใช้ตอบครบ 5 ข้อคัดกรองแล้ว');
+
+  if (locale === 'en') {
+    return [
+      '📋 Preliminary symptom summary',
+      `• Patient: ${patient}`,
+      `• Likely symptom: ${symptom}`,
+      `• Chronic conditions: ${disease || 'none'}`,
+      disease
+        ? `• Note: Self-care tips below consider the reported chronic condition(s): ${disease}`
+        : '• Note: No chronic conditions were reported in the profile.',
+      '• Findings:',
+      detail,
+      '',
+      '💊 Basic self-care tips',
+      '1. Rest well, drink plenty of fluids, and monitor your symptoms',
+      '2. Avoid things that make your symptoms worse based on your answers',
+      disease
+        ? `3. Because of chronic condition(s) (${disease}), consult a pharmacist sooner if symptoms change`
+        : '3. See a pharmacist or doctor if symptoms get worse',
+      '',
+      formatSeePharmacistSection('en'),
+      '',
+      '👨‍⚕️ Consult our pharmacist',
+      PHARMACY_CONSULT_CTA_EN,
+    ].join('\n');
+  }
 
   return [
     '📋 สรุปอาการเบื้องต้นของ User',
-    `• ผู้ป่วย: User`,
+    `• ผู้ป่วย: ${patient}`,
     `• อาการที่น่าจะเป็น: ${symptom}`,
+    `• โรคประจำตัว: ${disease || 'ไม่มี'}`,
+    disease
+      ? `• หมายเหตุ: ข้อแนะนำด้านล่างคำนึงถึงโรคประจำตัวที่แจ้งไว้ (${disease})`
+      : '• หมายเหตุ: ไม่มีโรคประจำตัวในโปรไฟล์',
     '• ลักษณะที่พบ:',
     detail,
     '',
     '💊 วิธีดูแลตนเองเบื้องต้น',
     '1. พักผ่อนให้เพียงพอ ดื่มน้ำมากๆ และสังเกตอาการต่อ',
     '2. หลีกเลี่ยงสิ่งที่ทำให้อาการแย่ลงตามที่ตอบมา',
-    '3. หากอาการรุนแรงขึ้น ให้พบเภสัชกรหรือแพทย์',
+    disease
+      ? `3. เนื่องจากมีโรคประจำตัว (${disease}) หากอาการเปลี่ยนไป ควรพบเภสัชกรเร็วขึ้น`
+      : '3. หากอาการรุนแรงขึ้น ให้พบเภสัชกรหรือแพทย์',
     '',
-    '⚠️ ควรพบเภสัชกรหากมีอาการเหล่านี้',
-    '- อาการแย่ลงเร็ว / มีไข้สูง / หายใจลำบาก / ปวดรุนแรงมาก',
+    formatSeePharmacistSection('th'),
     '',
     '👨‍⚕️ ปรึกษาเภสัชกรของเรา',
     PHARMACY_CONSULT_CTA,

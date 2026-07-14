@@ -18,37 +18,43 @@ function hasSubQuestionBullet(text: string): boolean {
 
 function extractSymptom(contextInput: string): string {
     const hint = String(contextInput || '');
-    const locked = hint.match(/\[LOCKED_TOPIC\]\s*อาการที่เลือก:\s*([^\n\—\-]+)/i);
+    const locked = hint.match(/\[LOCKED_TOPIC\]\s*(?:อาการที่เลือก|symptom):\s*([^\n\—\-\(]+)/i);
     if (locked?.[1]) return normalizeSymptomKey(locked[1].trim());
-    const m = hint.match(/อาการ(?:ที่เลือก)?\s*:\s*([^\n\[]+)/i);
+    const m = hint.match(/(?:อาการ(?:ที่เลือก)?|symptom)\s*:\s*([^\n\[]+)/i);
     const fromHint = (m?.[1] || '').trim();
     return normalizeSymptomKey(fromHint || hint);
 }
 
 function extractQuestionNum(text: string): number {
-    const m = String(text || '').match(/ข้อ(?:ที่)?\s*(\d+)/i);
+    const m = String(text || '').match(/(?:ข้อ(?:ที่)?|question)\s*(\d+)/i);
     return m ? Number(m[1]) : 0;
 }
 
 function extractHintQuestionNum(contextInput: string): number {
     const t = String(contextInput || '');
-    const m = t.match(/ส่งข้อ\s*(\d+)/i) || t.match(/ข้อ\s*(\d+)\s*ทันที/i) || t.match(/เริ่ม.*ข้อ\s*1/i);
-    if (/เริ่มคัดกรอง|ส่งข้อ 1/i.test(t)) return 1;
+    const m = t.match(/ส่งข้อ\s*(\d+)/i) || t.match(/ข้อ\s*(\d+)\s*ทันที/i) || t.match(/เริ่ม.*ข้อ\s*1/i) || t.match(/question\s*(\d+)/i);
+    if (/เริ่มคัดกรอง|ส่งข้อ 1|start screening/i.test(t)) return 1;
     return m ? Number(m[1]) : 0;
+}
+
+function extractLocale(contextInput: string): 'th' | 'en' {
+    if (/\[OUTPUT_LANG\]\s*English/i.test(String(contextInput || ''))) return 'en';
+    return 'th';
 }
 
 function normalizeLines(text: string): string[] {
     return String(text || '')
         .replace(/\\n/g, '\n')
         .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/([^\n])\s*((?:🩺\s*)?ข้อ(?:ที่)?\s*\d+\s*[:：])/gi, '$1\n$2')
+        .replace(/([^\n])\s*((?:🩺\s*)?(?:ข้อ(?:ที่)?|question)\s*\d+\s*[:：])/gi, '$1\n$2')
         .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean);
 }
 
 function extractGender(contextInput: string): string {
-    const m = String(contextInput || '').match(/เพศ:\s*([^\n|]+)/i);
+    const m = String(contextInput || '').match(/เพศ:\s*([^\n|]+)/i)
+        || String(contextInput || '').match(/gender:\s*([^\n|]+)/i);
     return (m?.[1] || '').trim();
 }
 
@@ -56,11 +62,12 @@ function extractGender(contextInput: string): string {
 export function repairScreeningFormat(text: string, contextInput = ''): string {
     const raw = String(text || '').trim();
     if (!raw) return raw;
-    if (/📋|สรุปอาการ/i.test(raw)) return raw;
-    if (/🚨|อาการเสี่ยง|พบเภสัชกรทันที/i.test(raw)) return raw;
+    if (/📋|สรุปอาการ|Preliminary symptom summary|symptom summary/i.test(raw)) return raw;
+    if (/🚨|อาการเสี่ยง|พบเภสัชกรทันที|emergency|high-risk/i.test(raw)) return raw;
 
     const symptom = extractSymptom(contextInput);
-    const genderOpts = { gender: extractGender(contextInput) };
+    const locale = extractLocale(contextInput);
+    const genderOpts = { gender: extractGender(contextInput), locale };
     const fromText = extractQuestionNum(raw);
     const fromHint = extractHintQuestionNum(contextInput);
     const qNum = fromText || fromHint || 1;
@@ -71,8 +78,8 @@ export function repairScreeningFormat(text: string, contextInput = ''): string {
         return fixed || raw;
     }
 
-    if (!/ข้อ\s*\d+\s*[:：]/i.test(raw)) return raw;
-    if (hasSubQuestionBullet(raw) && /รบกวนตอบคำถาม/i.test(raw)) {
+    if (!/(?:ข้อ|question)\s*\d+\s*[:：]/i.test(raw)) return raw;
+    if (hasSubQuestionBullet(raw) && /รบกวนตอบคำถาม|Please answer the questions/i.test(raw)) {
         // มีรูปแบบครบอยู่แล้ว แต่ถ้ามี symptom ให้บังคับเป็นข้อความ fix
         if (symptom) {
             const fixed = formatFixedScreeningQuestion(symptom, fromText || qNum, genderOpts);
@@ -88,18 +95,28 @@ export function repairScreeningFormat(text: string, contextInput = ''): string {
     }
 
     const lines = normalizeLines(raw);
-    const headerIdx = lines.findIndex((line) => /ข้อ\s*\d+\s*[:：]/i.test(line));
+    const headerIdx = lines.findIndex((line) => /(?:ข้อ|question)\s*\d+\s*[:：]/i.test(line));
     if (headerIdx < 0) return raw;
 
     const headerLine = lines[headerIdx].replace(/\*\*/g, '');
-    const hm = headerLine.match(/^(?:🩺\s*)?ข้อ(?:ที่)?\s*(\d+)\s*[:：]\s*(.+?)\??\s*$/i);
+    const hm = headerLine.match(/^(?:🩺\s*)?(?:ข้อ(?:ที่)?|question)\s*(\d+)\s*[:：]\s*(.+?)\??\s*$/i);
     if (!hm) return raw;
 
     const num = Number(hm[1]);
-    const topic = SCREENING_TOPICS[num] || hm[2].trim();
     const fixed = formatFixedScreeningQuestion('ทั่วไป', num, genderOpts);
     if (fixed) return fixed;
 
+    if (locale === 'en') {
+        return [
+            `🩺 Question ${num}: ${hm[2].trim()}?`,
+            '',
+            `* ${hm[2].trim().replace(/\?+$/, '')}? (e.g. mild, moderate, severe, unknown)`,
+            '',
+            'Please answer the questions below.',
+        ].join('\n');
+    }
+
+    const topic = SCREENING_TOPICS[num] || hm[2].trim();
     return [
         `🩺 ข้อ ${num}: ${topic}?`,
         '',

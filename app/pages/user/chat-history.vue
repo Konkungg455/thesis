@@ -261,7 +261,9 @@ const openSidebar = () => { isSidebarOpen.value = true; };
 const closeSidebar = () => { isSidebarOpen.value = false; };
 
 // ใช้กฎร่วม (32 อาการบัตรทอง / red flag / off-topic) จาก composable
-const { classifyInput, parseAiMessage, getOptions, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, buildOffSymptomReply, rewritePharmacyConsultCta, resolveUserGender, adaptScreeningPartsForGender, REPLY_REDFLAG, REPLY_IRRELEVANT, REPLY_PROFANITY, REPLY_THANKS } = useAiChatRules();
+const { classifyInput, parseAiMessage, getOptions, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, buildOffSymptomReply, rewritePharmacyConsultCta, resolveUserGender, adaptScreeningPartsForGender, getReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
+const { isEnglish } = useAppLocale();
+const chatLocale = computed(() => (isEnglish.value ? 'en' : 'th'));
 const { apiUrl } = useApiBase();
 
 /** ชื่อ-นามสกุลเต็ม จากโปรไฟล์ */
@@ -288,7 +290,20 @@ const buildProfileContext = () => {
     const v = (x) => (x !== null && x !== undefined && String(x).trim() !== '' ? String(x).trim() : '-');
     const fullName = profileFullName.value || v(p.username_account);
     const callName = fullName !== '-' ? fullName : 'ลูกค้า';
-    return `[PROFILE] ชื่อ-นามสกุล: ${fullName} | อายุ: ${v(p.old)} | เพศ: ${v(p.gender)} | ส่วนสูง: ${v(p.height)} | น้ำหนัก: ${v(p.weight)} | โรคประจำตัว: ${v(p.personal_disease)}\n[คำสั่งเรียกชื่อ] ห้ามใช้ "User" — ต้องเรียก "คุณ ${callName}" หรือ "คุณ" เท่านั้น`;
+    const disease = v(p.personal_disease);
+    const loc = chatLocale.value;
+    if (loc === 'en') {
+        return [
+            `[PROFILE] Name: ${fullName} | Age: ${v(p.old)} | Gender: ${v(p.gender)} | Height: ${v(p.height)} | Weight: ${v(p.weight)} | Chronic conditions: ${disease}`,
+            `[CHRONIC_CONDITIONS] ${disease}`,
+            `[NAME_RULE] Never call the user "User". Always address them as "you" or by name "${callName}".`,
+        ].join('\n');
+    }
+    return [
+        `[PROFILE] ชื่อ-นามสกุล: ${fullName} | อายุ: ${v(p.old)} | เพศ: ${v(p.gender)} | ส่วนสูง: ${v(p.height)} | น้ำหนัก: ${v(p.weight)} | โรคประจำตัว: ${disease}`,
+        `[CHRONIC_CONDITIONS] ${disease}`,
+        `[คำสั่งเรียกชื่อ] ห้ามใช้ "User" — ต้องเรียก "คุณ ${callName}" หรือ "คุณ" เท่านั้น`,
+    ].join('\n');
 };
 
 /** 🛡️ Safety net แทน "User" → "คุณ <ชื่อจริง>" (มีเว้นวรรค หลังคุณ เสมอ) */
@@ -319,7 +334,7 @@ const sanitizeAiText = (text) => {
             out = out.replace(new RegExp(`คุณ(?!\\s)(?=${safeFirst})`, 'g'), 'คุณ ');
         }
     }
-    return rewritePharmacyConsultCta(out);
+    return rewritePharmacyConsultCta(out, chatLocale.value);
 };
 
 /** แปลงข้อความจาก DB → object ใน state (รองรับ meta_json + fallback parse) */
@@ -358,12 +373,34 @@ const mapStoredMessage = (msg) => {
 /** ใช้ใน template — ใช้ parts ที่บันทึกไว้ก่อน แล้วค่อย parse ใหม่ */
 const getMessageParts = (msg) => {
     const raw = msg.parts?.length ? msg.parts : parseAiMessage(normalizeMessageText(msg.text));
-    return adaptScreeningPartsForGender(
+    const adapted = adaptScreeningPartsForGender(
         raw,
         symptomName.value || queryParam('category'),
         resolveUserGender(userProfile.value),
+        chatLocale.value,
     );
+    // หัวข้อสรุปมีใน <strong> ของ bubble แล้ว — ตัดบรรทัดซ้ำในเนื้อหาออก
+    if (!msg.isSummary || !adapted?.length) return adapted;
+    const titleRe = /สรุปผลการประเมินอาการ|สรุปอาการเบื้องต้น|Preliminary symptom summary|Symptom assessment summary/i;
+    let i = 0;
+    while (i < adapted.length) {
+        const p = adapted[i];
+        const t = String(p?.text || '').trim();
+        if ((p.type === 'section_title' || p.type === 'text') && titleRe.test(t) && t.length < 90) {
+            i += 1;
+            continue;
+        }
+        break;
+    }
+    return i ? adapted.slice(i) : adapted;
 };
+
+/** ชื่ออาการสำหรับแสดง (TH key เหมือนเดิม — EN แปลเฉพาะตอนแสดง) */
+const displaySymptomName = computed(() => {
+    const cat = symptomName.value || queryParam('category') || '';
+    if (!cat || cat === 'ทั่วไป') return cat;
+    return symptomDisplayName(String(cat), chatLocale.value) || cat;
+});
 
 // 🆕 guest mode: หน้านี้ใช้งานได้แม้ไม่ login → ตั้ง isGuest=true เงียบ ๆ ถ้าไม่ผ่าน
 const isGuest = ref(false);
@@ -513,9 +550,9 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
     const kind = isSilent ? 'normal' : classifyInput(textToSend, classifyOpts);
 
     if (kind === 'redflag') {
-        await addMessage('assistant', REPLY_REDFLAG, {
+        await addMessage('assistant', getReply('redflag', chatLocale.value), {
             isRedFlag: true,
-            options: ['🚑 ติดต่อเภสัชกรของเราทันที']
+            options: [chatLocale.value === 'en' ? '🚑 Contact our pharmacist now' : '🚑 ติดต่อเภสัชกรของเราทันที']
         });
         isLoading.value = false;
         return;
@@ -524,7 +561,7 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
     if (kind === 'profanity') {
         const last = chatMessages.value[chatMessages.value.length - 1];
         if (last?.role === 'user') last.skipProgress = true;
-        await addMessage('assistant', REPLY_PROFANITY);
+        await addMessage('assistant', getReply('profanity', chatLocale.value));
         isLoading.value = false;
         return;
     }
@@ -532,7 +569,7 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
     if (kind === 'irrelevant') {
         const last = chatMessages.value[chatMessages.value.length - 1];
         if (last?.role === 'user') last.skipProgress = true;
-        await addMessage('assistant', REPLY_IRRELEVANT);
+        await addMessage('assistant', getReply('irrelevant', chatLocale.value));
         isLoading.value = false;
         return;
     }
@@ -540,15 +577,15 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
     if (kind === 'off_topic_symptom') {
         const last = chatMessages.value[chatMessages.value.length - 1];
         if (last?.role === 'user') last.skipProgress = true;
-        await addMessage('assistant', buildOffSymptomReply(symptomName.value));
+        await addMessage('assistant', buildOffSymptomReply(symptomName.value, chatLocale.value));
         isLoading.value = false;
         return;
     }
 
     if (kind === 'thanks') {
-        await addMessage('assistant', REPLY_THANKS, {
+        await addMessage('assistant', getReply('thanks', chatLocale.value), {
             isReview: true,
-            options: ['⭐ เขียนรีวิวให้เรา']
+            options: [chatLocale.value === 'en' ? '⭐ Write a review' : '⭐ เขียนรีวิวให้เรา']
         });
         isLoading.value = false;
         return;
@@ -559,6 +596,7 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         const fixed = getFixedScreeningReply(chatMessages.value, symptomName.value, {
             gender: resolveUserGender(userProfile.value),
             profile: userProfile.value,
+            locale: chatLocale.value,
         });
         if (fixed?.text) {
             await new Promise(r => setTimeout(r, 350));
@@ -570,9 +608,13 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
 
         const progress = getChatProgress(chatMessages.value);
         const profileLine = buildProfileContext();
+        const profileOpts = {
+            personalDisease: userProfile.value?.personal_disease || '',
+            patientName: displayUserName.value,
+        };
         // ครบ 5 ข้อ → ให้ AI เขียนสรุปเอง (ไม่ใช้เทมเพลต fix)
         const enhancedInput = (progress.readyForSummary || progress.highestAsked >= 5)
-            ? buildSummaryChatInput(chatMessages.value, symptomName.value, profileLine, textToSend)
+            ? buildSummaryChatInput(chatMessages.value, symptomName.value, profileLine, textToSend, chatLocale.value, profileOpts)
             : [profileLine, buildScreeningHint(chatMessages.value, symptomName.value), textToSend].filter(Boolean).join('\n\n');
 
         const response = await $fetch(useNuxtApp().$n8nChatUrl(), {
@@ -591,7 +633,13 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         if (!rawOutput || /workflow.*activ|npm run dev|n8n/i.test(rawOutput)) {
             throw new Error('invalid ai output');
         }
-        const coerced = coerceSummaryOrPass(chatMessages.value, symptomName.value, rawOutput);
+        const coerced = coerceSummaryOrPass(
+            chatMessages.value,
+            symptomName.value,
+            rawOutput,
+            chatLocale.value,
+            profileOpts,
+        );
         rawOutput = coerced.text;
         const aiOutput = sanitizeAiText(stripOffTopicLeak(rawOutput, textToSend, classifyOpts));
         const meta = buildAssistantMeta(aiOutput);
@@ -610,7 +658,9 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
             await new Promise(r => setTimeout(r, 800));
             const thxName = displayUserName.value;
             await addMessage('assistant',
-                `ขอบคุณที่ใช้บริการ telebot ครับ คุณ ${thxName} 🙏\n\nหากมีเวลาสักครู่ รบกวนฝากรีวิวและให้คะแนนการบริการของเราหน่อยนะครับ ความคิดเห็นของคุณ ${thxName} ช่วยให้เราพัฒนาบริการได้ดียิ่งขึ้นครับ`,
+                chatLocale.value === 'en'
+                    ? `Thank you for using telebot, ${thxName} 🙏\n\nIf you have a moment, please leave a review and rating. Your feedback helps us improve.`
+                    : `ขอบคุณที่ใช้บริการ telebot ครับ คุณ ${thxName} 🙏\n\nหากมีเวลาสักครู่ รบกวนฝากรีวิวและให้คะแนนการบริการของเราหน่อยนะครับ ความคิดเห็นของคุณ ${thxName} ช่วยให้เราพัฒนาบริการได้ดียิ่งขึ้นครับ`,
                 {
                     isReview: true,
                     options: []
@@ -627,13 +677,13 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
 };
 
 const handleOptionClick = (option) => {
-    if (option.includes('รีวิว')) {
+    if (option.includes('รีวิว') || /review/i.test(option)) {
         router.push('/review_write');
-    } else if (option.includes('ติดต่อเภสัชกรของเราทันที') || option.includes('🚑')) {
+    } else if (option.includes('ติดต่อเภสัชกรของเราทันที') || /contact our pharmacist|🚑/i.test(option)) {
         goToEmergency();
-    } else if (option.includes('เภสัชกร')) {
+    } else if (option.includes('เภสัชกร') || /pharmacist/i.test(option)) {
         goToPharmacist();
-    } else if (option.includes('หน้าหลัก')) {
+    } else if (option.includes('หน้าหลัก') || /home|main page/i.test(option)) {
         router.push('/');
     } else {
         sendMessage(option);
@@ -706,7 +756,7 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
             </button>
             <div class="mobile-title">
                 <i class="fa-solid fa-comment-medical"></i>
-                <span>{{ symptomName ? `อาการ: ${symptomName}` : 'แชทต่อเนื่อง' }}</span>
+                <span>{{ displaySymptomName ? (chatLocale === 'en' ? `Symptom: ${displaySymptomName}` : `อาการ: ${displaySymptomName}`) : (chatLocale === 'en' ? 'Continue chat' : 'แชทต่อเนื่อง') }}</span>
             </div>
         </div>
 
@@ -779,21 +829,22 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
 
             </aside>
 
-            <section class="chat-section">
+            <section class="chat-section notranslate" translate="no">
                 <div class="chat-container">
                     <!-- Chat Header: ข้อมูลระบบและ Session ID -->
                     <div class="chat-header">
                         <div class="pharma-profile">
                             <div class="status-dot online"></div>
                             <div>
-                                <h3>telebot — ผู้ช่วยปรึกษาอาการ AI</h3>
-                                <small class="session-id" v-if="symptomName">อาการ: {{ symptomName }}</small>
+                                <h3>{{ chatLocale === 'en' ? 'telebot — AI symptom assistant' : 'telebot — ผู้ช่วยปรึกษาอาการ AI' }}</h3>
+                                <small class="session-id" v-if="displaySymptomName">{{ chatLocale === 'en' ? 'Symptom' : 'อาการ' }}: {{ displaySymptomName }}</small>
                             </div>
                         </div>
 
                         <div class="header-actions">
                             <button class="real-pharma-btn" @click="goToPharmacist">
-                                <i class="fa-solid fa-user-doctor"></i> ปรึกษาเภสัชกร (คนจริง)
+                                <i class="fa-solid fa-user-doctor"></i>
+                                {{ chatLocale === 'en' ? 'Consult pharmacist (real person)' : 'ปรึกษาเภสัชกร (คนจริง)' }}
                             </button>
                         </div>
                     </div>
@@ -811,11 +862,11 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
                                 }
                             ]">
                                 <!-- Header ของ Bubble ตามประเภทเนื้อหา -->
-                                <strong v-if="msg.isRedFlag">🚨 คำเตือนอาการฉุกเฉิน</strong>
-                                <strong v-else-if="msg.isSummary">📋 สรุปผลการประเมินอาการ</strong>
+                                <strong v-if="msg.isRedFlag">{{ chatLocale === 'en' ? '🚨 Emergency symptom warning' : '🚨 คำเตือนอาการฉุกเฉิน' }}</strong>
+                                <strong v-else-if="msg.isSummary">{{ chatLocale === 'en' ? '📋 Symptom assessment summary' : '📋 สรุปผลการประเมินอาการ' }}</strong>
                                 <div v-else-if="msg.isReview" class="thanks-header">
                                     <span class="thanks-header__icon">🙏</span>
-                                    <span class="thanks-header__title">ขอบคุณที่ใช้บริการ</span>
+                                    <span class="thanks-header__title">{{ chatLocale === 'en' ? 'Thank you for using our service' : 'ขอบคุณที่ใช้บริการ' }}</span>
                                     <span class="thanks-header__badge">⭐</span>
                                 </div>
 
@@ -824,7 +875,7 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
                                 <div class="text ai-text" v-else>
                                     <template v-for="(part, i) in getMessageParts(msg)" :key="i">
                                         <div v-if="part.type === 'question_block'" class="q-block">
-                                            <div class="q-line">🩺 ข้อ {{ part.number }}: {{ part.header }}?</div>
+                                            <div class="q-line">🩺 {{ chatLocale === 'en' ? 'Question' : 'ข้อ' }} {{ part.number }}: {{ part.header }}?</div>
                                             <div class="sub-q-list">
                                                 <div
                                                     v-for="(sub, si) in part.subQuestions"
@@ -833,24 +884,32 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
                                                 >
                                                     <div class="sub-q-text">
                                                         • {{ sub.text }}?
-                                                        <span v-if="sub.hint" class="sub-q-hint">(เช่น {{ sub.hint }})</span>
+                                                        <span v-if="sub.hint" class="sub-q-hint">({{ chatLocale === 'en' ? 'e.g.' : 'เช่น' }} {{ sub.hint }})</span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="q-input-hint">✍️ กรุณาพิมพ์คำตอบในช่องด้านล่างได้เลยครับ</div>
+                                            <div class="q-input-hint">✍️ {{ chatLocale === 'en' ? 'Please type your answer in the box below.' : 'กรุณาพิมพ์คำตอบในช่องด้านล่างได้เลยครับ' }}</div>
                                         </div>
                                         <div v-else-if="part.type === 'question'" class="q-block">
                                             <div class="q-line">
                                                 {{ part.text }}
-                                                <span v-if="part.hint" class="q-line-hint">(เช่น {{ part.hint }})</span>
+                                                <span v-if="part.hint" class="q-line-hint">({{ chatLocale === 'en' ? 'e.g.' : 'เช่น' }} {{ part.hint }})</span>
                                             </div>
-                                            <div class="q-input-hint">✍️ กรุณาพิมพ์คำตอบในช่องด้านล่างได้เลยครับ</div>
+                                            <div class="q-input-hint">✍️ {{ chatLocale === 'en' ? 'Please type your answer in the box below.' : 'กรุณาพิมพ์คำตอบในช่องด้านล่างได้เลยครับ' }}</div>
                                         </div>
                                         <div v-else-if="part.type === 'ack'" class="ack-line">{{ part.text }}</div>
-                                        <div v-else-if="part.type === 'section_title'" class="summary-section-title">{{ part.text }}</div>
-                                        <div v-else-if="part.type === 'list_item'" class="summary-list-item">
+                                        <div v-else-if="part.type === 'section_title'" class="summary-section-title" :class="{ 'is-warn': part.variant === 'warn', 'is-care': part.variant === 'care' }">{{ part.text }}</div>
+                                        <div v-else-if="part.type === 'list_item'" class="summary-list-item" :class="{ 'is-warn': part.variant === 'warn', 'is-care': part.variant === 'care' }">
                                             <span class="summary-list-num">{{ part.number ? part.number + '.' : '•' }}</span>
                                             <span class="summary-list-text">{{ part.text }}</span>
+                                        </div>
+                                        <div v-else-if="part.type === 'pharmacy_cta'" class="summary-cta-banner">
+                                            <div class="summary-cta-rule" aria-hidden="true"></div>
+                                            <div class="summary-cta-inner">
+                                                <span class="summary-cta-icon" aria-hidden="true">👨‍⚕️</span>
+                                                <p class="summary-cta-text">{{ part.text }}</p>
+                                            </div>
+                                            <div class="summary-cta-rule" aria-hidden="true"></div>
                                         </div>
                                         <div v-else class="t-line">{{ part.text }}</div>
                                     </template>
@@ -859,9 +918,9 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
                                 <!-- ส่วนของ Action Buttons ภายใน Bubble -->
                                 <div v-if="msg.isRedFlag" class="bubble-action-area">
                                     <hr>
-                                    <p>เพื่อความปลอดภัย กรุณาพบผู้เชี่ยวชาญทันที:</p>
+                                    <p>{{ chatLocale === 'en' ? 'Please contact our pharmacist immediately:' : 'เพื่อความปลอดภัย กรุณาพบผู้เชี่ยวชาญทันที:' }}</p>
                                     <button @click="goToEmergency" class="action-link-btn">
-                                        🚑 ติดต่อเภสัชกรของเราทันที
+                                        {{ chatLocale === 'en' ? '🚑 Contact our pharmacist now' : '🚑 ติดต่อเภสัชกรของเราทันที' }}
                                     </button>
                                 </div>
 
@@ -872,11 +931,11 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
                                     </div>
                                     <NuxtLink to="/review_write" class="thanks-action-btn thanks-action-btn--primary">
                                         <i class="fa-solid fa-pen-to-square"></i>
-                                        เขียนรีวิวให้คะแนน
+                                        {{ chatLocale === 'en' ? 'Write a review' : 'เขียนรีวิวให้คะแนน' }}
                                     </NuxtLink>
                                     <a href="#" class="thanks-action-btn thanks-action-btn--secondary" @click.prevent="goToPharmacist">
                                         <i class="fa-solid fa-user-doctor"></i>
-                                        ปรึกษาเภสัชกร
+                                        {{ chatLocale === 'en' ? 'Consult pharmacist' : 'ปรึกษาเภสัชกร' }}
                                     </a>
                                 </div>
                             </div>
@@ -906,12 +965,12 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
                         <input 
                             type="text" 
                             v-model="newMessage" 
-                            placeholder="พิมพ์ตอบ หรือเลือกตัวเลือกด้านบน..."
+                            :placeholder="chatLocale === 'en' ? 'Type your answer or choose an option above...' : 'พิมพ์ตอบ หรือเลือกตัวเลือกด้านบน...'"
                             @keyup.enter="sendMessage()" 
                             :disabled="isLoading"
                         >
                         <button class="btn-send" @click="sendMessage()" :disabled="isLoading || !newMessage.trim()">
-                            ส่ง ✈️
+                            {{ chatLocale === 'en' ? 'Send ✈️' : 'ส่ง ✈️' }}
                         </button>
                     </div>
                 </div>
