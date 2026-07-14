@@ -1,0 +1,10 @@
+{
+  "source": "C:\\Users\\konku\\Downloads\\train.json",
+  "totalRows": 16396,
+  "validDocs": 16331,
+  "pharmacyMatched": 5356,
+  "pharmacyExported": 2500,
+  "exportedAt": "2026-07-14T09:12:04.718Z",
+  "jsonl": "train-pharmacy.jsonl",
+  "embeddingModelHint": "bge-m3"
+}

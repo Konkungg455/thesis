@@ -27,3 +27,12 @@ import.env
 
 .vercel
 .env*
+
+# RAG large datasets / embeddings (สร้างด้วย scripts/*-rag*)
+data/rag/train.json
+data/rag/index.json
+data/rag/train-pharmacy.jsonl
+data/rag/*.ndjson
+!data/rag/.gitkeep
+!data/rag/README.md
+

@@ -34,7 +34,10 @@
     "db:trim-pharma-rx": "node scripts/trim-pharma-prescriptions.mjs",
     "db:seed-pharma-history": "node scripts/seed-pharma-history.mjs",
     "db:seed-service-usage": "node scripts/seed-service-usage.mjs",
-    "db:setup-pharma-tracking": "node scripts/setup-pharma-tracking-list.mjs"
+    "db:setup-pharma-tracking": "node scripts/setup-pharma-tracking-list.mjs",
+    "rag:prepare": "node scripts/prepare-rag-train.mjs",
+    "rag:index": "node scripts/build-rag-index.mjs",
+    "rag:index:sample": "node scripts/build-rag-index.mjs --sample"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",

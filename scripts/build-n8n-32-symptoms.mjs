@@ -183,6 +183,43 @@ const workflow = {
       typeVersion: 1.1,
       position: [280, 560],
     },
+    {
+      parameters: {
+        toolDescription:
+          'ค้นคลังความรู้ทางการแพทย์ (RAG จาก train.json). ใช้ตอนสรุปอาการ/คำแนะนำเบื้องต้นเท่านั้นเมื่อต้องการอ้างอิงสั้นๆ ที่เกี่ยวกับอาการที่ล็อก — ห้ามใช้ระหว่างถามข้อ 1-5 และห้ามจ่ายยาหรือบอกขนาดยาจากผลค้น',
+        method: 'POST',
+        url: 'http://127.0.0.1:3001/api/rag/search',
+        authentication: 'none',
+        sendQuery: false,
+        sendHeaders: true,
+        headerParameters: {
+          parameters: [
+            { name: 'Content-Type', value: 'application/json' },
+          ],
+        },
+        sendBody: true,
+        specifyBody: 'json',
+        jsonBody: '={"query":"{query}","topK":4}',
+        placeholderDefinitions: {
+          values: [
+            {
+              name: 'query',
+              description: 'คำถามหรืออาการภาษาไทยสั้นๆ ที่ต้องการความรู้ประกอบการสรุป เช่น ปวดศีรษะ มีไข้ ดูแลเบื้องต้น',
+              type: 'string',
+            },
+          ],
+        },
+        optimizeResponse: true,
+        responseType: 'json',
+        fieldsToInclude: 'selected',
+        fields: 'status,context,hits',
+      },
+      id: 'medical-rag-tool-001-aaaa-bbbb-cccc-ddddeeee0002',
+      name: 'Medical RAG',
+      type: '@n8n/n8n-nodes-langchain.toolHttpRequest',
+      typeVersion: 1.1,
+      position: [280, 700],
+    },
   ],
   connections: {
     'Chat Trigger': {
@@ -201,6 +238,9 @@ const workflow = {
       ai_tool: [[{ node: AGENT_NAME, type: 'ai_tool', index: 0 }]],
     },
     'Web Search': {
+      ai_tool: [[{ node: AGENT_NAME, type: 'ai_tool', index: 0 }]],
+    },
+    'Medical RAG': {
       ai_tool: [[{ node: AGENT_NAME, type: 'ai_tool', index: 0 }]],
     },
   },

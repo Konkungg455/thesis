@@ -487,7 +487,7 @@ export function resolveNextFixedQuestionNum(progress: {
 
 /** ประโยคปิดท้ายมาตรฐาน — ห้ามให้ AI เสนอแนะนำยาเอง */
 export const PHARMACY_CONSULT_CTA =
-  'หากต้องการคำแนะนำเพิ่มเติม กรุณาติดต่อเภสัชกรผ่านเว็บ TELEBOT-PHARMACY ที่เมนู "ปรึกษาอาการ" ครับ';
+  'หากต้องการคำแนะนำเพิ่มเติม กรุณาติดต่อเภสัชกรผ่านเว็บ TELEBOT-PHARMACY ไปกดปุ่ม "ปรึกษาเภสัช" ด้านล่างนี้';
 
 /** แทนประโยคชวนแนะนำยา / CTA เก่า ให้เป็นประโยคมาตรฐาน */
 export function rewritePharmacyConsultCta(text: string): string {
@@ -504,6 +504,10 @@ export function rewritePharmacyConsultCta(text: string): string {
   );
   out = out.replace(
     /สามารถแจ้งได้ครับ\s*แต่ย้ำว่าควรปรึกษาเภสัชกรหรือแพทย์ก่อนใช้ยาเสมอ\.?/gi,
+    PHARMACY_CONSULT_CTA,
+  );
+  out = out.replace(
+    /หากต้องการคำแนะนำเพิ่มเติม\s*กรุณาติดต่อเภสัชกรผ่านเว็บ\s*TELEBOT-PHARMACY\s*ที่เมนู\s*["“”]?ปรึกษาอาการ["“”]?\s*ครับ\.?/gi,
     PHARMACY_CONSULT_CTA,
   );
 

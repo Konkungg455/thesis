@@ -847,6 +847,11 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
                                             <div class="q-input-hint">✍️ กรุณาพิมพ์คำตอบในช่องด้านล่างได้เลยครับ</div>
                                         </div>
                                         <div v-else-if="part.type === 'ack'" class="ack-line">{{ part.text }}</div>
+                                        <div v-else-if="part.type === 'section_title'" class="summary-section-title">{{ part.text }}</div>
+                                        <div v-else-if="part.type === 'list_item'" class="summary-list-item">
+                                            <span class="summary-list-num">{{ part.number ? part.number + '.' : '•' }}</span>
+                                            <span class="summary-list-text">{{ part.text }}</span>
+                                        </div>
                                         <div v-else class="t-line">{{ part.text }}</div>
                                     </template>
                                 </div>

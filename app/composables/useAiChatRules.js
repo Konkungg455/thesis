@@ -460,7 +460,15 @@ export function useAiChatRules() {
 
   const parseAiMessage = (text) => {
     if (!text) return [];
-    const rawLines = repairScreeningFormat(normalizeMessageText(text)).split(/\r?\n/);
+    const rawLines = repairScreeningFormat(normalizeMessageText(text))
+      .split(/\r?\n/)
+      .flatMap((line) => {
+        // แยก "1. ... 2. ... 3. ..." ที่ติดในบรรทัดเดียวให้เป็นหลายบรรทัด
+        const t = String(line || '');
+        if (!/(?:^|\s)\d+[\.\)]\s+\S/.test(t)) return [line];
+        const bits = t.split(/(?=(?:^|\s)\d+[\.\)]\s+)/).map((s) => s.trim()).filter(Boolean);
+        return bits.length > 1 ? bits : [line];
+      });
 
     // header: "🩺 ข้อ N: <ข้อความ>?"
     const HEADER_RE =
@@ -557,6 +565,25 @@ export function useAiChatRules() {
       }
 
       if (hasQuestionBlock && CLOSING_RE.test(noEmoji)) {
+        i++;
+        continue;
+      }
+
+      // รายการตัวเลข / bullet สำหรับสรุป (ดูแลตนเอง ฯลฯ)
+      const listM = noEmoji.match(/^\s*(\d+)[\.\)]\s+(.+)$/);
+      if (listM) {
+        parts.push({ type: 'list_item', number: listM[1], text: listM[2].trim() });
+        i++;
+        continue;
+      }
+      const bulletM = noEmoji.match(/^\s*[-•*]\s+(.+)$/);
+      if (bulletM && !hasQuestionBlock) {
+        parts.push({ type: 'list_item', number: '', text: bulletM[1].trim() });
+        i++;
+        continue;
+      }
+      if (/^(?:💊|⚠️|👨‍⚕️|📋)/.test(clean.trim()) || /วิธีดูแลตนเอง|ควรพบเภสัชกร|สรุปอาการ/.test(clean)) {
+        parts.push({ type: 'section_title', text: clean.trim() });
         i++;
         continue;
       }
@@ -720,7 +747,7 @@ export function useAiChatRules() {
     return [
       profileLine,
       locked,
-      '[SYSTEM] ครบ 5 ข้อคัดกรองแล้ว — เขียนสรุปผลการประเมินอาการเองเป็นภาษาธรรมชาติ อ่านง่าย ห้ามยึดเทมเพลตตายตัว ห้ามถามข้อใหม่ ห้ามพิมพ์ 🩺 ข้อ N หรือ placeholder ห้ามเสนอแนะนำยา ให้ปิดท้ายว่า: หากต้องการคำแนะนำเพิ่มเติม กรุณาติดต่อเภสัชกรผ่านเว็บ TELEBOT-PHARMACY ที่เมนู "ปรึกษาอาการ" ครับ',
+      '[SYSTEM] ครบ 5 ข้อคัดกรองแล้ว — เขียนสรุปผลการประเมินอาการเองเป็นภาษาธรรมชาติ อ่านง่าย ห้ามยึดเทมเพลตตายตัว ห้ามถามข้อใหม่ ห้ามพิมพ์ 🩺 ข้อ N หรือ placeholder ห้ามเสนอแนะนำยา ส่วน "💊 วิธีดูแลตนเองเบื้องต้น" ต้องแบ่งเป็นข้อๆ หมายเลข 1. 2. 3. … (3–5 ข้อ สั้นชัด ห้ามเขียนย่อหน้ายาวรวมกัน) ให้ปิดท้ายว่า: หากต้องการคำแนะนำเพิ่มเติม กรุณาติดต่อเภสัชกรผ่านเว็บ TELEBOT-PHARMACY ไปกดปุ่ม "ปรึกษาเภสัช" ด้านล่างนี้',
       '[CHAT_ANSWERS]',
       answers,
       lastUserText ? `คำตอบล่าสุดของ User: ${lastUserText}` : '',

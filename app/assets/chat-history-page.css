@@ -78,6 +78,36 @@
     line-height: 1.6;
     min-height: 0.6em;
 }
+.ai-text .summary-section-title {
+    margin: 0.75rem 0 0.35rem;
+    font-weight: 700;
+    color: #1e3a5f;
+    line-height: 1.45;
+}
+.ai-text .summary-section-title:first-child {
+    margin-top: 0;
+}
+.ai-text .summary-list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    margin: 0.4rem 0;
+    padding: 0.55rem 0.75rem;
+    background: rgba(255, 255, 255, 0.72);
+    border-radius: 10px;
+    border-left: 3px solid #38bdf8;
+    line-height: 1.5;
+}
+.ai-text .summary-list-num {
+    flex-shrink: 0;
+    min-width: 1.4rem;
+    font-weight: 700;
+    color: #0284c7;
+}
+.ai-text .summary-list-text {
+    flex: 1;
+    color: #334155;
+}
 .ai-text .ack-line {
     color: #6b7280;
     font-size: 0.85rem;

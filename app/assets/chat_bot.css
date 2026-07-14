@@ -518,6 +518,41 @@ html.dark .mobile-title {
     padding: 20px !important;
 }
 
+.summary-section-title {
+    margin: 0.75rem 0 0.35rem;
+    font-weight: 700;
+    color: #1e3a5f;
+    line-height: 1.45;
+}
+
+.summary-section-title:first-child {
+    margin-top: 0;
+}
+
+.summary-list-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    margin: 0.4rem 0;
+    padding: 0.55rem 0.75rem;
+    background: rgba(255, 255, 255, 0.72);
+    border-radius: 10px;
+    border-left: 3px solid #38bdf8;
+    line-height: 1.5;
+}
+
+.summary-list-num {
+    flex-shrink: 0;
+    min-width: 1.4rem;
+    font-weight: 700;
+    color: #0284c7;
+}
+
+.summary-list-text {
+    flex: 1;
+    color: #334155;
+}
+
 .options-grid {
     display: flex;
     flex-wrap: wrap;
