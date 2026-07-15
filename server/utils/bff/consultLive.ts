@@ -4,6 +4,30 @@ import { readMultipartRequest } from './formData';
 import { archiveAndClearChatBetween } from './consultArchives';
 import { ensureConsultTrackingRecord } from './consultTracking';
 import { syncServiceUsageForConsult } from './serviceUsage';
+import { enrichConsultBotMeta } from './consultRequests';
+
+const TRACKING_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
+
+function isWithinTrackingWindow(trackingBase: string | null | undefined): boolean {
+    if (!trackingBase) return false;
+    const baseMs = new Date(String(trackingBase)).getTime();
+    return Number.isFinite(baseMs) && Date.now() < baseMs + TRACKING_WINDOW_MS;
+}
+
+function buildPatientName(row: Record<string, unknown>, idAccount: number): string {
+    const first = String(row.firstname || '').trim();
+    const last = String(row.lastname || '').trim();
+    let name = `${first} ${last}`.trim();
+    if (!name) {
+        name = String(row.username_account || '').trim() || `ผู้ป่วย #${idAccount}`;
+    }
+    return name;
+}
+
+function buildPatientImage(row: Record<string, unknown>): string {
+    const imgFile = String(row.images_account || '').trim();
+    return imgFile ? `images_account/${imgFile}` : 'images_account/default.png';
+}
 
 export async function handleListMyPatients(event: H3Event) {
     const auth = getAuthContext(event);
@@ -17,32 +41,103 @@ export async function handleListMyPatients(event: H3Event) {
     if (cached) return cached;
 
     const list = await dbQuery(async (sql) => {
-        const rows = await sql`
+        const acceptedRows = await sql`
             SELECT r.id_account,
                    MAX(r.id)::int AS request_id,
-                   a.firstname, a.lastname, a.username_account, a.images_account
+                   a.firstname, a.lastname, a.username_account, a.images_account,
+                   (
+                       SELECT su.service_code
+                       FROM service_usage su
+                       WHERE su.id_consult_request = (
+                           SELECT MAX(r2.id)
+                           FROM consult_requests r2
+                           WHERE r2.id_account = r.id_account
+                             AND r2.id_pharma = ${pId}
+                             AND r2.status = 'accepted'
+                             AND COALESCE(r2.is_deleted, 0) = 0
+                       )
+                       LIMIT 1
+                   ) AS service_code
             FROM consult_requests r
             INNER JOIN account a ON r.id_account = a.id_account
             WHERE r.id_pharma = ${pId}
               AND r.status = 'accepted'
               AND COALESCE(r.is_deleted, 0) = 0
             GROUP BY r.id_account, a.firstname, a.lastname, a.username_account, a.images_account
-            ORDER BY request_id DESC
+            ORDER BY MAX(r.id) DESC
         `;
-        return rows.map((row) => {
-            const first = String(row.firstname || '').trim();
-            const last = String(row.lastname || '').trim();
-            let name = `${first} ${last}`.trim();
-            if (!name) {
-                name = String(row.username_account || '').trim() || `ผู้ป่วย #${row.id_account}`;
-            }
-            const imgFile = String(row.images_account || '').trim();
-            return {
-                id_account: Number(row.id_account),
+
+        const trackingRows = await sql`
+            SELECT DISTINCT ON (p.id_account)
+                p.id_account,
+                p.id_consult_request,
+                p.tracking_status,
+                COALESCE(p.last_followup_at, p.created_at) AS tracking_base,
+                COALESCE(TRIM(p.med_details), '') AS med_details,
+                COALESCE(p.auto_created, 0) AS auto_created,
+                a.firstname, a.lastname, a.username_account, a.images_account,
+                (
+                    SELECT su.service_code
+                    FROM service_usage su
+                    WHERE su.id_consult_request = p.id_consult_request
+                    LIMIT 1
+                ) AS service_code
+            FROM prescriptions p
+            INNER JOIN account a ON a.id_account = p.id_account
+            WHERE p.id_pharma = ${pId}
+              AND COALESCE(p.tracking_status, 'active') <> 'completed'
+            ORDER BY p.id_account, p.id DESC
+        `;
+
+        const byAccount = new Map<number, Record<string, unknown>>();
+
+        for (const row of acceptedRows) {
+            const idAccount = Number(row.id_account);
+            if (idAccount <= 0) continue;
+            byAccount.set(idAccount, {
+                id_account: idAccount,
                 request_id: Number(row.request_id),
-                patient_name: name,
-                image_url: imgFile ? `images_account/${imgFile}` : 'images_account/default.png',
-            };
+                consult_id: Number(row.request_id),
+                service_code: String(row.service_code || '').trim(),
+                patient_name: buildPatientName(row, idAccount),
+                image_url: buildPatientImage(row),
+                list_group: 'consult',
+            });
+        }
+
+        for (const row of trackingRows) {
+            const idAccount = Number(row.id_account);
+            if (idAccount <= 0) continue;
+
+            const trackingStatus = String(row.tracking_status || 'active');
+            const trackingBase = row.tracking_base ? String(row.tracking_base) : '';
+            const hasMeds = String(row.med_details || '').trim() !== '';
+            const autoCreated = Number(row.auto_created || 0) === 1;
+            const trackable = trackingStatus === 'active' && (hasMeds || autoCreated);
+            if (!trackable || !isWithinTrackingWindow(trackingBase)) continue;
+
+            const existing = byAccount.get(idAccount);
+            if (existing && existing.list_group === 'consult') continue;
+
+            const consultId = Number(row.id_consult_request || 0);
+            byAccount.set(idAccount, {
+                id_account: idAccount,
+                request_id: consultId,
+                consult_id: consultId,
+                service_code: String(row.service_code || '').trim(),
+                patient_name: buildPatientName(row, idAccount),
+                image_url: buildPatientImage(row),
+                list_group: 'tracking',
+                tracking_base: trackingBase,
+            });
+        }
+
+        return Array.from(byAccount.values()).sort((a, b) => {
+            const groupOrder = (g: unknown) => (g === 'tracking' ? 0 : 1);
+            const ga = groupOrder(a.list_group);
+            const gb = groupOrder(b.list_group);
+            if (ga !== gb) return ga - gb;
+            return Number(b.request_id || 0) - Number(a.request_id || 0);
         });
     });
 
@@ -136,12 +231,13 @@ export async function handleGetActiveConsult(event: H3Event) {
             data.last_followup_at = fq[0]?.lf || null;
             data.tracking_active = trackingActive;
             data.tracking_base = trackingBase;
+            await enrichConsultBotMeta(sql, uId, data, Number(data.id || reqCid || 0));
             return data;
         }
 
         if (trackingActive && (reqCid > 0 || trackingCid > 0)) {
             const fallbackCid = reqCid > 0 ? reqCid : trackingCid;
-            return {
+            const trackData: Record<string, unknown> = {
                 status: 'tracking',
                 id: fallbackCid,
                 is_followup: 1,
@@ -149,6 +245,8 @@ export async function handleGetActiveConsult(event: H3Event) {
                 tracking_base: trackingBase,
                 last_followup_at: trackingBase,
             };
+            await enrichConsultBotMeta(sql, uId, trackData, fallbackCid);
+            return trackData;
         }
 
         if (presRows[0] && trackingBase !== null && (reqCid > 0 || trackingCid > 0)) {
@@ -157,7 +255,7 @@ export async function handleGetActiveConsult(event: H3Event) {
                 && Date.now() >= baseMs + 3 * 24 * 60 * 60 * 1000;
             if (expired) {
                 const fallbackCid = reqCid > 0 ? reqCid : trackingCid;
-                return {
+                const endedData: Record<string, unknown> = {
                     status: 'tracking_ended',
                     id: fallbackCid,
                     is_followup: 0,
@@ -165,6 +263,8 @@ export async function handleGetActiveConsult(event: H3Event) {
                     tracking_base: trackingBase,
                     last_followup_at: trackingBase,
                 };
+                await enrichConsultBotMeta(sql, uId, endedData, fallbackCid);
+                return endedData;
             }
         }
 
@@ -231,6 +331,9 @@ export async function handleCompleteConsult(event: H3Event) {
     if (!result) {
         return { status: 'error', message: 'ไม่สามารถเชื่อมต่อฐานข้อมูลได้' };
     }
+
+    clearBffCache(`list-my-patients:${pId}`);
+    clearBffCachePrefix(`active-consult:${pId}:${uId}`);
 
     return {
         status: 'success',

@@ -128,10 +128,9 @@
                                     </div>
                                     <div class="user-text">
                                         <strong>{{ incomingRequest.customer_name }}</strong>
-                                        <span v-if="incomingRequest.symptom_name" class="symptom-line" :title="incomingRequest.symptom_name">
-                                            <i class="fa-solid fa-stethoscope"></i> อาการ: {{ incomingRequest.symptom_name }}
+                                        <span class="symptom-line" :title="incomingRequest.symptom_name || 'ทั่วไป'">
+                                            <i class="fa-solid fa-stethoscope"></i> อาการ: {{ incomingRequest.symptom_name || 'ทั่วไป' }}
                                         </span>
-                                        <span v-else class="symptom-empty">ยังไม่ระบุอาการ</span>
                                         <span v-if="incomingRequest.consult_method" class="method-line">
                                             <i :class="incomingRequest.consult_method === 'video' ? 'fa-solid fa-video' : (incomingRequest.consult_method === 'voice' ? 'fa-solid fa-phone' : 'fa-solid fa-comments')"></i>
                                             {{ incomingRequest.consult_method === 'video' ? 'โทรวิดีโอ' : (incomingRequest.consult_method === 'voice' ? 'โทรเสียง' : 'แชท') }}

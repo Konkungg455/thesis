@@ -81,7 +81,7 @@ async function findInAccount(
     const imgFile = String(row.images_account || '').trim();
     const imageUrl = imgFile ? `images_account/${imgFile}` : 'images_account/default.png';
     const symptom = consultId > 0
-        ? (await fetchSymptomForConsult(sql, consultId, id)) || (await fetchLatestSymptom(sql, id))
+        ? await fetchSymptomForConsult(sql, consultId, id)
         : await fetchLatestSymptom(sql, id);
 
     return {
@@ -90,7 +90,7 @@ async function findInAccount(
         firstname: first,
         lastname: last,
         image_url: imageUrl,
-        symptom_name: symptom,
+        symptom_name: symptom || 'ทั่วไป',
     };
 }
 

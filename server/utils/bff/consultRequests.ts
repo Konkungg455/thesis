@@ -208,6 +208,70 @@ export async function handleCheckUserStatus(event: H3Event) {
     return payload;
 }
 
+/** เติม bot_session_id / จำนวนข้อความ AI / อาการ สำหรับคำขอปรึกษา */
+export async function enrichConsultBotMeta(
+    sql: ReturnType<typeof useDb>,
+    uId: number,
+    data: Record<string, unknown>,
+    consultIdHint = 0,
+): Promise<void> {
+    if (uId <= 0) {
+        data.symptom_name = '';
+        data.bot_message_count = 0;
+        return;
+    }
+
+    data.symptom_name = data.symptom_name ? String(data.symptom_name) : '';
+    data.bot_message_count = 0;
+
+    let reqSession = String(data.bot_session_id || '').trim();
+    const consultId = Number(consultIdHint || data.id || 0);
+    if (!reqSession && consultId > 0) {
+        const reqRow = await sql`
+            SELECT bot_session_id FROM consult_requests
+            WHERE id = ${consultId} AND id_account = ${uId}
+            LIMIT 1
+        `;
+        reqSession = String(reqRow[0]?.bot_session_id || '').trim();
+        if (reqSession) data.bot_session_id = reqSession;
+    }
+
+    if (reqSession) {
+        const sq = await sql`
+            SELECT symptom_name, COUNT(*)::int AS cnt
+            FROM chat_history
+            WHERE id_account = ${uId}
+              AND session_id = ${reqSession}
+              AND COALESCE(is_deleted, 0) = 0
+            GROUP BY symptom_name
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+        `;
+        if (sq[0]) {
+            data.bot_message_count = Number(sq[0].cnt || 0);
+            data.symptom_name = String(sq[0].symptom_name || data.symptom_name || '');
+        } else {
+            data.bot_message_count = 0;
+            data.symptom_name = '';
+        }
+    } else {
+        const sq = await sql`
+            SELECT session_id, symptom_name, COUNT(*)::int AS cnt, MAX(created_at) AS last_at
+            FROM chat_history
+            WHERE id_account = ${uId}
+              AND COALESCE(is_deleted, 0) = 0
+            GROUP BY session_id, symptom_name
+            ORDER BY last_at DESC
+            LIMIT 1
+        `;
+        if (sq[0]) {
+            data.bot_session_id = String(sq[0].session_id || '');
+            data.bot_message_count = Number(sq[0].cnt || 0);
+            data.symptom_name = String(sq[0].symptom_name || data.symptom_name || '');
+        }
+    }
+}
+
 export async function handleCheckPharmaRequest(event: H3Event) {
     const auth = getAuthContext(event);
     const pId = auth.id_pharma || 0;
@@ -238,57 +302,9 @@ export async function handleCheckPharmaRequest(event: H3Event) {
         delete data.lastname;
 
         const uId = Number(data.id_account || 0);
-        data.symptom_name = '';
-        const reqSession = String(data.bot_session_id || '').trim();
-        data.bot_message_count = 0;
-
-        if (uId > 0) {
-            if (reqSession) {
-                const sq = await sql`
-                    SELECT symptom_name, COUNT(*)::int AS cnt
-                    FROM chat_history
-                    WHERE id_account = ${uId}
-                      AND session_id = ${reqSession}
-                      AND COALESCE(is_deleted, 0) = 0
-                    GROUP BY symptom_name
-                    ORDER BY COUNT(*) DESC
-                    LIMIT 1
-                `;
-                if (sq[0]) {
-                    data.bot_message_count = Number(sq[0].cnt || 0);
-                    data.symptom_name = String(sq[0].symptom_name || '');
-                }
-            } else {
-                const sq = await sql`
-                    SELECT session_id, symptom_name, COUNT(*)::int AS cnt, MAX(created_at) AS last_at
-                    FROM chat_history
-                    WHERE id_account = ${uId}
-                      AND COALESCE(is_deleted, 0) = 0
-                    GROUP BY session_id, symptom_name
-                    ORDER BY last_at DESC
-                    LIMIT 1
-                `;
-                if (sq[0]) {
-                    data.bot_session_id = String(sq[0].session_id || '');
-                    data.bot_message_count = Number(sq[0].cnt || 0);
-                    data.symptom_name = String(sq[0].symptom_name || '');
-                }
-            }
-
-            if (!data.symptom_name) {
-                const sq2 = await sql`
-                    SELECT symptom_name FROM chat_history
-                    WHERE id_account = ${uId}
-                      AND symptom_name IS NOT NULL
-                      AND symptom_name <> ''
-                      AND COALESCE(is_deleted, 0) = 0
-                    ORDER BY created_at DESC
-                    LIMIT 1
-                `;
-                if (sq2[0]) {
-                    data.symptom_name = String(sq2[0].symptom_name || '');
-                }
-            }
+        await enrichConsultBotMeta(sql, uId, data);
+        if (!String(data.symptom_name || '').trim()) {
+            data.symptom_name = 'ทั่วไป';
         }
 
         return data;

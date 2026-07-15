@@ -20,6 +20,10 @@ export default defineEventHandler(async (event) => {
         idAccount === null ? 'guest' : 'user',
     );
 
+    if (idAccount) {
+        clearBffCachePrefix(`patient-info:${idAccount}:`);
+    }
+
     return {
         status: 'success',
         session_id: sessionId,

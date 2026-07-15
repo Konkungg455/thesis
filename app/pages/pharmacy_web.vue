@@ -1,5 +1,5 @@
 <script setup>
-import { formatChatMessageTime, parseAppDateTime } from '@/utils/datetime';
+import { formatChatMessageTime, formatChatDateTime, parseAppDateTime } from '@/utils/datetime';
 
 definePageMeta({ middleware: 'pharmacist-only' });
 
@@ -166,6 +166,42 @@ const confirmChatPayment = async (msg) => {
 };
 
 // กรองรายการคนไข้ตามคำค้น (ใช้กับ slider list ใน sidebar)
+const patientListGroupMap = ref({}); // consult | tracking ต่อคนไข้
+const patientRoundMetaMap = ref({}); // consult_id + service_code ต่อคนไข้ (สำหรับเปิดแชทรอบ SRV)
+
+const setPatientListGroup = (id, group = 'consult') => {
+    const cleanId = normalizePatientId(id);
+    if (!cleanId) return;
+    const next = group === 'tracking' ? 'tracking' : 'consult';
+    patientListGroupMap.value = { ...patientListGroupMap.value, [cleanId]: next };
+};
+
+const setPatientRoundMeta = (id, { consultId = 0, serviceCode = '' } = {}) => {
+    const cleanId = normalizePatientId(id);
+    if (!cleanId) return;
+    patientRoundMetaMap.value = {
+        ...patientRoundMetaMap.value,
+        [cleanId]: {
+            consult_id: Number(consultId) || 0,
+            service_code: String(serviceCode || '').trim(),
+        },
+    };
+};
+
+const buildPatientRouteQuery = (id) => {
+    const normalized = normalizePatientId(id);
+    if (!normalized) return {};
+    const query = { id: normalized };
+    if (patientListGroupMap.value[normalized] === 'tracking') {
+        const meta = patientRoundMetaMap.value[normalized] || {};
+        const cid = Number(meta.consult_id) || 0;
+        const srv = String(meta.service_code || '').trim();
+        if (cid > 0) query.consult_id = cid;
+        if (srv) query.srv = srv;
+    }
+    return query;
+};
+
 const filteredSidebarPatients = computed(() => {
     const q = patientSearchQuery.value.trim().toLowerCase();
     if (!q) return sidebarPatientIds.value;
@@ -174,6 +210,34 @@ const filteredSidebarPatients = computed(() => {
         return name.includes(q) || String(id).includes(q);
     });
 });
+
+const sidebarPatientGroups = computed(() => {
+    const consult = [];
+    const tracking = [];
+    for (const id of filteredSidebarPatients.value) {
+        if (patientListGroupMap.value[id] === 'tracking') tracking.push(id);
+        else consult.push(id);
+    }
+    return [
+        {
+            key: 'tracking',
+            title: 'คนไข้ติดตามอาการ 3 วัน',
+            icon: 'fa-clipboard-list',
+            patients: tracking,
+        },
+        {
+            key: 'consult',
+            title: 'เภสัชไข้ที่ต้องพูดคุย',
+            icon: 'fa-user-doctor',
+            patients: consult,
+        },
+    ];
+});
+
+const displayPatientSymptom = (id) => {
+    const raw = String(patientSymptomsMap.value[id] || '').trim();
+    return raw || 'ทั่วไป';
+};
 
 const getSidebarStorageKey = () => {
     const pharmaId = user.value?.id_pharma || user.value?.id || 'guest';
@@ -184,6 +248,32 @@ const getSidebarStorageKey = () => {
 const patientDetailsMap = ref({});
 const patientImagesMap = ref({});
 const patientSymptomsMap = ref({}); // 🩺 อาการป่วยของแต่ละคนไข้ (ตามรอบ consult ที่เลือก)
+const activePatientBotMeta = ref({
+    bot_session_id: '',
+    bot_message_count: 0,
+    symptom_name: '',
+});
+
+const applyActivePatientBotMeta = (data = {}) => {
+    const symptom = String(data.symptom_name || '');
+    activePatientBotMeta.value = {
+        bot_session_id: String(data.bot_session_id || ''),
+        bot_message_count: Number(data.bot_message_count || 0),
+        symptom_name: symptom,
+    };
+    const pid = normalizePatientId(activePatientId.value);
+    if (pid) {
+        setPatientSymptom(pid, symptom);
+    }
+};
+
+const resetActivePatientBotMeta = () => {
+    activePatientBotMeta.value = {
+        bot_session_id: '',
+        bot_message_count: 0,
+        symptom_name: '',
+    };
+};
 const patientSymptomLoaded = ref({}); // โหลดอาการเสร็จแล้วหรือยัง (กันขึ้น "ยังไม่มีข้อมูลอาการ" ก่อนคลิก/ก่อนโหลด)
 
 const normalizePatientId = (id) => {
@@ -233,7 +323,7 @@ const fetchPatientInfo = async (id, { consultId = 0, markLoaded = true } = {}) =
             setPatientDisplayName(cleanId, res.data.patient_name);
             if (res.data.image_url) setPatientImage(cleanId, res.data.image_url);
             if (isActive || markLoaded) {
-                setPatientSymptom(cleanId, res.data.symptom_name || '');
+                setPatientSymptom(cleanId, res.data.symptom_name || 'ทั่วไป');
             }
         } else if (!patientDetailsMap.value[cleanId]) {
             setPatientDisplayName(cleanId, `ผู้ป่วยคนที่ ${cleanId}`);
@@ -258,6 +348,9 @@ const ensurePatientInSidebar = (id) => {
         // เปลี่ยนมาสร้างก้อน Array สดใหม่ทับลงไป เพื่อส่งสัญญาณ Reactivity ลั่นแจ้งเตือนสเตตทันที
         sidebarPatientIds.value = [...sidebarPatientIds.value, normalized].sort((a, b) => a - b);
         saveSidebarPatients(); // เขียนเก็บลงกล่องถาวร
+    }
+    if (!patientListGroupMap.value[normalized]) {
+        setPatientListGroup(normalized, 'consult');
     }
     fetchPatientInfo(normalized, { markLoaded: true }); // โหลดชื่อ + อาการ (แสดงในรายการแม้ยังไม่คลิก)
 };
@@ -307,14 +400,27 @@ const loadSidebarPatients = async () => {
                 .map((p) => normalizePatientId(p.id_account))
                 .filter((v) => v !== null);
             res.data.forEach((p) => {
+                const pid = normalizePatientId(p.id_account);
+                if (!pid) return;
                 if (p.patient_name) {
-                    setPatientDisplayName(p.id_account, p.patient_name);
+                    setPatientDisplayName(pid, p.patient_name);
                 }
-                // โหลดอาการของแต่ละคนมาแสดงในรายการเลย (ไม่ต้องรอคลิก)
-                fetchPatientInfo(p.id_account, { markLoaded: true });
+                if (p.image_url) {
+                    setPatientImage(pid, p.image_url);
+                }
+                setPatientListGroup(pid, p.list_group || 'consult');
+                setPatientRoundMeta(pid, {
+                    consultId: p.consult_id || p.request_id || 0,
+                    serviceCode: p.service_code || '',
+                });
+                const roundCid = Number(p.consult_id || p.request_id || 0);
+                fetchPatientInfo(pid, {
+                    consultId: p.list_group === 'tracking' ? roundCid : 0,
+                    markLoaded: true,
+                });
             });
             saveSidebarPatients();
-            return;
+            return res.data;
         }
     } catch (e) {
         console.warn('loadSidebarPatients API', e);
@@ -328,7 +434,10 @@ const loadSidebarPatients = async () => {
         sidebarPatientIds.value = list
             .map((v) => normalizePatientId(v))
             .filter((v) => v !== null);
-        sidebarPatientIds.value.forEach((id) => fetchPatientInfo(id, { markLoaded: true }));
+        sidebarPatientIds.value.forEach((id) => {
+            if (!patientListGroupMap.value[id]) setPatientListGroup(id, 'consult');
+            fetchPatientInfo(id, { markLoaded: true });
+        });
     } catch {
         // ignore
     }
@@ -337,6 +446,18 @@ const loadSidebarPatients = async () => {
 const saveSidebarPatients = () => {
     if (!import.meta.client) return;
     localStorage.setItem(getSidebarStorageKey(), JSON.stringify(sidebarPatientIds.value));
+};
+
+/** เปิดแชทคนไข้ติดตามคนแรกอัตโนมัติเมื่อเข้าหน้า (ไม่ต้องไป /tracking ก่อน) */
+const openDefaultTrackingPatientIfNeeded = async () => {
+    if (!import.meta.client) return;
+    if (normalizePatientId(route.query.id)) return;
+
+    const trackingGroup = sidebarPatientGroups.value.find((g) => g.key === 'tracking');
+    const firstTrackingId = trackingGroup?.patients?.[0];
+    if (!firstTrackingId) return;
+
+    await router.replace({ path: '/pharmacy_web', query: buildPatientRouteQuery(firstTrackingId) });
 };
 
 const removePatientFromSidebar = (id) => {
@@ -716,6 +837,7 @@ const fetchActiveConsultInfo = async () => {
             isTrackingMode.value = false;
             isTrackingEnded.value = false;
             trackingStartedAt.value = null;
+            resetActivePatientBotMeta();
             return;
         }
         // โหมดติดตาม 3 วัน (consult จบแล้ว แต่ยังติดตามอยู่)
@@ -724,10 +846,23 @@ const fetchActiveConsultInfo = async () => {
             if (trackId > 0 && !(Number(route.query.consult_id) > 0)) {
                 activeRequestId.value = trackId;
             }
+            if (trackId > 0) {
+                setPatientRoundMeta(activePatientId.value, {
+                    consultId: trackId,
+                    serviceCode: resolveViewServiceCode(),
+                });
+            }
             isTrackingMode.value = true;
             isTrackingEnded.value = false;
             trackingStartedAt.value = data.tracking_base || data.last_followup_at || null;
+            setPatientListGroup(activePatientId.value, 'tracking');
             showEndConsultFab.value = false;
+            if (trackId > 0) {
+                await fetchPatientInfo(activePatientId.value, {
+                    consultId: trackId,
+                    markLoaded: true,
+                });
+            }
             tickConsultCountdown();
             return;
         }
@@ -771,6 +906,10 @@ const fetchActiveConsultInfo = async () => {
         trackingStartedAt.value = followup
             ? (data.last_followup_at || data.tracking_base || null)
             : (data.tracking_base || null);
+        setPatientListGroup(
+            activePatientId.value,
+            isTrackingMode.value ? 'tracking' : 'consult',
+        );
         if (isTrackingMode.value && !wasTracking) {
             tickConsultCountdown(); // refresh ทันที
         }
@@ -781,9 +920,88 @@ const fetchActiveConsultInfo = async () => {
                 markLoaded: true,
             });
         }
+        applyActivePatientBotMeta(data);
     } catch (e) {
         console.error('get_active_consult error', e);
     }
+};
+
+// ===== ดูประวัติแชทกับ AI ของคนไข้ที่กำลังปรึกษา =====
+const showBotHistoryModal = ref(false);
+const loadingBotHistory = ref(false);
+const botHistory = ref({
+    patient_id: 0,
+    patient_name: '',
+    session_id: '',
+    symptom_name: '',
+    message_count: 0,
+    data: [],
+});
+
+const shortBotSession = (s) => {
+    if (!s) return '-';
+    return s.length > 12 ? `${s.substring(0, 8)}...` : s;
+};
+
+const formatBhTime = (ts) => formatChatDateTime(ts);
+
+const openActiveBotHistory = async () => {
+    const patientId = normalizePatientId(activePatientId.value);
+    if (!patientId) return;
+
+    const meta = activePatientBotMeta.value;
+    loadingBotHistory.value = true;
+    showBotHistoryModal.value = true;
+    botHistory.value = {
+        patient_id: patientId,
+        patient_name: patientDetailsMap.value[patientId] || `ผู้ป่วยคนที่ ${patientId}`,
+        session_id: meta.bot_session_id || '',
+        symptom_name: meta.symptom_name || patientSymptomsMap.value[patientId] || '',
+        message_count: meta.bot_message_count || 0,
+        data: [],
+    };
+
+    try {
+        const qs = new URLSearchParams({ u_id: String(patientId) });
+        if (meta.bot_session_id) qs.set('session_id', meta.bot_session_id);
+        const res = await $fetch(apiUrl(`consult-handler.php?action=get_user_bot_history&${qs.toString()}`), {
+            credentials: 'include',
+        });
+        if (res?.status === 'success') {
+            const resolvedSymptom = String(res.symptom_name || '').trim();
+            botHistory.value = {
+                patient_id: res.patient_id || patientId,
+                patient_name: res.patient_name || botHistory.value.patient_name,
+                session_id: res.session_id || meta.bot_session_id || '',
+                symptom_name: resolvedSymptom,
+                message_count: res.message_count || 0,
+                data: Array.isArray(res.data) ? res.data : [],
+            };
+            setPatientSymptom(patientId, resolvedSymptom);
+            applyActivePatientBotMeta({
+                bot_session_id: botHistory.value.session_id,
+                bot_message_count: botHistory.value.message_count,
+                symptom_name: resolvedSymptom,
+            });
+        } else {
+            botHistory.value.data = [];
+            setPatientSymptom(patientId, '');
+            applyActivePatientBotMeta({
+                bot_session_id: meta.bot_session_id || '',
+                bot_message_count: 0,
+                symptom_name: '',
+            });
+        }
+    } catch (e) {
+        console.error('โหลดประวัติแชท bot ไม่สำเร็จ:', e);
+        botHistory.value.data = [];
+    } finally {
+        loadingBotHistory.value = false;
+    }
+};
+
+const closeBotHistory = () => {
+    showBotHistoryModal.value = false;
 };
 
 // ===== Modal: ยืนยันก่อนจบการสนทนา / โชว์รหัสบริการให้ส่งต่อแอดมิน =====
@@ -855,7 +1073,12 @@ const endConsultation = async () => {
     showEndResultModal.value = true;
     isEndingConsult.value = false;
 
-    removePatientFromSidebar(patientId);
+    setPatientListGroup(patientId, 'tracking');
+    setPatientRoundMeta(patientId, { consultId, serviceCode });
+    ensurePatientInSidebar(patientId);
+    activeRequestId.value = consultId;
+    activeServiceCode.value = serviceCode;
+    loadSidebarPatients();
 };
 
 const copyServiceCode = async () => {
@@ -1223,8 +1446,14 @@ const selectPatient = (id) => {
     initialScrollDone.value = false;
     ensurePatientInSidebar(normalized);
     activePatientId.value = normalized;
-    router.push({ query: { id: normalized } });
-    fetchPatientInfo(normalized, { markLoaded: true });
+
+    const meta = patientRoundMetaMap.value[normalized] || {};
+    const roundCid = Number(meta.consult_id) || 0;
+    router.push({ path: '/pharmacy_web', query: buildPatientRouteQuery(normalized) });
+    fetchPatientInfo(normalized, {
+        consultId: patientListGroupMap.value[normalized] === 'tracking' ? roundCid : 0,
+        markLoaded: true,
+    });
     fetchActiveConsultInfo();
 };
 
@@ -1295,12 +1524,13 @@ watch(
 
 watch(
     () => [route.query.consult_id, route.query.srv],
-    () => {
+    async () => {
         if (!import.meta.client) return;
         const routeCid = Number(route.query.consult_id) || 0;
         const routeSrv = String(route.query.srv || '').trim();
         if (routeCid > 0) activeRequestId.value = routeCid;
         if (routeSrv) activeServiceCode.value = routeSrv;
+        await fetchActiveConsultInfo();
         fetchMessages();
     }
 );
@@ -1322,6 +1552,9 @@ onMounted(async () => {
     }
 
     await checkExternalBellTrigger();
+    if (!normalizePatientId(route.query.id)) {
+        await openDefaultTrackingPatientIfNeeded();
+    }
     await loadConfirmedChatSlips();
 
     chatMessagePoll.start();
@@ -1504,32 +1737,46 @@ const closePreview = () => { isShowPreview.value = false; };
                         <i class="fa-regular fa-circle-question"></i>
                         <span>ไม่พบ "{{ patientSearchQuery }}"</span>
                     </div>
-                    <div
-                        v-for="patientId in filteredSidebarPatients"
-                        :key="patientId"
-                        class="menu-item patient-item"
-                        :class="{ active: Number(activePatientId) === patientId }"
-                        @click="selectPatient(patientId); closeSidebar()"
-                    >
-                        <div class="status-dot" :class="Number(activePatientId) === patientId ? 'online' : 'offline'"></div>
-                        <div class="patient-item-info">
-                            <span class="patient-name-text">{{ patientDetailsMap[patientId] || `กำลังโหลด (${patientId})...` }}</span>
-                            <span
-                                v-if="patientSymptomsMap[patientId]"
-                                class="patient-symptom-text"
-                                :title="patientSymptomsMap[patientId]"
+                    <template v-else>
+                        <div
+                            v-for="group in sidebarPatientGroups"
+                            :key="group.key"
+                            class="sidebar-group"
+                        >
+                            <div class="sidebar-section-title">
+                                <i :class="`fa-solid ${group.icon}`"></i>
+                                <span>{{ group.title }} ({{ group.patients.length }})</span>
+                            </div>
+                            <div
+                                v-for="patientId in group.patients"
+                                :key="`${group.key}-${patientId}`"
+                                class="menu-item patient-item"
+                                :class="{ active: Number(activePatientId) === patientId }"
+                                @click="selectPatient(patientId); closeSidebar()"
                             >
-                                <svg class="symptom-ico" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <path d="M4 3v6a5 5 0 0 0 10 0V3"></path>
-                                    <path d="M4 3H2m2 0h2M14 3h-2m2 0h2"></path>
-                                    <path d="M9 14v2a5 5 0 0 0 10 0v-1"></path>
-                                    <circle cx="19" cy="11" r="2"></circle>
-                                </svg>
-                                {{ patientSymptomsMap[patientId] }}
-                            </span>
-                            <span v-else-if="patientSymptomLoaded[patientId]" class="patient-symptom-empty">ยังไม่มีข้อมูลอาการ</span>
+                                <div class="status-dot" :class="Number(activePatientId) === patientId ? 'online' : 'offline'"></div>
+                                <div class="patient-item-info">
+                                    <span class="patient-name-text">{{ patientDetailsMap[patientId] || `กำลังโหลด (${patientId})...` }}</span>
+                                    <span
+                                        v-if="patientSymptomLoaded[patientId]"
+                                        class="patient-symptom-text"
+                                        :title="displayPatientSymptom(patientId)"
+                                    >
+                                        <svg class="symptom-ico" viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M4 3v6a5 5 0 0 0 10 0V3"></path>
+                                            <path d="M4 3H2m2 0h2M14 3h-2m2 0h2"></path>
+                                            <path d="M9 14v2a5 5 0 0 0 10 0v-1"></path>
+                                            <circle cx="19" cy="11" r="2"></circle>
+                                        </svg>
+                                        {{ displayPatientSymptom(patientId) }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div v-if="!group.patients.length" class="sidebar-group-empty">
+                                ไม่มีรายการ
+                            </div>
                         </div>
-                    </div>
+                    </template>
                 </div>
             </aside>
 
@@ -1604,6 +1851,20 @@ const closePreview = () => { isShowPreview.value = false; };
                                 <button v-if="!isInCall" @click="makeCall('voice')" class="btn-call-header" title="โทรเสียง">
                                     <i class="fa-solid fa-phone"></i>
                                     <span class="btn-label">โทร</span>
+                                </button>
+                                <button
+                                    v-if="activePatientId"
+                                    type="button"
+                                    class="btn-view-ai-history"
+                                    title="ดูประวัติแชทกับ AI"
+                                    :disabled="loadingBotHistory"
+                                    @click="openActiveBotHistory"
+                                >
+                                    <i class="fa-solid fa-robot"></i>
+                                    <span class="btn-label">ดูประวัติแชทกับ AI</span>
+                                    <span v-if="activePatientBotMeta.bot_message_count > 0" class="msg-count-badge">
+                                        {{ activePatientBotMeta.bot_message_count }}
+                                    </span>
                                 </button>
                                 <button class="video-call-btn" @click="makeCall('video')" title="วิดีโอคอล">
                                     <i class="fa-solid fa-video"></i>
@@ -1830,6 +2091,63 @@ const closePreview = () => { isShowPreview.value = false; };
                 </div>
             </section>
         </div>
+
+        <!-- ===== Modal: ประวัติแชทกับ AI ===== -->
+        <transition name="fade">
+            <div v-if="showBotHistoryModal" class="bot-history-overlay" @click.self="closeBotHistory">
+                <div class="bot-history-modal">
+                    <div class="bot-history-modal__header">
+                        <div class="bot-history-modal__header-info">
+                            <div class="bot-avatar"><i class="fa-solid fa-user-injured"></i></div>
+                            <div>
+                                <div class="bot-history-modal__title">
+                                    ประวัติการคุยกับ AI ของ <strong>{{ botHistory.patient_name }}</strong>
+                                </div>
+                                <div v-if="botHistory.symptom_name" class="bot-history-modal__symptom">
+                                    <i class="fa-solid fa-stethoscope"></i>
+                                    อาการที่แจ้ง: <strong>{{ botHistory.symptom_name }}</strong>
+                                </div>
+                                <div class="bot-history-modal__meta">
+                                    {{ botHistory.message_count }} ข้อความ · เซสชัน {{ shortBotSession(botHistory.session_id) }}
+                                </div>
+                            </div>
+                        </div>
+                        <button class="bot-history-modal__close" type="button" @click="closeBotHistory" aria-label="ปิด">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+
+                    <div class="bot-history-modal__body">
+                        <div v-if="loadingBotHistory" class="bot-history-loading">
+                            <i class="fa-solid fa-spinner fa-spin"></i> กำลังโหลดประวัติ...
+                        </div>
+                        <div v-else-if="botHistory.data && botHistory.data.length > 0" class="bot-history-messages">
+                            <div
+                                v-for="(msg, idx) in botHistory.data"
+                                :key="idx"
+                                :class="['bh-msg', msg.role === 'user' ? 'bh-msg--user' : 'bh-msg--bot']"
+                            >
+                                <div class="bh-msg__avatar">
+                                    <i :class="msg.role === 'user' ? 'fa-solid fa-user' : 'fa-solid fa-robot'"></i>
+                                </div>
+                                <div class="bh-msg__bubble">
+                                    <div class="bh-msg__text">{{ msg.message }}</div>
+                                    <div class="bh-msg__time">{{ formatBhTime(msg.created_at) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="bot-history-empty">
+                            <i class="fa-solid fa-comment-slash"></i>
+                            <p>ไม่พบประวัติแชทกับ AI ของคนไข้คนนี้</p>
+                        </div>
+                    </div>
+
+                    <div class="bot-history-modal__footer">
+                        <button type="button" class="btn-ghost" @click="closeBotHistory">ปิดหน้าต่าง</button>
+                    </div>
+                </div>
+            </div>
+        </transition>
 
         <!-- ===== Modal: ยืนยันก่อนจบการสนทนา ===== -->
         <transition name="fade">

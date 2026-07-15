@@ -855,7 +855,9 @@
     .hero-stats { width: 100%; justify-content: center; }
     .stat-box { min-width: 140px; }
 
-    :deep(.footer-divider) { background: #ffffff !important; }
+    :deep(.footer-divider) {
+        background: linear-gradient(to right, #2563eb 0, #2563eb 300px, #ffffff 300px) !important;
+    }
 }
 
 @media (max-width: 480px) {

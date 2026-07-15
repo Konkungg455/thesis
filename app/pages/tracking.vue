@@ -58,8 +58,8 @@ const isTrackableItem = (item) => {
     const status = String(item?.tracking_status || 'active');
     const hasMeds = String(item?.med_details || '').trim() !== '';
     const autoCreated = Number(item?.auto_created || 0) === 1;
+    if (status === 'completed') return hasMeds || autoCreated;
     if (status === 'active' && (hasMeds || autoCreated)) return true;
-    if (status === 'completed' && hasMeds && !autoCreated) return true;
     return false;
 };
 
@@ -90,7 +90,7 @@ const fetchPrescriptionHistory = async () => {
     if (!isAuthorized.value) return;
     isLoading.value = true
     try {
-        const res = await $fetch(apiUrl('get-prescriptions.php'), { credentials: 'include' });
+        const res = await $fetch(apiUrl(`get-prescriptions.php?_t=${Date.now()}`), { credentials: 'include' });
         if (res.status === 'success') {
             const trackable = dedupeTrackingItems((res.data || []).filter(isTrackableItem));
             historyData.value = trackable.map(item => ({
@@ -282,14 +282,16 @@ const confirmCompleteTracking = async () => {
             credentials: 'include'
         })
         if (res?.status === 'success') {
-            const idx = historyData.value.findIndex(x => Number(x.id) === Number(item.id))
-            if (idx >= 0) {
-                historyData.value[idx] = {
-                    ...historyData.value[idx],
-                    tracking_status: 'completed',
-                    tracking_completed_at: res.completed_at
-                }
-            }
+            historyData.value = historyData.value.map((x) =>
+                Number(x.id) === Number(item.id)
+                    ? {
+                        ...x,
+                        tracking_status: 'completed',
+                        tracking_completed_at: res.completed_at,
+                    }
+                    : x,
+            );
+            showCompleted.value = true;
             showFollowupToast(`บันทึกเสร็จสิ้นการติดตามคนไข้ ${displayPatientName(item)} แล้ว`, 'success')
         } else {
             showFollowupToast(res?.message || 'บันทึกไม่สำเร็จ', 'warn')
@@ -316,15 +318,17 @@ const reopenTracking = async (item) => {
             credentials: 'include'
         })
         if (res?.status === 'success') {
-            const idx = historyData.value.findIndex(x => Number(x.id) === Number(item.id))
-            if (idx >= 0) {
-                historyData.value[idx] = {
-                    ...historyData.value[idx],
-                    tracking_status: 'active',
-                    tracking_completed_at: null,
-                    remainingTime: calculateRemaining(historyData.value[idx].created_at)
-                }
-            }
+            historyData.value = historyData.value.map((x) =>
+                Number(x.id) === Number(item.id)
+                    ? {
+                        ...x,
+                        tracking_status: 'active',
+                        tracking_completed_at: null,
+                        remainingTime: calculateRemaining(x.created_at, x.last_followup_at),
+                    }
+                    : x,
+            );
+            showCompleted.value = false;
             showFollowupToast('เปิดติดตามอีกครั้งแล้ว', 'success')
         } else {
             showFollowupToast(res?.message || 'เปิดติดตามไม่สำเร็จ', 'warn')
@@ -701,7 +705,7 @@ const formatArchiveExpiry = (expiresAt) => {
                                     <div class="symptom-text">{{ item.med_details || '-' }}</div>
                                 </td>
                                 <td>
-                                    <span class="symptom-text">{{ item.symptom_name || '-' }}</span>
+                                    <span class="symptom-text">{{ item.symptom_name || 'ทั่วไป' }}</span>
                                 </td>
                                 <td>{{ formatDate(item.created_at) }}</td>
                                 <td>
@@ -813,7 +817,7 @@ const formatArchiveExpiry = (expiresAt) => {
                             </div>
                             <div class="card-row">
                                 <span class="card-label">🤒 อาการ</span>
-                                <span class="card-value">{{ item.symptom_name || '-' }}</span>
+                                <span class="card-value">{{ item.symptom_name || 'ทั่วไป' }}</span>
                             </div>
                             <div class="card-row">
                                 <span class="card-label">🕒 บันทึก</span>

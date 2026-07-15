@@ -25,6 +25,10 @@ export default defineEventHandler(async (event) => {
         };
     }
 
+    if (idAccount) {
+        clearBffCachePrefix(`patient-info:${idAccount}:`);
+    }
+
     return {
         status: 'success',
         message_id: messageId,

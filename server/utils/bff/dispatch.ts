@@ -1050,6 +1050,10 @@ async function handleDeleteChatSession(event: H3Event) {
         idAccount === null ? 'guest' : 'user',
     );
 
+    if (idAccount) {
+        clearBffCachePrefix(`patient-info:${idAccount}:`);
+    }
+
     return {
         status: 'success',
         session_id: sessionId,
@@ -1071,6 +1075,10 @@ async function handleDeleteChatMessage(event: H3Event) {
             message: 'ไม่พบข้อความ หรือไม่มีสิทธิ์ลบ',
             deleted_rows: 0,
         };
+    }
+
+    if (idAccount) {
+        clearBffCachePrefix(`patient-info:${idAccount}:`);
     }
 
     return {

@@ -157,7 +157,7 @@
 .history-section {
     flex: 1;
     padding: 32px 40px;
-    background: #ffffff;
+    background: transparent;
     margin: 0;
     min-width: 0;
 }
@@ -635,7 +635,7 @@
     .header-bar h2 { font-size: 1.15rem; }
     .header-bar { margin-bottom: 14px; }
     :deep(.footer-divider) {
-        background: #ffffff !important;
+        background: linear-gradient(to right, #2563eb 0, #2563eb 300px, #ffffff 300px) !important;
     }
 
     /* แถวบนของการ์ด: เรียงแนวตั้ง ให้ชื่อ-รูปได้ความกว้างเต็ม badge ตกลงล่าง */

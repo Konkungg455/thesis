@@ -54,7 +54,7 @@ const fetchPrescriptionHistory = async () => {
     if (!isAuthorized.value) return;
     isLoading.value = true
     try {
-        const res = await $fetch(apiUrl('get-prescriptions.php'), { credentials: 'include' });
+        const res = await $fetch(apiUrl(`get-prescriptions.php?_t=${Date.now()}`), { credentials: 'include' });
         if (res.status === 'success') {
             // 🚫 ไม่โชว์รายการ placeholder ที่ระบบสร้างตอนจบบทสนทนา (ยังไม่ได้เขียนใบสรุปรายการยาจริง)
             //    — หน้าติดตามคนไข้ (tracking) ยังเห็นได้ตามเดิม แต่หน้าประวัติใบสรุปรายการยาโชว์เฉพาะใบที่บันทึกจริง
@@ -264,7 +264,7 @@ watch(searchQuery, () => resetPage())
                                     <div class="med-text">{{ item.med_details || '-' }}</div>
                                 </td>
                                 <td class="symptom-col">
-                                    <div class="symptom-text">{{ item.symptom_name || '-' }}</div>
+                                    <div class="symptom-text">{{ item.symptom_name || 'ทั่วไป' }}</div>
                                 </td>
                                 <td>
                                     <div class="clinic-cell">
@@ -323,7 +323,7 @@ watch(searchQuery, () => resetPage())
                             </div>
                             <div class="card-row">
                                 <span class="card-label"><i class="fa-solid fa-notes-medical"></i> อาการป่วย</span>
-                                <span class="card-value">{{ item.symptom_name || '-' }}</span>
+                                <span class="card-value">{{ item.symptom_name || 'ทั่วไป' }}</span>
                             </div>
                             <div class="card-row">
                                 <span class="card-label"><i class="fa-solid fa-shop"></i> ร้าน</span>
