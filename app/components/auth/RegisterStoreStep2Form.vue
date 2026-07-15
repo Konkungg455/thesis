@@ -1,6 +1,8 @@
 <script setup>
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
 
+import { stashRegistrationOtpFallback } from '~/utils/registrationOtp';
+
 const { apiBase } = useApiBase();
 
 const router = useRouter();
@@ -217,6 +219,7 @@ const submit = async () => {
         });
         if (data.status === 'success') {
             const email = step1.value.personal_email;
+            stashRegistrationOtpFallback('store', email, data);
             // 💾 เก็บ draft ไว้จนกว่า OTP จะยืนยันสำเร็จ — ผู้ใช้กลับมาแก้ได้
             await router.push(data.redirect || `/auth/verify-otp?type=store&email=${encodeURIComponent(email)}`);
         } else {

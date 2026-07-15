@@ -3,6 +3,7 @@ import type { H3Event } from 'h3';
 import { parseValidAge, validateAgeMessage } from '#shared/utils/age';
 import { getArrayField, readMultipartRequest, readRequestFields } from './formData';
 import { uploadMediaFile, mimeFromExt } from '../../utils/storageUpload';
+import { otpDeliveryExtras, otpDeliveryMessage } from '../../utils/otpDelivery';
 
 const VALID_STORE_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 
@@ -49,6 +50,120 @@ export function formatRegistrationDbError(err: unknown): string | null {
         return 'อีเมลนี้ถูกใช้งานแล้ว กรุณาเข้าสู่ระบบหรือใช้อีเมลอื่นในการสมัคร';
     }
     return 'ข้อมูลนี้ถูกใช้งานในระบบแล้ว กรุณาเข้าสู่ระบบหรือเริ่มสมัครใหม่';
+}
+
+const DUP_TAKEN_MSG = 'ชื่อผู้ใช้หรืออีเมลนี้ถูกใช้งานแล้ว';
+
+type SqlClient = Parameters<Parameters<typeof dbQuery>[0]>[0];
+
+async function prepareStoreRegistration(sql: SqlClient, email: string, username: string) {
+    const active = await sql`
+        SELECT id_store_accounts FROM phamacy_store_accounts
+        WHERE COALESCE(is_deleted, 0) = 0
+          AND (personal_email = ${email} OR username = ${username})
+        LIMIT 1
+    `;
+    if (active[0]) {
+        return { ok: false as const, message: DUP_TAKEN_MSG };
+    }
+
+    await sql.unsafe(
+        `DELETE FROM otp_verify_store
+         WHERE email = $1
+            OR (temp_data IS NOT NULL AND temp_data::jsonb #>> '{account,username}' = $2)`,
+        [email, username],
+    );
+
+    await sql`
+        UPDATE phamacy_store_accounts
+        SET username = username || '_archived_' || id_store_accounts,
+            personal_email = 'archived_' || id_store_accounts || '_' || personal_email
+        WHERE COALESCE(is_deleted, 0) = 1
+          AND (personal_email = ${email} OR username = ${username})
+    `;
+
+    return { ok: true as const };
+}
+
+async function preparePharmacistRegistration(sql: SqlClient, email: string, username: string) {
+    const active = await sql`
+        SELECT id_pharma FROM pharmacist_account
+        WHERE COALESCE(is_deleted, 0) = 0
+          AND (email_pharma = ${email} OR username_pharma = ${username})
+        LIMIT 1
+    `;
+    if (active[0]) {
+        return { ok: false as const, message: DUP_TAKEN_MSG };
+    }
+
+    await sql.unsafe(`DELETE FROM otp_verify_phamacy WHERE email = $1`, [email]);
+    await sql`
+        UPDATE pharmacist_account
+        SET username_pharma = username_pharma || '_archived_' || id_pharma,
+            email_pharma = 'archived_' || id_pharma || '_' || email_pharma
+        WHERE COALESCE(is_deleted, 0) = 1
+          AND (email_pharma = ${email} OR username_pharma = ${username})
+    `;
+
+    return { ok: true as const };
+}
+
+async function prepareAdminRegistration(sql: SqlClient, email: string, username: string) {
+    const active = await sql`
+        SELECT id_account_admin FROM account_admin
+        WHERE COALESCE(is_deleted, 0) = 0
+          AND (email_account = ${email} OR username_account = ${username})
+        LIMIT 1
+    `;
+    if (active[0]) {
+        return { ok: false as const, message: DUP_TAKEN_MSG };
+    }
+
+    await sql.unsafe(`DELETE FROM otp_verify_admin WHERE email = $1`, [email]);
+    await sql`
+        UPDATE account_admin
+        SET username_account = username_account || '_archived_' || id_account_admin,
+            email_account = 'archived_' || id_account_admin || '_' || email_account
+        WHERE COALESCE(is_deleted, 0) = 1
+          AND (email_account = ${email} OR username_account = ${username})
+    `;
+
+    return { ok: true as const };
+}
+
+export async function prepareUserRegistration(sql: SqlClient, email: string, username: string) {
+    const active = await sql`
+        SELECT id_account FROM account
+        WHERE COALESCE(is_deleted, 0) = 0
+          AND (email_account = ${email} OR username_account = ${username})
+        LIMIT 1
+    `;
+    if (active[0]) {
+        return { ok: false as const, message: DUP_TAKEN_MSG };
+    }
+
+    await sql.unsafe(`DELETE FROM otp_verify WHERE email = $1`, [email]);
+    await sql`
+        UPDATE account
+        SET username_account = username_account || '_archived_' || id_account,
+            email_account = 'archived_' || id_account || '_' || email_account
+        WHERE COALESCE(is_deleted, 0) = 1
+          AND (email_account = ${email} OR username_account = ${username})
+    `;
+
+    return { ok: true as const };
+}
+
+async function ensureRegistrationSlot<T extends { ok: boolean; message?: string }>(
+    fn: (sql: SqlClient, email: string, username: string) => Promise<T>,
+    email: string,
+    username: string,
+) {
+    const result = await dbQuery(async (sql) => fn(sql, email, username));
+    if (!result?.ok) {
+        return { status: 'error' as const, message: result?.message || DUP_TAKEN_MSG };
+    }
+    return null;
 }
 
 function normalizeDayCode(day: string): string {
@@ -119,10 +234,10 @@ function otpSuccessResponse(
 ) {
     return {
         status: 'success',
-        message: message || (mailed ? 'ส่งรหัส OTP ไปยังอีเมลแล้ว' : 'สร้าง OTP แล้ว (ตั้งค่า SMTP เพื่อส่งอีเมลจริง)'),
+        message: message || otpDeliveryMessage(mailed),
         email,
         redirect: `/auth/verify-otp?type=${type}&email=${encodeURIComponent(email)}`,
-        ...(process.dev && !mailed ? { dev_otp: otp } : {}),
+        ...otpDeliveryExtras(mailed, otp),
     };
 }
 
@@ -150,12 +265,8 @@ export async function handleRegisterPharmacist(event: H3Event) {
     if (pass1.length < 8) return { status: 'error', message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร' };
     if (pass1 !== pass2) return { status: 'error', message: 'รหัสผ่านไม่ตรงกัน' };
 
-    const dup = await dbQuery(async (sql) => sql`
-        SELECT id_pharma FROM pharmacist_account
-        WHERE email_pharma = ${email} OR username_pharma = ${username}
-        LIMIT 1
-    `);
-    if (dup?.[0]) return { status: 'error', message: 'ชื่อผู้ใช้หรืออีเมลนี้ถูกใช้งานแล้ว' };
+    const slotErr = await ensureRegistrationSlot(preparePharmacistRegistration, email, username);
+    if (slotErr) return slotErr;
 
     let licenseImage: string;
     try {
@@ -227,12 +338,8 @@ export async function handleRegisterAdmin(event: H3Event) {
     if (pass1.length < 8) return { status: 'error', message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร' };
     if (pass1 !== pass2) return { status: 'error', message: 'รหัสผ่านไม่ตรงกัน' };
 
-    const dup = await dbQuery(async (sql) => sql`
-        SELECT id_account_admin FROM account_admin
-        WHERE email_account = ${email} OR username_account = ${username}
-        LIMIT 1
-    `);
-    if (dup?.[0]) return { status: 'error', message: 'ชื่อผู้ใช้หรืออีเมลนี้ถูกใช้งานแล้ว' };
+    const slotErr = await ensureRegistrationSlot(prepareAdminRegistration, email, username);
+    if (slotErr) return slotErr;
 
     const salt = randomBytes(16).toString('hex');
     const hash = await hashPassword(pass1, salt);
@@ -268,12 +375,8 @@ export async function handleRegisterStoreStep1(event: H3Event) {
         return { status: 'error', message: 'กรุณาอัปโหลดไฟล์ใบอนุญาตร้านยา' };
     }
 
-    const dup = await dbQuery(async (sql) => sql`
-        SELECT id_store_accounts FROM phamacy_store_accounts
-        WHERE personal_email = ${email} OR username = ${username}
-        LIMIT 1
-    `);
-    if (dup?.[0]) return { status: 'error', message: 'ชื่อผู้ใช้หรืออีเมลนี้ถูกใช้งานแล้ว' };
+    const slotErr = await ensureRegistrationSlot(prepareStoreRegistration, email, username);
+    if (slotErr) return slotErr;
 
     try {
         const licenseFile = await uploadLicenseImage(files.license_file, 'license');
@@ -300,12 +403,8 @@ export async function handleRegisterStoreStep2(event: H3Event) {
     }
     if (password.length < 8) return { status: 'error', message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร' };
 
-    const dup = await dbQuery(async (sql) => sql`
-        SELECT id_store_accounts FROM phamacy_store_accounts
-        WHERE personal_email = ${personalEmail} OR username = ${username}
-        LIMIT 1
-    `);
-    if (dup?.[0]) return { status: 'error', message: 'ชื่อผู้ใช้หรืออีเมลนี้ถูกใช้งานแล้ว' };
+    const slotErr = await ensureRegistrationSlot(prepareStoreRegistration, personalEmail, username);
+    if (slotErr) return slotErr;
 
     let qrPaymentFile = '';
     const qrFile = files.qr_payment_file;

@@ -2,6 +2,8 @@
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
 import { blockInvalidAgeKeys, clampAgeInputValue, validateAgeMessage } from '~/utils/age';
 
+import { stashRegistrationOtpFallback } from '~/utils/registrationOtp';
+
 const { apiBase } = useApiBase();
 
 const router = useRouter();
@@ -96,6 +98,7 @@ const submit = async () => {
             credentials: 'include'
         });
         if (data.status === 'success') {
+            stashRegistrationOtpFallback('pharmacist', form.value.email, data);
             await router.push(data.redirect || `/auth/verify-otp?type=pharmacist&email=${encodeURIComponent(form.value.email)}`);
         } else {
             errorMessage.value = data.message || 'สมัครไม่สำเร็จ';

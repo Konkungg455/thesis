@@ -2,6 +2,8 @@
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
 import { blockInvalidAgeKeys, clampAgeInputValue, validateAgeMessage } from '~/utils/age';
 
+import { stashRegistrationOtpFallback } from '~/utils/registrationOtp';
+
 const { apiBase } = useApiBase();
 
 const router = useRouter();
@@ -40,6 +42,7 @@ const submit = async () => {
             credentials: 'include'
         });
         if (data.status === 'success') {
+            stashRegistrationOtpFallback('admin', form.value.email_account, data);
             await router.push(data.redirect || `/auth/verify-otp?type=admin&email=${encodeURIComponent(form.value.email_account)}`);
         } else {
             errorMessage.value = data.message || 'สมัครไม่สำเร็จ';

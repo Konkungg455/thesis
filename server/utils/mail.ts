@@ -59,6 +59,10 @@ export async function sendRichEmail(options: RichEmailOptions): Promise<boolean>
             port: cfg.port,
             secure: cfg.secure,
             auth: { user: cfg.user, pass: cfg.pass },
+            connectionTimeout: 15_000,
+            greetingTimeout: 15_000,
+            socketTimeout: 20_000,
+            tls: { minVersion: 'TLSv1.2' },
         });
 
         await transporter.sendMail({

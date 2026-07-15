@@ -1,5 +1,10 @@
 <script setup>
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
+import {
+    applyOtpFallbackFromResponse,
+    clearRegistrationOtpFallback,
+    readRegistrationOtpFallback,
+} from '~/utils/registrationOtp';
 
 const { apiBase } = useApiBase();
 
@@ -44,6 +49,18 @@ const isLoading = ref(false);
 const isResending = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
+const fallbackOtp = ref('');
+
+const syncFallbackOtp = () => {
+    const emailVal = String(email.value || route.query.email || '').trim();
+    fallbackOtp.value = readRegistrationOtpFallback(role.verifyType, emailVal);
+};
+
+watch(email, syncFallbackOtp);
+
+onMounted(() => {
+    syncFallbackOtp();
+});
 
 // ⏳ cooldown 60s กันสแปม
 const resendCooldown = ref(0);
@@ -99,6 +116,7 @@ const submit = async () => {
 
         if (data.status === 'success') {
             clearRegistrationDraft();
+            clearRegistrationOtpFallback();
             alert(data.message);
             await router.push(data.redirect || role.loginPath);
         } else {
@@ -137,6 +155,8 @@ const resendOtp = async () => {
         });
         if (data?.status === 'success') {
             successMessage.value = data.message || 'ส่งรหัส OTP ใหม่ไปยังอีเมลของคุณเรียบร้อยแล้ว';
+            const otp = applyOtpFallbackFromResponse(role.verifyType, emailVal, data);
+            if (otp) fallbackOtp.value = otp;
             otpCode.value = '';
             startCooldown(60);
         } else {
@@ -166,6 +186,11 @@ const resendOtp = async () => {
             </div>
             <div v-if="errorMessage" class="auth-error">{{ errorMessage }}</div>
             <div v-if="successMessage" class="auth-success">{{ successMessage }}</div>
+            <div v-if="fallbackOtp" class="auth-otp-fallback">
+                <div class="auth-otp-fallback-label">รหัส OTP ของคุณ</div>
+                <div class="auth-otp-fallback-code">{{ fallbackOtp }}</div>
+                <p>ไม่สามารถส่งอีเมลได้ในขณะนี้ — ใช้รหัสนี้ยืนยันตัวตน (หมดอายุใน 5 นาที)</p>
+            </div>
             <form @submit.prevent="submit">
                 <div class="auth-field">
                     <label>อีเมล</label>
@@ -222,6 +247,35 @@ button.auth-back:hover { text-decoration: underline; }
     border-radius: 10px;
     margin-bottom: 14px;
     font-size: 14px;
+}
+.auth-otp-fallback {
+    background: #eff6ff;
+    border: 2px dashed #2563eb;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    text-align: center;
+}
+.auth-otp-fallback-label {
+    font-size: 12px;
+    color: #64748b;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+.auth-otp-fallback-code {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: 10px;
+    color: #1d4ed8;
+    font-family: Consolas, 'Courier New', monospace;
+    line-height: 1.2;
+}
+.auth-otp-fallback p {
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.5;
 }
 .auth-resend {
     width: 100%;

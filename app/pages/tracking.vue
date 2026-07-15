@@ -661,7 +661,7 @@ const formatArchiveExpiry = (expiresAt) => {
                         <thead>
                             <tr>
                                 <th>ผู้ใช้บริการ</th>
-                                <th>รายการยา / หมายเหตุ</th>
+                                <th>รายการยา</th>
                                 <th>อาการป่วย</th>
                                 <th>วันที่บันทึก</th>
                                 <th>สถานะการติดตาม</th>

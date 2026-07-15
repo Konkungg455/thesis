@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { H3Event } from 'h3';
 import { parseValidAge, validateAgeMessage } from '#shared/utils/age';
+import { otpDeliveryExtras, otpDeliveryMessage, otpResendMessage } from '../../utils/otpDelivery';
 import { getRoleFromOtpType } from '../../utils/emailTemplates';
 import { readRequestFields } from './formData';
 import {
@@ -9,6 +10,7 @@ import {
     completeStoreRegistration,
     formatRegistrationDbError,
     isPgUniqueViolation,
+    prepareUserRegistration,
     RegistrationSubmitError,
 } from './authRegister';
 import {
@@ -94,11 +96,10 @@ export async function handleRegisterUser(event: H3Event) {
     if (ageErr) return { status: 'error', message: ageErr };
     const age = parseValidAge(fields.old)!;
 
-    const exists = await dbQuery(async (sql) => sql`
-        SELECT id_account FROM account WHERE email_account = ${email} LIMIT 1
-    `);
-    if (exists?.[0]) {
-        return { status: 'error', message: 'อีเมลนี้ถูกใช้งานแล้ว' };
+    const username = String(fields.username_account).trim();
+    const slot = await dbQuery(async (sql) => prepareUserRegistration(sql, email, username));
+    if (!slot?.ok) {
+        return { status: 'error', message: slot?.message || 'อีเมลนี้ถูกใช้งานแล้ว' };
     }
 
     const salt = randomBytes(16).toString('hex');
@@ -145,10 +146,10 @@ export async function handleRegisterUser(event: H3Event) {
 
     return {
         status: 'success',
-        message: mailed ? 'ส่งรหัส OTP ไปยังอีเมลแล้ว' : 'สร้าง OTP แล้ว (ตั้งค่า SMTP เพื่อส่งอีเมลจริง)',
+        message: otpDeliveryMessage(mailed),
         email,
         redirect: `/auth/verify-otp?type=user&email=${encodeURIComponent(email)}`,
-        ...(process.dev && !mailed ? { dev_otp: otp } : {}),
+        ...otpDeliveryExtras(mailed, otp),
     };
 }
 
@@ -316,8 +317,8 @@ export async function handleResendOtp(event: H3Event) {
 
     return {
         status: 'success',
-        message: mailed ? 'ส่งรหัส OTP ใหม่ไปยังอีเมลของคุณเรียบร้อยแล้ว (หมดอายุใน 5 นาที)' : 'สร้าง OTP ใหม่แล้ว (ตั้งค่า SMTP เพื่อส่งอีเมลจริง)',
+        message: otpResendMessage(mailed),
         email,
-        ...(process.dev && !mailed ? { dev_otp: newOtp } : {}),
+        ...otpDeliveryExtras(mailed, newOtp),
     };
 }

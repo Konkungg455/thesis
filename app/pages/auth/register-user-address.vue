@@ -1,6 +1,8 @@
 <script setup>
 definePageMeta({ layout: false });
 
+import { stashRegistrationOtpFallback } from '~/utils/registrationOtp';
+
 const router = useRouter();
 const { apiBase } = useApiBase();
 
@@ -136,6 +138,7 @@ const submit = async () => {
             credentials: 'include'
         });
         if (data?.status === 'success') {
+            stashRegistrationOtpFallback('user', step1.value.email_account, data);
             // 💾 เก็บ draft ไว้จนกว่าจะยืนยัน OTP สำเร็จ (ให้กลับจาก verify-otp มาแก้ที่อยู่ได้)
             try {
                 sessionStorage.setItem(STEP1_KEY, JSON.stringify(step1.value));
