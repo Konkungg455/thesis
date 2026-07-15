@@ -20,6 +20,37 @@ function genderForAccount(g: string): string {
     return v;
 }
 
+export class RegistrationSubmitError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'RegistrationSubmitError';
+    }
+}
+
+export function isPgUniqueViolation(err: unknown): boolean {
+    const code = (err as { code?: string })?.code;
+    return code === '23505' || /duplicate key value violates unique constraint/i.test(
+        err instanceof Error ? err.message : String(err),
+    );
+}
+
+export function formatRegistrationDbError(err: unknown): string | null {
+    if (err instanceof RegistrationSubmitError) {
+        return err.message;
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    if (!isPgUniqueViolation(err)) {
+        return null;
+    }
+    if (/phamacy_store_accounts_username_key|username_key/i.test(message)) {
+        return 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว กรุณาเริ่มสมัครใหม่ด้วยชื่อผู้ใช้อื่น หรือเข้าสู่ระบบหากสมัครไว้แล้ว';
+    }
+    if (/personal_email|email_account|email_pharma/i.test(message)) {
+        return 'อีเมลนี้ถูกใช้งานแล้ว กรุณาเข้าสู่ระบบหรือใช้อีเมลอื่นในการสมัคร';
+    }
+    return 'ข้อมูลนี้ถูกใช้งานในระบบแล้ว กรุณาเข้าสู่ระบบหรือเริ่มสมัครใหม่';
+}
+
 function normalizeDayCode(day: string): string {
     const key = String(day || '').trim();
     return DAY_CODE_MAP[key] || key;
@@ -341,67 +372,157 @@ export async function handleRegisterStoreStep2(event: H3Event) {
 
 export async function completePharmacistRegistration(u: Record<string, unknown>, email: string) {
     const idStore = u.id_store != null && Number(u.id_store) > 0 ? Number(u.id_store) : null;
-    const newId = await dbQuery(async (sql) => {
-        const rows = await sql`
-            INSERT INTO pharmacist_account (
-                username_pharma, email_pharma, password_pharma, salt_pharma,
-                firstname_pharma, lastname_pharma, gender_pharma, age_pharma,
-                height_pharma, weight_pharma, phone_pharma, work_time, license_image,
-                id_store, store_name, images_pharma, status_verify
-            ) VALUES (
-                ${String(u.username_pharma || '')},
-                ${String(u.email_pharma || email)},
-                ${String(u.password_pharma || '')},
-                ${String(u.salt_pharma || '')},
-                ${String(u.firstname_pharma || '')},
-                ${String(u.lastname_pharma || '')},
-                ${genderForAccount(String(u.gender_pharma || ''))},
-                ${Number(u.age_pharma || 0)},
-                170, 65,
-                ${String(u.phone_pharma || '')},
-                ${String(u.work_time || '')},
-                ${String(u.license_image || '')},
-                ${idStore},
-                ${u.store_name ? String(u.store_name) : null},
-                'default.png',
-                0
-            )
-            RETURNING id_pharma
-        `;
-        await sql.unsafe(`DELETE FROM otp_verify_phamacy WHERE email = $1`, [email]);
-        return Number(rows[0]?.id_pharma || 0);
-    });
-    return newId;
+    const pharmaEmail = String(u.email_pharma || email).trim();
+    const username = String(u.username_pharma || '').trim();
+
+    try {
+        const newId = await dbQuery(async (sql) => {
+            const existingByEmail = await sql`
+                SELECT id_pharma FROM pharmacist_account
+                WHERE email_pharma = ${pharmaEmail}
+                LIMIT 1
+            `;
+            if (existingByEmail[0]) {
+                await sql.unsafe(`DELETE FROM otp_verify_phamacy WHERE email = $1`, [email]);
+                return Number(existingByEmail[0].id_pharma);
+            }
+
+            const existingByUsername = await sql`
+                SELECT id_pharma FROM pharmacist_account
+                WHERE username_pharma = ${username}
+                LIMIT 1
+            `;
+            if (existingByUsername[0]) {
+                await sql.unsafe(`DELETE FROM otp_verify_phamacy WHERE email = $1`, [email]);
+                throw new RegistrationSubmitError(
+                    'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว กรุณาเริ่มสมัครใหม่ด้วยชื่อผู้ใช้อื่น หรือเข้าสู่ระบบหากสมัครไว้แล้ว',
+                );
+            }
+
+            const rows = await sql`
+                INSERT INTO pharmacist_account (
+                    username_pharma, email_pharma, password_pharma, salt_pharma,
+                    firstname_pharma, lastname_pharma, gender_pharma, age_pharma,
+                    height_pharma, weight_pharma, phone_pharma, work_time, license_image,
+                    id_store, store_name, images_pharma, status_verify
+                ) VALUES (
+                    ${username},
+                    ${pharmaEmail},
+                    ${String(u.password_pharma || '')},
+                    ${String(u.salt_pharma || '')},
+                    ${String(u.firstname_pharma || '')},
+                    ${String(u.lastname_pharma || '')},
+                    ${genderForAccount(String(u.gender_pharma || ''))},
+                    ${Number(u.age_pharma || 0)},
+                    170, 65,
+                    ${String(u.phone_pharma || '')},
+                    ${String(u.work_time || '')},
+                    ${String(u.license_image || '')},
+                    ${idStore},
+                    ${u.store_name ? String(u.store_name) : null},
+                    'default.png',
+                    0
+                )
+                RETURNING id_pharma
+            `;
+            await sql.unsafe(`DELETE FROM otp_verify_phamacy WHERE email = $1`, [email]);
+            return Number(rows[0]?.id_pharma || 0);
+        });
+        return newId ?? 0;
+    } catch (err) {
+        if (err instanceof RegistrationSubmitError) throw err;
+        if (isPgUniqueViolation(err)) {
+            const recovered = await dbQuery(async (sql) => {
+                const rows = await sql`
+                    SELECT id_pharma FROM pharmacist_account
+                    WHERE email_pharma = ${pharmaEmail}
+                    LIMIT 1
+                `;
+                if (!rows?.[0]) return null;
+                await sql.unsafe(`DELETE FROM otp_verify_phamacy WHERE email = $1`, [email]);
+                return Number(rows[0].id_pharma);
+            });
+            if (recovered) return recovered;
+            const friendly = formatRegistrationDbError(err);
+            if (friendly) throw new RegistrationSubmitError(friendly);
+        }
+        throw err;
+    }
 }
 
 export async function completeAdminRegistration(u: Record<string, unknown>, email: string) {
-    const newId = await dbQuery(async (sql) => {
-        const rows = await sql`
-            INSERT INTO account_admin (
-                username_account, email_account, password_account, salt_account,
-                firstname, lastname, gender, old, phone_number,
-                images_account, admin_status, is_super_admin, is_deleted
-            ) VALUES (
-                ${String(u.username_account || '')},
-                ${String(u.email_account || email)},
-                ${String(u.password_account || '')},
-                ${String(u.salt_account || '')},
-                ${String(u.firstname || '')},
-                ${String(u.lastname || '')},
-                ${genderForAccount(String(u.gender || ''))},
-                ${Number(u.old || 0)},
-                ${String(u.phone_number || '')},
-                'default.png',
-                'pending',
-                0,
-                0
-            )
-            RETURNING id_account_admin
-        `;
-        await sql.unsafe(`DELETE FROM otp_verify_admin WHERE email = $1`, [email]);
-        return Number(rows[0]?.id_account_admin || 0);
-    });
-    return newId;
+    const adminEmail = String(u.email_account || email).trim();
+    const username = String(u.username_account || '').trim();
+
+    try {
+        const newId = await dbQuery(async (sql) => {
+            const existingByEmail = await sql`
+                SELECT id_account_admin FROM account_admin
+                WHERE email_account = ${adminEmail}
+                LIMIT 1
+            `;
+            if (existingByEmail[0]) {
+                await sql.unsafe(`DELETE FROM otp_verify_admin WHERE email = $1`, [email]);
+                return Number(existingByEmail[0].id_account_admin);
+            }
+
+            const existingByUsername = await sql`
+                SELECT id_account_admin FROM account_admin
+                WHERE username_account = ${username}
+                LIMIT 1
+            `;
+            if (existingByUsername[0]) {
+                await sql.unsafe(`DELETE FROM otp_verify_admin WHERE email = $1`, [email]);
+                throw new RegistrationSubmitError(
+                    'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว กรุณาเริ่มสมัครใหม่ด้วยชื่อผู้ใช้อื่น หรือเข้าสู่ระบบหากสมัครไว้แล้ว',
+                );
+            }
+
+            const rows = await sql`
+                INSERT INTO account_admin (
+                    username_account, email_account, password_account, salt_account,
+                    firstname, lastname, gender, old, phone_number,
+                    images_account, admin_status, is_super_admin, is_deleted
+                ) VALUES (
+                    ${username},
+                    ${adminEmail},
+                    ${String(u.password_account || '')},
+                    ${String(u.salt_account || '')},
+                    ${String(u.firstname || '')},
+                    ${String(u.lastname || '')},
+                    ${genderForAccount(String(u.gender || ''))},
+                    ${Number(u.old || 0)},
+                    ${String(u.phone_number || '')},
+                    'default.png',
+                    'pending',
+                    0,
+                    0
+                )
+                RETURNING id_account_admin
+            `;
+            await sql.unsafe(`DELETE FROM otp_verify_admin WHERE email = $1`, [email]);
+            return Number(rows[0]?.id_account_admin || 0);
+        });
+        return newId ?? 0;
+    } catch (err) {
+        if (err instanceof RegistrationSubmitError) throw err;
+        if (isPgUniqueViolation(err)) {
+            const recovered = await dbQuery(async (sql) => {
+                const rows = await sql`
+                    SELECT id_account_admin FROM account_admin
+                    WHERE email_account = ${adminEmail}
+                    LIMIT 1
+                `;
+                if (!rows?.[0]) return null;
+                await sql.unsafe(`DELETE FROM otp_verify_admin WHERE email = $1`, [email]);
+                return Number(rows[0].id_account_admin);
+            });
+            if (recovered) return recovered;
+            const friendly = formatRegistrationDbError(err);
+            if (friendly) throw new RegistrationSubmitError(friendly);
+        }
+        throw err;
+    }
 }
 
 export async function completeStoreRegistration(u: Record<string, unknown>, email: string) {
@@ -409,78 +530,122 @@ export async function completeStoreRegistration(u: Record<string, unknown>, emai
     const details = (u.details || {}) as Record<string, unknown>;
     const schedule = Array.isArray(u.schedule) ? u.schedule as Array<{ day: string; open: string; close: string }> : [];
     const googleMapsUrl = String(details.google_maps_url || '').trim();
+    const personalEmail = String(account.personal_email || email).trim();
+    const username = String(account.username || '').trim();
 
-    const newId = await dbQuery(async (sql) => {
-        const rows = await sql`
-            INSERT INTO phamacy_store_accounts (
-                username, password, salt_store, firstname, lastname,
-                personal_phone, personal_email, license_file, status, admin_status
-            ) VALUES (
-                ${String(account.username || '')},
-                ${String(account.password || '')},
-                ${String(account.salt_store || '')},
-                ${String(account.firstname || '')},
-                ${String(account.lastname || '')},
-                ${String(account.personal_phone || '')},
-                ${String(account.personal_email || email)},
-                ${String(account.license_file || '')},
-                1,
-                'pending'
-            )
-            RETURNING id_store_accounts
-        `;
-        const storeId = Number(rows[0]?.id_store_accounts || 0);
-        if (!storeId) return 0;
-
-        await sql`
-            INSERT INTO phamacy_store_details (
-                id_store_accounts, store_name, house_no, road, sub_district, district,
-                province, zipcode, store_phone, store_email, google_maps_url,
-                bank_name, bank_account_name, bank_account_number, qr_payment_file
-            ) VALUES (
-                ${storeId},
-                ${String(details.store_name || '')},
-                ${String(details.house_no || '')},
-                ${String(details.road || '')},
-                ${String(details.sub_district || '')},
-                ${String(details.district || '')},
-                ${String(details.province || '')},
-                ${String(details.zipcode || '')},
-                ${String(details.store_phone || '')},
-                ${String(details.store_email || '')},
-                ${googleMapsUrl || null},
-                ${String(details.bank_name || '') || null},
-                ${String(details.bank_account_name || '') || null},
-                ${String(details.bank_account_number || '') || null},
-                ${String(details.qr_payment_file || '') || null}
-            )
-        `;
-
-        const latMatch = googleMapsUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
-            || googleMapsUrl.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
-        if (latMatch) {
-            await sql`
-                UPDATE phamacy_store_details
-                SET latitude = ${Number(latMatch[1])}, longitude = ${Number(latMatch[2])}
-                WHERE id_store_accounts = ${storeId}
+    try {
+        const newId = await dbQuery(async (sql) => {
+            const existingByEmail = await sql`
+                SELECT id_store_accounts FROM phamacy_store_accounts
+                WHERE personal_email = ${personalEmail}
+                LIMIT 1
             `;
-        }
+            if (existingByEmail[0]) {
+                await sql.unsafe(`DELETE FROM otp_verify_store WHERE email = $1`, [email]);
+                return Number(existingByEmail[0].id_store_accounts);
+            }
 
-        for (const row of schedule) {
-            const day = normalizeDayCode(row.day);
-            if (!VALID_STORE_DAYS.includes(day as typeof VALID_STORE_DAYS[number])) continue;
-            let open = String(row.open || '08:00');
-            let close = String(row.close || '20:00');
-            if (open.length === 5) open += ':00';
-            if (close.length === 5) close += ':00';
-            await sql`
-                INSERT INTO store_schedule (id_store, day_of_week, open_time, close_time, is_open)
-                VALUES (${storeId}, ${day}, ${open}, ${close}, 1)
+            const existingByUsername = await sql`
+                SELECT id_store_accounts FROM phamacy_store_accounts
+                WHERE username = ${username}
+                LIMIT 1
             `;
-        }
+            if (existingByUsername[0]) {
+                await sql.unsafe(`DELETE FROM otp_verify_store WHERE email = $1`, [email]);
+                throw new RegistrationSubmitError(
+                    'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว กรุณาเริ่มสมัครใหม่ด้วยชื่อผู้ใช้อื่น หรือเข้าสู่ระบบหากสมัครไว้แล้ว',
+                );
+            }
 
-        await sql.unsafe(`DELETE FROM otp_verify_store WHERE email = $1`, [email]);
-        return storeId;
-    });
-    return newId;
+            const rows = await sql`
+                INSERT INTO phamacy_store_accounts (
+                    username, password, salt_store, firstname, lastname,
+                    personal_phone, personal_email, license_file, status, admin_status
+                ) VALUES (
+                    ${username},
+                    ${String(account.password || '')},
+                    ${String(account.salt_store || '')},
+                    ${String(account.firstname || '')},
+                    ${String(account.lastname || '')},
+                    ${String(account.personal_phone || '')},
+                    ${personalEmail},
+                    ${String(account.license_file || '')},
+                    1,
+                    'pending'
+                )
+                RETURNING id_store_accounts
+            `;
+            const storeId = Number(rows[0]?.id_store_accounts || 0);
+            if (!storeId) return 0;
+
+            await sql`
+                INSERT INTO phamacy_store_details (
+                    id_store_accounts, store_name, house_no, road, sub_district, district,
+                    province, zipcode, store_phone, store_email, google_maps_url,
+                    bank_name, bank_account_name, bank_account_number, qr_payment_file
+                ) VALUES (
+                    ${storeId},
+                    ${String(details.store_name || '')},
+                    ${String(details.house_no || '')},
+                    ${String(details.road || '')},
+                    ${String(details.sub_district || '')},
+                    ${String(details.district || '')},
+                    ${String(details.province || '')},
+                    ${String(details.zipcode || '')},
+                    ${String(details.store_phone || '')},
+                    ${String(details.store_email || '')},
+                    ${googleMapsUrl || null},
+                    ${String(details.bank_name || '') || null},
+                    ${String(details.bank_account_name || '') || null},
+                    ${String(details.bank_account_number || '') || null},
+                    ${String(details.qr_payment_file || '') || null}
+                )
+            `;
+
+            const latMatch = googleMapsUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/)
+                || googleMapsUrl.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+            if (latMatch) {
+                await sql`
+                    UPDATE phamacy_store_details
+                    SET latitude = ${Number(latMatch[1])}, longitude = ${Number(latMatch[2])}
+                    WHERE id_store_accounts = ${storeId}
+                `;
+            }
+
+            for (const row of schedule) {
+                const day = normalizeDayCode(row.day);
+                if (!VALID_STORE_DAYS.includes(day as typeof VALID_STORE_DAYS[number])) continue;
+                let open = String(row.open || '08:00');
+                let close = String(row.close || '20:00');
+                if (open.length === 5) open += ':00';
+                if (close.length === 5) close += ':00';
+                await sql`
+                    INSERT INTO store_schedule (id_store, day_of_week, open_time, close_time, is_open)
+                    VALUES (${storeId}, ${day}, ${open}, ${close}, 1)
+                `;
+            }
+
+            await sql.unsafe(`DELETE FROM otp_verify_store WHERE email = $1`, [email]);
+            return storeId;
+        });
+        return newId ?? 0;
+    } catch (err) {
+        if (err instanceof RegistrationSubmitError) throw err;
+        if (isPgUniqueViolation(err)) {
+            const recovered = await dbQuery(async (sql) => {
+                const rows = await sql`
+                    SELECT id_store_accounts FROM phamacy_store_accounts
+                    WHERE personal_email = ${personalEmail}
+                    LIMIT 1
+                `;
+                if (!rows?.[0]) return null;
+                await sql.unsafe(`DELETE FROM otp_verify_store WHERE email = $1`, [email]);
+                return Number(rows[0].id_store_accounts);
+            });
+            if (recovered) return recovered;
+            const friendly = formatRegistrationDbError(err);
+            if (friendly) throw new RegistrationSubmitError(friendly);
+        }
+        throw err;
+    }
 }

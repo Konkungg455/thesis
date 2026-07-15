@@ -115,16 +115,24 @@ export async function handleUpdatePharmaProfile(event: H3Event) {
         if (fields.id_store !== undefined) {
             const raw = String(fields.id_store || '').trim();
             if (raw === '') {
-                await sql`UPDATE pharmacist_account SET id_store = NULL, pending_store_id = NULL WHERE id_pharma = ${id}`;
+                await sql`UPDATE pharmacist_account SET id_store = NULL, pending_store_id = NULL, store_name = NULL WHERE id_pharma = ${id}`;
             } else {
                 const newStoreId = Number(raw);
                 const current = await sql`
-                    SELECT id_store FROM pharmacist_account WHERE id_pharma = ${id} LIMIT 1
+                    SELECT id_store, pending_store_id FROM pharmacist_account WHERE id_pharma = ${id} LIMIT 1
                 `;
-                const currentStoreId = current[0]?.id_store != null ? Number(current[0].id_store) : null;
-                if (newStoreId > 0 && newStoreId !== currentStoreId) {
+                const currentStoreId = current[0]?.id_store != null ? Number(current[0].id_store) : 0;
+                const currentPendingId = current[0]?.pending_store_id != null ? Number(current[0].pending_store_id) : 0;
+                if (newStoreId > 0 && newStoreId !== currentStoreId && newStoreId !== currentPendingId) {
+                    const storeNameRow = await sql`
+                        SELECT store_name FROM phamacy_store_details WHERE id_store_accounts = ${newStoreId} LIMIT 1
+                    `;
+                    const storeName = String(storeNameRow[0]?.store_name || '').trim() || null;
                     await sql`
-                        UPDATE pharmacist_account SET pending_store_id = ${newStoreId} WHERE id_pharma = ${id}
+                        UPDATE pharmacist_account
+                        SET pending_store_id = ${newStoreId},
+                            store_name = ${storeName}
+                        WHERE id_pharma = ${id}
                     `;
                 }
             }

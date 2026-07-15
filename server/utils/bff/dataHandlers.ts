@@ -1029,14 +1029,16 @@ export async function handleGetPharmaProfile(event: H3Event) {
     }
 
     const stores = await dbQuery(async (sql) => sql`
-        SELECT a.id_store_accounts AS id, COALESCE(d.store_name, a.firstname) AS name
+        SELECT a.id_store_accounts AS id, COALESCE(NULLIF(TRIM(d.store_name), ''), a.firstname, a.username) AS name
         FROM phamacy_store_accounts a
         LEFT JOIN phamacy_store_details d ON d.id_store_accounts = a.id_store_accounts
-        WHERE a.status = 1
+        WHERE COALESCE(a.is_deleted, 0) = 0
+          AND (a.admin_status IS NULL OR a.admin_status = 'approved')
         ORDER BY name
     `);
 
     let currentStoreName = '';
+    let pendingStoreName = '';
     const storePayment = {
         bank_name: '',
         bank_account_name: '',
@@ -1057,6 +1059,16 @@ export async function handleGetPharmaProfile(event: H3Event) {
             if (det[0].qr_payment_file) {
                 storePayment.qr_payment_url = `uploads/qr_payment/${det[0].qr_payment_file}`;
             }
+        }
+    }
+
+    if (row.pending_store_id) {
+        const pendingDet = await dbQuery(async (sql) => sql`
+            SELECT store_name
+            FROM phamacy_store_details WHERE id_store_accounts = ${Number(row.pending_store_id)} LIMIT 1
+        `);
+        if (pendingDet?.[0]) {
+            pendingStoreName = String(pendingDet[0].store_name || '');
         }
     }
 
@@ -1081,7 +1093,7 @@ export async function handleGetPharmaProfile(event: H3Event) {
             status_verify: Number(row.status_verify || 0),
             current_store_name: currentStoreName,
             store_payment: storePayment,
-            pending_store_name: '',
+            pending_store_name: pendingStoreName,
             stores: (stores || []).map((s) => ({ id: Number(s.id), name: s.name })),
         },
     };

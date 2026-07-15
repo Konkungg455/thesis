@@ -1,5 +1,5 @@
 <script setup>
-const { apiUrl, imagesPharma } = useApiBase();
+const { apiUrl, apiBase, imagesPharma } = useApiBase();
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -35,10 +35,12 @@ const licenseUrl = ref('');
 const idStore = ref('');
 const stores = ref([]);
 
+const hasStoreId = (value) => Number(value) > 0;
+
 const storeStatusBanner = computed(() => {
     if (!profile.value) return null;
-    const hasApprovedStore = profile.value.id_store != null && profile.value.id_store !== '';
-    const hasPending = profile.value.pending_store_id != null && profile.value.pending_store_id !== '';
+    const hasApprovedStore = hasStoreId(profile.value.id_store);
+    const hasPending = hasStoreId(profile.value.pending_store_id);
 
     if (hasPending) {
         const storeLabel = profile.value.pending_store_name || profile.value.current_store_name || 'ร้านที่เลือก';
@@ -85,10 +87,33 @@ const genderLabel = computed(() => {
 
 const storeFieldReadonly = computed(() => {
     if (!profile.value) return false;
-    const hasApproved = profile.value.id_store != null && profile.value.id_store !== '';
-    const hasPending = profile.value.pending_store_id != null && profile.value.pending_store_id !== '';
-    return hasApproved || hasPending;
+    return hasStoreId(profile.value.id_store) || hasStoreId(profile.value.pending_store_id);
 });
+
+const canPickStore = computed(() => !storeFieldReadonly.value);
+
+const loadStoreOptions = async () => {
+    try {
+        const data = await $fetch(`${apiBase.value}/get-stores.php`, { credentials: 'include' });
+        if (data?.status !== 'success' || !Array.isArray(data.stores)) return;
+        const fromApi = data.stores
+            .filter((s) => {
+                const status = String(s.admin_status || 'approved');
+                return status === 'approved' && Number(s.is_deleted || 0) === 0;
+            })
+            .map((s) => ({
+                id: Number(s.id),
+                name: String(s.store_name || s.name || '').trim() || `ร้าน #${s.id}`,
+            }))
+            .filter((s) => s.id > 0);
+        if (!fromApi.length) return;
+        const merged = new Map(stores.value.map((s) => [Number(s.id), s]));
+        fromApi.forEach((s) => merged.set(s.id, s));
+        stores.value = [...merged.values()].sort((a, b) => a.name.localeCompare(b.name, 'th'));
+    } catch {
+        // keep stores from profile response if this fails
+    }
+};
 
 const currentStoreLabel = computed(() => {
     if (!profile.value) return '';
@@ -115,17 +140,19 @@ const loadProfile = async () => {
         licenseUrl.value = res.data.license_url
             ? apiUrl(res.data.license_url)
             : '';
-        if (res.data.pending_store_id != null) {
+        if (res.data.pending_store_id != null && Number(res.data.pending_store_id) > 0) {
             idStore.value = String(res.data.pending_store_id);
-        } else if (res.data.id_store != null) {
+        } else if (res.data.id_store != null && Number(res.data.id_store) > 0) {
             idStore.value = String(res.data.id_store);
         } else {
             idStore.value = '';
         }
-        stores.value = (res.data.stores || []).map((s) => ({
+        const profileStores = (res.data.stores || []).map((s) => ({
             id: s.id,
             name: s.name || s.store_name || `ร้าน #${s.id}`,
         }));
+        stores.value = profileStores;
+        await loadStoreOptions();
     } catch {
         errorMessage.value = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
     } finally {
@@ -168,6 +195,17 @@ const submit = async () => {
 
     if (passwordNew.value && passwordNew.value !== passwordConfirm.value) {
         errorMessage.value = 'รหัสผ่านใหม่ไม่ตรงกัน';
+        saving.value = false;
+        return;
+    }
+
+    if (canPickStore.value && !stores.value.length) {
+        errorMessage.value = 'ยังไม่มีร้านยาที่พร้อมรับเภสัชกรในระบบ กรุณาติดต่อผู้ดูแลระบบ';
+        saving.value = false;
+        return;
+    }
+    if (canPickStore.value && !hasStoreId(idStore.value)) {
+        errorMessage.value = 'กรุณาเลือกร้านยาที่ต้องการสมัครเข้าทำงาน';
         saving.value = false;
         return;
     }
@@ -258,6 +296,7 @@ onMounted(loadProfile);
     color: #64748b;
     font-size: 0.8rem;
 }
+.hint-warn { color: #b45309; }
 </style>
 
 <template>
@@ -371,13 +410,17 @@ onMounted(loadProfile);
                             :value="currentStoreLabel"
                             readonly
                         />
-                        <select v-else v-model="idStore" class="editable">
-                            <option value="">— ไม่มี (ลาออกจากร้าน) —</option>
+                        <select v-else v-model="idStore" class="editable" required>
+                            <option value="" disabled>— เลือกร้านยาที่ต้องการสมัครเข้าทำงาน —</option>
                             <option v-for="s in stores" :key="s.id" :value="String(s.id)">
                                 {{ s.name }}
                             </option>
                         </select>
-                        <small v-if="!storeFieldReadonly" class="hint">
+                        <small v-if="canPickStore && !stores.length" class="hint hint-warn">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            ยังไม่มีร้านยาที่อนุมัติแล้วในระบบ — กรุณาติดต่อผู้ดูแลระบบ
+                        </small>
+                        <small v-else-if="canPickStore" class="hint">
                             <i class="fa-solid fa-circle-info"></i>
                             หากเปลี่ยนร้าน ระบบจะส่งคำขออนุมัติให้เจ้าของร้านใหม่โดยอัตโนมัติ
                         </small>

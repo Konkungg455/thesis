@@ -7,6 +7,9 @@ import {
     completeAdminRegistration,
     completePharmacistRegistration,
     completeStoreRegistration,
+    formatRegistrationDbError,
+    isPgUniqueViolation,
+    RegistrationSubmitError,
 } from './authRegister';
 import {
     notifyAdminsNewPharmacistFromTemp,
@@ -164,69 +167,117 @@ export async function handleVerifyOtp(event: H3Event) {
 
     const u = JSON.parse(String(check.row.temp_data || '{}'));
 
-    if (type === 'user') {
-        const gender = genderForAccount(u.gender);
-        const newId = await dbQuery(async (sql) => {
-            const rows = await sql`
-                INSERT INTO account
-                    (username_account, email_account, password_account, salt_account, firstname, lastname, gender, old, height, weight, phone_number, personal_disease)
-                VALUES
-                    (${u.username}, ${u.email}, ${u.password}, ${u.salt}, ${u.firstname}, ${u.lastname}, ${gender}, ${u.old}, ${u.height}, ${u.weight}, ${u.phone_number}, ${u.personal_disease})
-                RETURNING id_account
-            `;
-            const id = Number(rows[0]?.id_account);
-            const addr = u.address;
-            if (addr?.house_no && addr?.zipcode) {
-                await sql`
-                    INSERT INTO account_address (id_account, house_no, road, sub_district, district, province, zipcode)
-                    VALUES (${id}, ${addr.house_no}, ${addr.road || ''}, ${addr.sub_district}, ${addr.district}, ${addr.province}, ${addr.zipcode})
-                    ON CONFLICT (id_account) DO UPDATE SET
-                        house_no = EXCLUDED.house_no,
-                        road = EXCLUDED.road,
-                        sub_district = EXCLUDED.sub_district,
-                        district = EXCLUDED.district,
-                        province = EXCLUDED.province,
-                        zipcode = EXCLUDED.zipcode,
-                        updated_at = NOW()
+    try {
+        if (type === 'user') {
+            const gender = genderForAccount(u.gender);
+            const userEmail = String(u.email || email).trim();
+            const username = String(u.username || '').trim();
+            const newId = await dbQuery(async (sql) => {
+                const existingByEmail = await sql`
+                    SELECT id_account FROM account
+                    WHERE email_account = ${userEmail}
+                    LIMIT 1
                 `;
+                if (existingByEmail[0]) {
+                    await sql`DELETE FROM otp_verify WHERE email = ${email}`;
+                    return Number(existingByEmail[0].id_account);
+                }
+
+                const existingByUsername = await sql`
+                    SELECT id_account FROM account
+                    WHERE username_account = ${username}
+                    LIMIT 1
+                `;
+                if (existingByUsername[0]) {
+                    await sql`DELETE FROM otp_verify WHERE email = ${email}`;
+                    throw new RegistrationSubmitError(
+                        'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว กรุณาเริ่มสมัครใหม่ด้วยชื่อผู้ใช้อื่น หรือเข้าสู่ระบบหากสมัครไว้แล้ว',
+                    );
+                }
+
+                const rows = await sql`
+                    INSERT INTO account
+                        (username_account, email_account, password_account, salt_account, firstname, lastname, gender, old, height, weight, phone_number, personal_disease)
+                    VALUES
+                        (${username}, ${userEmail}, ${u.password}, ${u.salt}, ${u.firstname}, ${u.lastname}, ${gender}, ${u.old}, ${u.height}, ${u.weight}, ${u.phone_number}, ${u.personal_disease})
+                    RETURNING id_account
+                `;
+                const id = Number(rows[0]?.id_account);
+                const addr = u.address;
+                if (addr?.house_no && addr?.zipcode) {
+                    await sql`
+                        INSERT INTO account_address (id_account, house_no, road, sub_district, district, province, zipcode)
+                        VALUES (${id}, ${addr.house_no}, ${addr.road || ''}, ${addr.sub_district}, ${addr.district}, ${addr.province}, ${addr.zipcode})
+                        ON CONFLICT (id_account) DO UPDATE SET
+                            house_no = EXCLUDED.house_no,
+                            road = EXCLUDED.road,
+                            sub_district = EXCLUDED.sub_district,
+                            district = EXCLUDED.district,
+                            province = EXCLUDED.province,
+                            zipcode = EXCLUDED.zipcode,
+                            updated_at = NOW()
+                    `;
+                }
+                await sql`DELETE FROM otp_verify WHERE email = ${email}`;
+                return id;
+            });
+            if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
+            return { status: 'success', message: 'สมัครสมาชิกสำเร็จ!', redirect: '/auth/login-user' };
+        }
+
+        if (type === 'pharmacist') {
+            const newId = await completePharmacistRegistration(u, email);
+            if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
+            void notifyAdminsNewPharmacistFromTemp(newId, u, email, event);
+            return {
+                status: 'success',
+                message: 'สมัครสมาชิกสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ',
+                redirect: '/auth/login-pharmacist',
+            };
+        }
+
+        if (type === 'admin') {
+            const newId = await completeAdminRegistration(u, email);
+            if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
+            return {
+                status: 'success',
+                message: 'สมัครสมาชิกสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ',
+                redirect: '/auth/login-admin',
+            };
+        }
+
+        if (type === 'store') {
+            const newId = await completeStoreRegistration(u, email);
+            if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
+            void notifyAdminsNewStoreFromTemp(newId, u, email, event);
+            return {
+                status: 'success',
+                message: 'สมัครสมาชิกสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ',
+                redirect: '/auth/login-store',
+            };
+        }
+    } catch (err) {
+        if (type === 'user' && isPgUniqueViolation(err)) {
+            const userEmail = String(u.email || email).trim();
+            const recovered = await dbQuery(async (sql) => {
+                const rows = await sql`
+                    SELECT id_account FROM account
+                    WHERE email_account = ${userEmail}
+                    LIMIT 1
+                `;
+                if (!rows?.[0]) return null;
+                await sql`DELETE FROM otp_verify WHERE email = ${email}`;
+                return Number(rows[0].id_account);
+            });
+            if (recovered) {
+                return { status: 'success', message: 'สมัครสมาชิกสำเร็จ!', redirect: '/auth/login-user' };
             }
-            await sql`DELETE FROM otp_verify WHERE email = ${email}`;
-            return id;
-        });
-        if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
-        return { status: 'success', message: 'สมัครสมาชิกสำเร็จ!', redirect: '/auth/login-user' };
-    }
-
-    if (type === 'pharmacist') {
-        const newId = await completePharmacistRegistration(u, email);
-        if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
-        void notifyAdminsNewPharmacistFromTemp(newId, u, email, event);
-        return {
-            status: 'success',
-            message: 'สมัครสมาชิกสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ',
-            redirect: '/auth/login-pharmacist',
-        };
-    }
-
-    if (type === 'admin') {
-        const newId = await completeAdminRegistration(u, email);
-        if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
-        return {
-            status: 'success',
-            message: 'สมัครสมาชิกสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ',
-            redirect: '/auth/login-admin',
-        };
-    }
-
-    if (type === 'store') {
-        const newId = await completeStoreRegistration(u, email);
-        if (!newId) return { status: 'error', message: 'บันทึกข้อมูลไม่สำเร็จ' };
-        void notifyAdminsNewStoreFromTemp(newId, u, email, event);
-        return {
-            status: 'success',
-            message: 'สมัครสมาชิกสำเร็จ! รอการอนุมัติจากผู้ดูแลระบบ',
-            redirect: '/auth/login-store',
-        };
+        }
+        const friendly = formatRegistrationDbError(err);
+        if (friendly) {
+            return { status: 'error', message: friendly };
+        }
+        throw err;
     }
 
     return { status: 'error', message: `ยืนยัน OTP สำหรับ ${type} ยังไม่พร้อม — ติดต่อผู้ดูแลระบบ` };
