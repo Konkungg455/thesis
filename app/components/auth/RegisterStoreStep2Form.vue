@@ -1,5 +1,11 @@
 <script setup>
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
+import {
+    PHONE_MAX_LENGTH,
+    blockInvalidPhoneKeys,
+    clampPhoneInputValue,
+    validatePhoneMessage,
+} from '~/utils/phone';
 
 import { stashRegistrationOtpFallback } from '~/utils/registrationOtp';
 
@@ -156,6 +162,10 @@ const hideAddrSuggestSoon = () => {
     setTimeout(() => { showAddrSuggest.value = false; }, 150);
 };
 
+const onStorePhoneInput = () => {
+    form.value.store_phone = clampPhoneInputValue(form.value.store_phone);
+};
+
 /* ---- validate client-side ก่อนส่ง OTP ---- */
 const validate = () => {
     const f = form.value;
@@ -166,8 +176,8 @@ const validate = () => {
     if (!f.province?.trim()) return 'กรุณากรอกจังหวัด';
     if (!f.zipcode?.trim()) return 'กรุณากรอกรหัสไปรษณีย์';
     if (!/^[0-9]{5}$/.test(f.zipcode.trim())) return 'รหัสไปรษณีย์ต้องเป็นตัวเลข 5 หลัก';
-    if (!f.store_phone?.trim()) return 'กรุณากรอกเบอร์ร้าน';
-    if (!/^[0-9]{9,10}$/.test(f.store_phone.trim())) return 'เบอร์ร้านต้องเป็นตัวเลข 9-10 หลัก';
+    const storePhoneErr = validatePhoneMessage(f.store_phone);
+    if (storePhoneErr) return storePhoneErr.replace('เบอร์โทร', 'เบอร์ร้าน');
     if (!f.store_email?.trim()) return 'กรุณากรอกอีเมลร้าน';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.store_email.trim())) return 'รูปแบบอีเมลร้านไม่ถูกต้อง';
 
@@ -330,7 +340,15 @@ const submit = async () => {
                 </div>
                 <div class="auth-field full">
                     <label>เบอร์ร้าน <span class="req">*</span></label>
-                    <input v-model="form.store_phone" type="text" required />
+                    <input
+                        v-model="form.store_phone"
+                        type="text"
+                        inputmode="numeric"
+                        :maxlength="PHONE_MAX_LENGTH"
+                        required
+                        @input="onStorePhoneInput"
+                        @keydown="blockInvalidPhoneKeys"
+                    />
                 </div>
                 <div class="auth-field full">
                     <label>อีเมลร้าน <span class="req">*</span></label>

@@ -1,4 +1,11 @@
 <script setup>
+import {
+    PHONE_MAX_LENGTH,
+    blockInvalidPhoneKeys,
+    clampPhoneInputValue,
+    validatePhoneMessage,
+} from '~/utils/phone';
+
 const { apiUrl, imagesAccount } = useApiBase();
 const { persistUser } = useAuthUser();
 
@@ -191,6 +198,14 @@ const hideAddrSuggestSoon = () => {
 onMounted(() => preloadAddress());
 
 
+const onPersonalPhoneInput = () => {
+    acc.value.personal_phone = clampPhoneInputValue(acc.value.personal_phone);
+};
+
+const onStorePhoneInput = () => {
+    det.value.store_phone = clampPhoneInputValue(det.value.store_phone);
+};
+
 const submit = async () => {
     saving.value = true;
     errorMessage.value = '';
@@ -198,6 +213,19 @@ const submit = async () => {
 
     if (passwordNew.value && passwordNew.value !== passwordConfirm.value) {
         errorMessage.value = 'รหัสผ่านใหม่ไม่ตรงกัน';
+        saving.value = false;
+        return;
+    }
+
+    const personalPhoneErr = validatePhoneMessage(acc.value.personal_phone);
+    if (personalPhoneErr) {
+        errorMessage.value = personalPhoneErr;
+        saving.value = false;
+        return;
+    }
+    const storePhoneErr = validatePhoneMessage(det.value.store_phone);
+    if (storePhoneErr) {
+        errorMessage.value = storePhoneErr.replace('เบอร์โทร', 'เบอร์ร้าน');
         saving.value = false;
         return;
     }
@@ -323,7 +351,16 @@ onMounted(loadProfile);
                         </div>
                         <div class="profile-field">
                             <label>เบอร์โทรส่วนตัว <span class="req">*</span></label>
-                            <input v-model="acc.personal_phone" type="text" class="editable" required />
+                            <input
+                                v-model="acc.personal_phone"
+                                type="text"
+                                class="editable"
+                                inputmode="numeric"
+                                :maxlength="PHONE_MAX_LENGTH"
+                                required
+                                @input="onPersonalPhoneInput"
+                                @keydown="blockInvalidPhoneKeys"
+                            />
                         </div>
                         <div class="profile-field">
                             <label>อีเมลส่วนตัว</label>
@@ -386,7 +423,16 @@ onMounted(loadProfile);
                         </div>
                         <div class="profile-field">
                             <label>เบอร์ร้าน <span class="req">*</span></label>
-                            <input v-model="det.store_phone" type="text" class="editable" required />
+                            <input
+                                v-model="det.store_phone"
+                                type="text"
+                                class="editable"
+                                inputmode="numeric"
+                                :maxlength="PHONE_MAX_LENGTH"
+                                required
+                                @input="onStorePhoneInput"
+                                @keydown="blockInvalidPhoneKeys"
+                            />
                         </div>
                         <div class="profile-field">
                             <label>อีเมลร้าน <span class="req">*</span></label>

@@ -1,6 +1,12 @@
 <script setup>
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
 import { blockInvalidAgeKeys, clampAgeInputValue, validateAgeMessage } from '~/utils/age';
+import {
+    PHONE_MAX_LENGTH,
+    blockInvalidPhoneKeys,
+    clampPhoneInputValue,
+    validatePhoneMessage,
+} from '~/utils/phone';
 
 const router = useRouter();
 const role = AUTH_ROLES.user;
@@ -64,12 +70,17 @@ const validate = () => {
     if (f.password_account1 !== f.password_account2) return 'รหัสผ่านไม่ตรงกัน';
     if (!/^[ก-๙\s]+$/.test(f.firstname)) return 'ชื่อต้องเป็นภาษาไทยเท่านั้น';
     if (!/^[ก-๙\s]+$/.test(f.lastname)) return 'นามสกุลต้องเป็นภาษาไทยเท่านั้น';
-    if (!/^[0-9]{10}$/.test(f.phone_number)) return 'เบอร์โทรศัพท์ต้องเป็นตัวเลข 10 หลัก';
+    const phoneErr = validatePhoneMessage(f.phone_number);
+    if (phoneErr) return phoneErr;
     return '';
 };
 
 const onAgeInput = () => {
     form.value.old = clampAgeInputValue(form.value.old);
+};
+
+const onPhoneInput = () => {
+    form.value.phone_number = clampPhoneInputValue(form.value.phone_number);
 };
 
 const submit = async () => {
@@ -149,7 +160,15 @@ const submit = async () => {
                 </div>
                 <div class="auth-field full">
                     <label>เบอร์โทร <span class="req">*</span></label>
-                    <input v-model="form.phone_number" type="text" maxlength="10" required />
+                    <input
+                        v-model="form.phone_number"
+                        type="text"
+                        inputmode="numeric"
+                        :maxlength="PHONE_MAX_LENGTH"
+                        required
+                        @input="onPhoneInput"
+                        @keydown="blockInvalidPhoneKeys"
+                    />
                 </div>
                 <div class="auth-field full">
                     <label>อีเมล <span class="req">*</span></label>

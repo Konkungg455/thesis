@@ -1,4 +1,11 @@
 <script setup>
+import {
+    PHONE_MAX_LENGTH,
+    blockInvalidPhoneKeys,
+    clampPhoneInputValue,
+    validatePhoneMessage,
+} from '~/utils/phone';
+
 const { apiUrl, apiBase, imagesPharma } = useApiBase();
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -187,6 +194,10 @@ const openLicense = () => {
     }
 };
 
+const onPhoneInput = () => {
+    phonePharma.value = clampPhoneInputValue(phonePharma.value);
+};
+
 const submit = async () => {
     if (!profile.value) return;
     saving.value = true;
@@ -195,6 +206,13 @@ const submit = async () => {
 
     if (passwordNew.value && passwordNew.value !== passwordConfirm.value) {
         errorMessage.value = 'รหัสผ่านใหม่ไม่ตรงกัน';
+        saving.value = false;
+        return;
+    }
+
+    const phoneErr = validatePhoneMessage(phonePharma.value);
+    if (phoneErr) {
+        errorMessage.value = phoneErr;
         saving.value = false;
         return;
     }
@@ -357,7 +375,16 @@ onMounted(loadProfile);
 
                     <div class="profile-field full">
                         <label>หมายเลขโทรศัพท์ <span class="req">*</span></label>
-                        <input v-model="phonePharma" type="text" class="editable" required />
+                        <input
+                            v-model="phonePharma"
+                            type="text"
+                            class="editable"
+                            inputmode="numeric"
+                            :maxlength="PHONE_MAX_LENGTH"
+                            required
+                            @input="onPhoneInput"
+                            @keydown="blockInvalidPhoneKeys"
+                        />
                     </div>
 
                     <div class="profile-field full">

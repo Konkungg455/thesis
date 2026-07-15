@@ -112,9 +112,8 @@ const tabMeta = {
 const handleFetch = async () => {
   isLoading.value = true
   try {
-    const base = useNuxtApp().$getApiBase()
     const deletedParam = deletedFilter.value === 'deleted' ? '?deleted=1' : ''
-    const res = await $fetch(`${base}/get-stores.php${deletedParam}`, { credentials: 'include' })
+    const res = await $fetch(apiUrl(`get-stores.php${deletedParam}`), { credentials: 'include' })
     if (res?.status === 'success') {
       allData.value = Array.isArray(res.stores) ? res.stores : []
     } else {
@@ -200,14 +199,13 @@ const fetchPartnerDetail = async (id) => {
   if (!id) return
   isLoadingPartner.value = true
   partnerError.value = ''
-  const base = useNuxtApp().$getApiBase()
   const deletedParam = deletedFilter.value === 'deleted' ? '&deleted=1' : ''
 
   const candidates = [
-    `${base}/admin-get-store-profile.php?id=${id}`,
-    `${base}/vue-get-store-profile.php?id=${id}`,
-    `${base}/get-store-profile.php?id=${id}`,
-    `${base}/get-stores.php?id=${id}${deletedParam}`,
+    apiUrl(`admin-get-store-profile.php?id=${id}`),
+    apiUrl(`vue-get-store-profile.php?id=${id}`),
+    apiUrl(`get-store-profile.php?id=${id}`),
+    apiUrl(`get-stores.php?id=${id}${deletedParam}`),
   ]
 
   for (const url of candidates) {
@@ -367,8 +365,7 @@ const reviewStore = async (item, action) => {
   }
   reviewLoading.value = true
   try {
-    const base = useNuxtApp().$getApiBase()
-    const res = await $fetch(`${base}/admin-review-store.php`, {
+    const res = await $fetch(apiUrl('admin-review-store.php'), {
       method: 'POST',
       body: { id: item.id, action, note },
       credentials: 'include',

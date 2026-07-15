@@ -1,6 +1,12 @@
 <script setup>
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
 import { blockInvalidAgeKeys, clampAgeInputValue, validateAgeMessage } from '~/utils/age';
+import {
+    PHONE_MAX_LENGTH,
+    blockInvalidPhoneKeys,
+    clampPhoneInputValue,
+    validatePhoneMessage,
+} from '~/utils/phone';
 
 import { stashRegistrationOtpFallback } from '~/utils/registrationOtp';
 
@@ -27,11 +33,20 @@ const onAgeInput = () => {
     form.value.old = clampAgeInputValue(form.value.old);
 };
 
+const onPhoneInput = () => {
+    form.value.phone_number = clampPhoneInputValue(form.value.phone_number);
+};
+
 const submit = async () => {
     errorMessage.value = '';
     const ageErr = validateAgeMessage(form.value.old);
     if (ageErr) {
         errorMessage.value = ageErr;
+        return;
+    }
+    const phoneErr = validatePhoneMessage(form.value.phone_number);
+    if (phoneErr) {
+        errorMessage.value = phoneErr;
         return;
     }
     isLoading.value = true;
@@ -109,7 +124,15 @@ const submit = async () => {
                 </div>
                 <div class="auth-field full">
                     <label>เบอร์โทร <span class="req">*</span></label>
-                    <input v-model="form.phone_number" type="text" maxlength="10" required />
+                    <input
+                        v-model="form.phone_number"
+                        type="text"
+                        inputmode="numeric"
+                        :maxlength="PHONE_MAX_LENGTH"
+                        required
+                        @input="onPhoneInput"
+                        @keydown="blockInvalidPhoneKeys"
+                    />
                 </div>
                 <div class="auth-field full">
                     <label>อีเมล <span class="req">*</span></label>

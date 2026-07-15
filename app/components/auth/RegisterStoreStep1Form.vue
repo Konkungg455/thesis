@@ -1,5 +1,11 @@
 <script setup>
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
+import {
+    PHONE_MAX_LENGTH,
+    blockInvalidPhoneKeys,
+    clampPhoneInputValue,
+    validatePhoneMessage,
+} from '~/utils/phone';
 
 const { apiBase } = useApiBase();
 
@@ -63,12 +69,16 @@ const validate = () => {
     if (f.password.length < 8) return 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร';
     if (!f.confirm_password) return 'กรุณายืนยันรหัสผ่าน';
     if (f.password !== f.confirm_password) return 'รหัสผ่านไม่ตรงกัน';
-    if (!f.personal_phone?.trim()) return 'กรุณากรอกเบอร์โทร';
-    if (!/^[0-9]{9,10}$/.test(f.personal_phone.trim())) return 'เบอร์โทรต้องเป็นตัวเลข 9-10 หลัก';
+    const phoneErr = validatePhoneMessage(f.personal_phone);
+    if (phoneErr) return phoneErr;
     if (!f.personal_email?.trim()) return 'กรุณากรอกอีเมล';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.personal_email.trim())) return 'รูปแบบอีเมลไม่ถูกต้อง';
     if (!licenseFile.value) return 'กรุณาอัปโหลดไฟล์ใบอนุญาตร้านยา';
     return '';
+};
+
+const onPhoneInput = () => {
+    form.value.personal_phone = clampPhoneInputValue(form.value.personal_phone);
 };
 
 const submit = async () => {
@@ -154,7 +164,15 @@ const submit = async () => {
                 </div>
                 <div class="auth-field full">
                     <label>เบอร์โทร <span class="req">*</span></label>
-                    <input v-model="form.personal_phone" type="text" required />
+                    <input
+                        v-model="form.personal_phone"
+                        type="text"
+                        inputmode="numeric"
+                        :maxlength="PHONE_MAX_LENGTH"
+                        required
+                        @input="onPhoneInput"
+                        @keydown="blockInvalidPhoneKeys"
+                    />
                 </div>
                 <div class="auth-field full">
                     <label>อีเมล <span class="req">*</span></label>
