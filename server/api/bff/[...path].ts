@@ -5,6 +5,16 @@ function applyPublicBffCache(event: H3Event, pathLower: string, result: unknown)
         return;
     }
 
+    const q = getQuery(event);
+    const isAuthenticatedRead = Boolean(
+        q.id_account_admin || q.id_pharma || q.id_store_accounts || q.id_account
+        || String(q.role || '').toLowerCase() === 'admin',
+    );
+    if (isAuthenticatedRead) {
+        setResponseHeader(event, 'Cache-Control', 'private, no-store, max-age=0');
+        return;
+    }
+
     const isArray = Array.isArray(result);
     const payload = isArray ? null : result as { status?: string; data?: unknown[]; total?: number } | null;
     const count = isArray

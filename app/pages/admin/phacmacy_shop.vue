@@ -3,6 +3,7 @@
  * 🚩 /admin/phacmacy_shop — ร้านยาพาร์ทเนอร์ (แอดมินดูข้อมูลเจ้าของร้านอย่างเดียว + อนุมัติ/ปฏิเสธคำขอ)
  */
 import { ref, computed, onMounted, watch } from 'vue'
+import { withBffAuthBody } from '~/utils/bffAuth'
 
 definePageMeta({ middleware: 'admin-only' })
 
@@ -112,8 +113,10 @@ const tabMeta = {
 const handleFetch = async () => {
   isLoading.value = true
   try {
-    const deletedParam = deletedFilter.value === 'deleted' ? '?deleted=1' : ''
-    const res = await $fetch(apiUrl(`get-stores.php${deletedParam}`), { credentials: 'include' })
+    const res = await $fetch(
+      apiUrl(`get-stores.php${deletedFilter.value === 'deleted' ? '?deleted=1&' : '?'}_t=${Date.now()}`),
+      { credentials: 'include' },
+    )
     if (res?.status === 'success') {
       allData.value = Array.isArray(res.stores) ? res.stores : []
     } else {
@@ -365,21 +368,27 @@ const reviewStore = async (item, action) => {
   }
   reviewLoading.value = true
   try {
+    const storeId = item.id || item.id_store_accounts
+    if (!storeId) {
+      alert('ไม่พบรหัสร้าน — กรุณารีเฟรชหน้าแล้วลองใหม่')
+      return
+    }
     const res = await $fetch(apiUrl('admin-review-store.php'), {
       method: 'POST',
-      body: { id: item.id, action, note },
+      body: withBffAuthBody({ id: storeId, action, note }),
       credentials: 'include',
     })
     if (res?.status === 'success') {
-      alert(res.message || `${label}เรียบร้อย`)
+      if (action === 'approve') statusFilter.value = 'approved'
+      showResultPopup('success', `${label}สำเร็จ`, res.message || `ร้านถูกย้ายไปแท็บพาร์ทเนอร์แล้ว`)
       await handleFetch()
       if (selectedData.value && selectedData.value.id === item.id) closeModal()
     } else {
-      alert(res?.message || `${label}ไม่สำเร็จ`)
+      showResultPopup('error', `${label}ไม่สำเร็จ`, res?.message || 'ไม่สามารถบันทึกสถานะได้')
     }
   } catch (err) {
     console.error('reviewStore error:', err)
-    alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
+    showResultPopup('error', 'เชื่อมต่อไม่สำเร็จ', err?.data?.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้')
   } finally {
     reviewLoading.value = false
   }

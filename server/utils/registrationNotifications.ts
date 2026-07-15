@@ -42,6 +42,18 @@ export async function ensureStoreReviewNoticeColumns(sql: ReturnType<typeof post
     try {
         await sql.unsafe(`
             ALTER TABLE phamacy_store_accounts
+            ADD COLUMN IF NOT EXISTS admin_status VARCHAR(20) NULL DEFAULT 'approved'
+        `);
+        await sql.unsafe(`
+            ALTER TABLE phamacy_store_accounts
+            ADD COLUMN IF NOT EXISTS admin_reviewed_at TIMESTAMP NULL DEFAULT NULL
+        `);
+        await sql.unsafe(`
+            ALTER TABLE phamacy_store_accounts
+            ADD COLUMN IF NOT EXISTS admin_review_note TEXT NULL DEFAULT NULL
+        `);
+        await sql.unsafe(`
+            ALTER TABLE phamacy_store_accounts
             ADD COLUMN IF NOT EXISTS platform_review_notice_at TIMESTAMP NULL DEFAULT NULL
         `);
         await sql.unsafe(`

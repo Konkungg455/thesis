@@ -742,16 +742,30 @@ export async function handleAdminReviewStore(event: H3Event) {
         const reviewResult = action === 'approve' ? 'approved' : 'rejected';
         const reviewNote = note || null;
         await ensureStoreReviewNoticeColumns(sql);
-        await sql`
-            UPDATE phamacy_store_accounts SET
-                admin_status = ${reviewResult},
-                admin_reviewed_at = NOW(),
-                admin_review_note = ${reviewNote},
-                platform_review_notice_at = NOW(),
-                platform_review_ack_at = NULL,
-                platform_review_result = ${reviewResult}
-            WHERE id_store_accounts = ${storeId}
-        `;
+        if (action === 'approve') {
+            await sql`
+                UPDATE phamacy_store_accounts SET
+                    status = 1,
+                    admin_status = ${reviewResult},
+                    admin_reviewed_at = NOW(),
+                    admin_review_note = ${reviewNote},
+                    platform_review_notice_at = NOW(),
+                    platform_review_ack_at = NULL,
+                    platform_review_result = ${reviewResult}
+                WHERE id_store_accounts = ${storeId}
+            `;
+        } else {
+            await sql`
+                UPDATE phamacy_store_accounts SET
+                    admin_status = ${reviewResult},
+                    admin_reviewed_at = NOW(),
+                    admin_review_note = ${reviewNote},
+                    platform_review_notice_at = NOW(),
+                    platform_review_ack_at = NULL,
+                    platform_review_result = ${reviewResult}
+                WHERE id_store_accounts = ${storeId}
+            `;
+        }
 
         return {
             email: String(store.personal_email || ''),

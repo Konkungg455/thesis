@@ -26,8 +26,11 @@ export function getAuthContext(event: H3Event, body?: Record<string, unknown>): 
         ?? merged.store_id
         ?? (String(merged.role || '').toLowerCase() === 'store' ? merged.id : undefined),
     );
-    const id_account_admin = numOrUndef(merged.id_account_admin);
     const role = String(merged.role || merged.role_account || '').trim().toLowerCase();
+    const id_account_admin = numOrUndef(
+        merged.id_account_admin
+        ?? (role === 'admin' ? merged.id : undefined),
+    );
 
     const isAdmin = role === 'admin' || (id_account_admin != null && id_account_admin > 0);
 
