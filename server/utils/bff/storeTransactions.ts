@@ -1,4 +1,33 @@
+import { resolveAccountPatientName } from './patientInfo';
+
 type DbSql = ReturnType<typeof useDb>;
+
+export function parseBillingContext(note: string | null | undefined): { patientId: number; rxId: number } {
+    const marker = String(note || '').match(/\[BILLING_CTX:patient=(\d+);rx=(\d+)\]/);
+    return {
+        patientId: Number(marker?.[1] || 0),
+        rxId: Number(marker?.[2] || 0),
+    };
+}
+
+async function resolveSlipCustomerName(sql: DbSql, note: string | null | undefined): Promise<string> {
+    const { patientId, rxId } = parseBillingContext(note);
+
+    if (rxId > 0) {
+        const rxRows = await sql`
+            SELECT patient_name FROM prescriptions WHERE id = ${rxId} LIMIT 1
+        `;
+        const rxName = String(rxRows[0]?.patient_name || '').trim();
+        if (rxName) return rxName;
+    }
+
+    if (patientId > 0) {
+        const accountName = await resolveAccountPatientName(sql, patientId, '');
+        if (accountName) return accountName;
+    }
+
+    return 'ลูกค้า';
+}
 
 /** สร้าง/อัปเดต store_transactions จาก prescriptions — ให้ดูใน Supabase Table Editor ได้ตรงกับหน้า Statement */
 export async function syncStoreTransactionFromPrescription(sql: DbSql, prescriptionId: number) {
@@ -62,7 +91,7 @@ export async function syncStoreTransactionFromSlip(sql: DbSql, slipId: number) {
 
     const rows = await sql`
         SELECT b.id, b.id_store, b.id_pharma, b.amount, b.slip_image, b.status,
-               b.created_at, b.reviewed_at,
+               b.created_at, b.reviewed_at, b.note,
                TRIM(CONCAT(COALESCE(ph.firstname_pharma, ''), ' ', COALESCE(ph.lastname_pharma, ''))) AS pharma_name
         FROM pharmacy_billing_slips b
         LEFT JOIN pharmacist_account ph ON ph.id_pharma = b.id_pharma
@@ -86,6 +115,7 @@ export async function syncStoreTransactionFromSlip(sql: DbSql, slipId: number) {
     const amount = Number(row.amount || 0);
     const pharmaName = String(row.pharma_name || '').trim() || `เภสัช #${Number(row.id_pharma || 0)}`;
     const txAt = row.reviewed_at || row.created_at || new Date();
+    const customerName = await resolveSlipCustomerName(sql, row.note as string | null);
 
     const existing = await sql`
         SELECT id_store_transaction FROM store_transactions
@@ -97,7 +127,7 @@ export async function syncStoreTransactionFromSlip(sql: DbSql, slipId: number) {
         await sql`
             UPDATE store_transactions SET
                 id_store = ${storeId},
-                customer_name = 'โอนเข้าบัญชี',
+                customer_name = ${customerName},
                 id_pharma = ${row.id_pharma},
                 pharmacist_name = ${pharmaName},
                 amount = ${amount},
@@ -115,7 +145,7 @@ export async function syncStoreTransactionFromSlip(sql: DbSql, slipId: number) {
             id_store, tx_type, source_id, doc_no, customer_name,
             id_pharma, pharmacist_name, amount, slip_image, tx_status, tx_at
         ) VALUES (
-            ${storeId}, 'slip', ${slipId}, NULL, 'โอนเข้าบัญชี',
+            ${storeId}, 'slip', ${slipId}, NULL, ${customerName},
             ${row.id_pharma}, ${pharmaName}, ${amount}, ${row.slip_image}, 'active', ${txAt}
         )
     `;

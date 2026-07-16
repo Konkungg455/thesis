@@ -142,13 +142,14 @@ export function useAiChatRules() {
     'อาการ', 'ปวด', 'เจ็บ', 'ไอ', 'ไข้', 'คลื่นไส้', 'อาเจียน', 'ผื่น', 'ผิวหนัง',
     'คัน', 'แพ้', 'ท้อง', 'ถ่าย', 'ปัสสาวะ', 'ตา', 'หู', 'จมูก', 'คอ', 'ฟัน',
     'ประจำเดือน', 'นอนไม่หลับ', 'เครียด', 'วิตก', 'แผล', 'หนอง', 'กัด', 'ลวก',
-    'มึน', 'เวียน', 'ชา', 'เหน็บ', 'เมา', 'ห้องหมุน', 'ทรงตัว', 'ตื้อ', 'ตุบ', 'แปลบ',
+    'มึน', 'เวียน', 'ชา', 'เหน็บ', 'เมา', 'ห้องหมุน', 'หมุน', 'ทรงตัว', 'ตื้อ', 'ตุบ', 'แปลบ',
+    'รู้สึก', 'เหมือน', 'สิ่งแวดล้อม', 'เริ่ม', 'เป็นมา', 'มีอาการ', 'ไม่มี', 'ไม่ทราบ',
     'pain', 'ache', 'fever', 'cough', 'nausea', 'vomit', 'rash', 'itch', 'allergy',
     'diarrhea', 'constipation', 'wound', 'tooth', 'headache', 'dizzy', 'burn', 'sting',
     'sore', 'swelling', 'sensitivity', 'throbbing', 'symptom', 'injury',
   ];
 
-  const SCREENING_ANSWER_RE = /ห้องหมุน|มึนหัว|ทรงตัว|ตุบ|ตื้อ|แปลบ|คลื่นไส้|ท้องเสีย|ไอ|เจ็บคอ|ผื่น|คัน|แดง|บวม|ชา|เหน็บ|เวียน|ร้อน|เย็น|ดีขึ้น|แย่ลง|ไม่ทราบ|ไม่รู้|เคย|ไม่เคย|\d|ชั่วโมง|นาที|วัน|สัปดาห์|เดือน|throbbing|sensitivity|mild|moderate|severe|yesterday|today|week|hour|day|none|fever|nausea|rest|painkiller|better|worse|unknown|itchy|swollen|dizzy|cough|headache/i;
+  const SCREENING_ANSWER_RE = /ห้องหมุน|หมุน|มึนหัว|ทรงตัว|ตุบ|ตื้อ|แปลบ|คลื่นไส้|ท้องเสีย|ไอ|เจ็บคอ|ผื่น|คัน|แดง|บวม|ชา|เหน็บ|เวียน|รู้สึก|เหมือน|สิ่งแวดล้อม|ดีขึ้น|แย่ลง|ไม่ทราบ|ไม่รู้|เคย|ไม่เคย|\d|ชั่วโมง|นาที|วัน|สัปดาห์|เดือน|throbbing|sensitivity|mild|moderate|severe|yesterday|today|week|hour|day|none|fever|nausea|rest|painkiller|better|worse|unknown|itchy|swollen|dizzy|cough|headache|spinning|vertigo|lightheaded/i;
 
   /** เลือดออกเล็กน้อยระหว่างซักประวัติ → ไม่ใช่ฉุกเฉิน */
   const isRedFlagInput = (text) => {
@@ -169,14 +170,6 @@ export function useAiChatRules() {
     }
 
     return false;
-  };
-
-  const isInScreening = (messages) => {
-    if (!Array.isArray(messages) || messages.length === 0) return false;
-    const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
-    if (!lastAssistant) return false;
-    if (lastAssistant.parts?.some(p => p.type === 'question_block' || p.type === 'question')) return true;
-    return isScreeningQuestion(lastAssistant.text);
   };
 
   /** ตรวจคำตอบนอกประเด็น — โดยเฉพาะระหว่างซักประวัติ */
@@ -788,6 +781,101 @@ export function useAiChatRules() {
     };
   };
 
+  const isInScreening = (messages) => {
+    const progress = getChatProgress(messages);
+    if (progress.readyForSummary) return false;
+    if (progress.highestAsked > 0 && progress.highestAsked <= SCREENING_TOTAL) return true;
+    if (!Array.isArray(messages) || messages.length === 0) return false;
+    const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
+    if (!lastAssistant) return false;
+    if (lastAssistant.parts?.some(p => p.type === 'question_block' || p.type === 'question')) return true;
+    return isScreeningQuestion(lastAssistant.text);
+  };
+
+  /** ข้อความคำถามคัดกรองล่าสุด (ก่อนคำตอบของผู้ใช้) */
+  const getLastScreeningQuestionText = (messages) => {
+    let last = '';
+    for (const msg of messages || []) {
+      if (msg.role === 'assistant' && isScreeningQuestion(msg.text)) {
+        last = String(msg.text || '').trim();
+      }
+    }
+    return last;
+  };
+
+  const buildInvalidAnswerReply = (symptomName, questionText, locale = 'th') => {
+    const loc = resolveChatLocale(locale);
+    const name = symptomDisplayName(symptomName, loc) || String(symptomName || '').trim();
+    const qLine = String(questionText || '').split('\n').find((l) => /🩺|ข้อ\s*\d|question\s*\d/i.test(l)) || '';
+    if (loc === 'en') {
+      return [
+        `Your answer doesn't seem to match the current screening question about "${name}".`,
+        'Please describe your symptom clearly so we can continue.',
+        qLine ? `\n${qLine}` : '',
+        '\n✍️ Please type your answer in the box below.',
+      ].filter(Boolean).join('\n');
+    }
+    return [
+      `คำตอบนี้ยังไม่เกี่ยวกับคำถามที่ถามอยู่ค่ะ กรุณาตอบเรื่องอาการ "${name}" ให้ชัดเจนอีกครั้งนะคะ`,
+      qLine ? `\n${qLine}` : '',
+      '\n✍️ กรุณาพิมพ์คำตอบในช่องด้านล่างได้เลยครับ',
+    ].filter(Boolean).join('\n');
+  };
+
+  /** ตรวจคำตอบก่อนขึ้นข้อถัดไป — heuristic + AI */
+  const checkScreeningAnswer = async (options = {}) => {
+    const {
+      messages = [],
+      symptomName = '',
+      userAnswer = '',
+      locale = 'th',
+      fetchImpl = null,
+    } = options;
+
+    const progress = getChatProgress(messages);
+    if (progress.readyForSummary || progress.highestAsked <= 0) {
+      return { valid: true, skipped: true };
+    }
+
+    const questionText = getLastScreeningQuestionText(messages);
+    const classifyOpts = { messages, symptomName, inScreening: true };
+    if (!isAnswerOnTopic(userAnswer, classifyOpts)) {
+      return {
+        valid: false,
+        source: 'heuristic',
+        reply: buildInvalidAnswerReply(symptomName, questionText, locale),
+      };
+    }
+
+    const fetcher = fetchImpl || (typeof $fetch !== 'undefined' ? $fetch : null);
+    if (!fetcher) return { valid: true, source: 'heuristic' };
+
+    try {
+      const res = await fetcher('/api/ai-validate-answer', {
+        method: 'POST',
+        timeout: 25_000,
+        body: {
+          symptom: symptomName,
+          questionNum: progress.highestAsked,
+          questionText,
+          userAnswer,
+          locale,
+        },
+      });
+      if (res?.valid === false) {
+        return {
+          valid: false,
+          source: res.source || 'ai',
+          reply: buildInvalidAnswerReply(symptomName, questionText, locale),
+        };
+      }
+      return { valid: true, source: res?.source || 'ai' };
+    } catch (err) {
+      console.warn('[checkScreeningAnswer] API failed, using heuristic pass:', err);
+      return { valid: true, source: 'fallback' };
+    }
+  };
+
   /** ดึงคู่ Q/A จากประวัติ สำหรับสรุปสำรอง */
   const extractScreeningQA = (messages) => {
     const pairs = [];
@@ -969,6 +1057,9 @@ export function useAiChatRules() {
     SCREENING_TOTAL,
     isScreeningQuestion,
     buildOffSymptomReply,
+    getLastScreeningQuestionText,
+    buildInvalidAnswerReply,
+    checkScreeningAnswer,
     REPLY_REDFLAG,
     REPLY_IRRELEVANT,
     REPLY_PROFANITY,

@@ -261,7 +261,7 @@ const openSidebar = () => { isSidebarOpen.value = true; };
 const closeSidebar = () => { isSidebarOpen.value = false; };
 
 // ใช้กฎร่วม (32 อาการบัตรทอง / red flag / off-topic) จาก composable
-const { classifyInput, parseAiMessage, getOptions, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, buildOffSymptomReply, rewritePharmacyConsultCta, resolveUserGender, adaptScreeningPartsForGender, getReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
+const { classifyInput, parseAiMessage, getOptions, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, buildOffSymptomReply, checkScreeningAnswer, rewritePharmacyConsultCta, resolveUserGender, adaptScreeningPartsForGender, getReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
 const { isEnglish } = useAppLocale();
 const chatLocale = computed(() => (isEnglish.value ? 'en' : 'th'));
 const customerLabel = computed(() => (chatLocale.value === 'en' ? 'customer' : 'ลูกค้า'));
@@ -610,6 +610,22 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         });
         isLoading.value = false;
         return;
+    }
+
+    if (!isSilent) {
+        const answerCheck = await checkScreeningAnswer({
+            messages: chatMessages.value,
+            symptomName: symptomName.value,
+            userAnswer: textToSend,
+            locale: chatLocale.value,
+        });
+        if (answerCheck.valid === false) {
+            const last = chatMessages.value[chatMessages.value.length - 1];
+            if (last?.role === 'user') last.skipProgress = true;
+            await addMessage('assistant', answerCheck.reply || buildOffSymptomReply(symptomName.value, chatLocale.value));
+            isLoading.value = false;
+            return;
+        }
     }
 
     try {

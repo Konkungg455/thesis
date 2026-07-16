@@ -12,6 +12,7 @@ import {
 } from '../../utils/registrationNotifications';
 import { resolveRequestOrigin } from '../../utils/requestOrigin';
 import { ensureBffSchema } from './ensureSchema';
+import { syncStoreTransactionFromSlip } from './storeTransactions';
 
 const consolidateCooldown = new Map<number, number>();
 const CONSOLIDATE_COOLDOWN_MS = 60_000;
@@ -934,7 +935,7 @@ export async function handleGetStoreStatement(event: H3Event) {
 
     await ensureBffSchema();
 
-    const txRows = await dbQuery(async (sql) => {
+    const fetchTxRows = (sql: ReturnType<typeof useDb>) => {
         if (period === 'today') {
             return sql`
                 SELECT id_store_transaction, tx_type, source_id, doc_no, customer_name,
@@ -972,7 +973,24 @@ export async function handleGetStoreStatement(event: H3Event) {
             WHERE id_store = ${storeId} AND tx_status = 'active'
             ORDER BY tx_at DESC LIMIT 200
         `;
-    });
+    };
+
+    let txRows = await dbQuery(async (sql) => fetchTxRows(sql));
+
+    const legacySlipIds = (txRows || [])
+        .filter((r) => String(r.tx_type) === 'slip' && String(r.customer_name || '').trim() === 'โอนเข้าบัญชี')
+        .map((r) => Number(r.source_id || 0))
+        .filter((id) => id > 0);
+
+    if (legacySlipIds.length) {
+        await dbQuery(async (sql) => {
+            for (const slipId of legacySlipIds) {
+                await syncStoreTransactionFromSlip(sql, slipId);
+            }
+            return true;
+        });
+        txRows = await dbQuery(async (sql) => fetchTxRows(sql));
+    }
 
     let incomePrescriptions = 0;
     let incomeSlips = 0;

@@ -223,7 +223,7 @@ const fetchUserProfile = async () => {
 };
 
 /* ================= Computed (หัวข้อเปลี่ยนตาม Query) ================= */
-const { classifyInput, parseAiMessage, getOptions, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, buildOffSymptomReply, rewritePharmacyConsultCta, resolveUserGender, adaptScreeningPartsForGender, getReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
+const { classifyInput, parseAiMessage, getOptions, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, buildOffSymptomReply, checkScreeningAnswer, rewritePharmacyConsultCta, resolveUserGender, adaptScreeningPartsForGender, getReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
 
 const displayTitle = computed(() => {
     const category = route.query.category;
@@ -362,6 +362,23 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         });
         isLoading.value = false;
         return;
+    }
+
+    if (!isSilent) {
+        const answerCheck = await checkScreeningAnswer({
+            messages: chatMessages.value,
+            symptomName: route.query.category,
+            userAnswer: textToSend,
+            locale: chatLocale.value,
+        });
+        if (answerCheck.valid === false) {
+            const last = chatMessages.value[chatMessages.value.length - 1];
+            if (last?.role === 'user') last.skipProgress = true;
+            await new Promise(r => setTimeout(r, 400));
+            await pushAssistant(answerCheck.reply || buildOffSymptomReply(route.query.category, chatLocale.value));
+            isLoading.value = false;
+            return;
+        }
     }
 
     try {
