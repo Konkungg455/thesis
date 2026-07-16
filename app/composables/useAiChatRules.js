@@ -17,6 +17,9 @@ import {
   buildFallbackSummary,
   rewritePharmacyConsultCta,
   ensureSeePharmacistSection,
+  ensurePharmacyConsultCta,
+  normalizeSummaryLayout,
+  finalizeSummaryText,
   resolveUserGender,
   adaptScreeningPartsForGender,
   resolveChatLocale,
@@ -721,8 +724,8 @@ export function useAiChatRules() {
 
       // ประโยคปิดท้ายชวนปรึกษาเภสัช — แยกเพื่อจัด UI สวยๆ
       if (
-        /หากต้องการคำแนะนำเพิ่มเติม.*TELEBOT-PHARMACY/i.test(clean)
-        || /For more advice.*TELEBOT-PHARMACY/i.test(clean)
+        /หากต้องการคำแนะนำเพิ่มเติม\s*กรุณาติดต่อเภสัชกรผ่านเว็บ\s*TELEBOT-PHARMACY/i.test(clean)
+        || /For more advice,\s*please contact a pharmacist on\s*TELEBOT-PHARMACY/i.test(clean)
         || /ไปกดปุ่ม\s*["“”]?ปรึกษาเภสัช/i.test(clean)
         || /tapping the\s*["“”]?Consult pharmacist/i.test(clean)
       ) {
@@ -732,9 +735,24 @@ export function useAiChatRules() {
         continue;
       }
 
+      // ข้อควรระวัง / คำแนะนำเพิ่มเติม / หมายเหตุ — แสดงท้ายสรุป
+      if (
+        /^ข้อควรระวัง\s*[:：]/i.test(noEmoji)
+        || /^⚠️\s*คำแนะนำเพิ่มเติม\s*[:：]/i.test(noEmoji)
+        || /^คำแนะนำเพิ่มเติม\s*[:：]/i.test(noEmoji)
+        || /^หากคุณมีข้อสงสัย/i.test(noEmoji)
+        || /^\*หมายเหตุ|^หมายเหตุ\s*[:：]/i.test(noEmoji)
+        || /^ข้อมูลนี้มีวัตถุประสงค์/i.test(noEmoji)
+      ) {
+        parts.push({ type: 'footer_note', text: clean.trim() });
+        listVariant = '';
+        i++;
+        continue;
+      }
+
       if (/^(?:💊|⚠️|👨‍⚕️|📋)/.test(clean.trim())
-        || /วิธีดูแลตนเอง|ควรพบเภสัชกร|สรุปอาการ|self-care|see a pharmacist|symptom summary|Preliminary|โรคประจำตัว|chronic condition/i.test(clean)) {
-        const title = clean.trim();
+        || /วิธีดูแลตนเอง|ควรพบเภสัชกร|สรุปอาการ|จากการซักประวัติ|self-care|see a pharmacist|symptom summary|Preliminary|โรคประจำตัว|chronic condition/i.test(clean)) {
+        let title = clean.trim().replace(/^📋\s*/, '');
         // หัวข้อปรึกษาเภสัชก่อน CTA — รวมไปกับแบนเนอร์ถ้าบรรทัดถัดไปเป็น CTA
         if (/👨‍⚕️|ปรึกษาเภสัชกรของเรา|Consult our pharmacist/i.test(title)
           && !/หากต้องการ|For more advice/i.test(title)) {
@@ -766,21 +784,25 @@ export function useAiChatRules() {
   const getOptions = (hint) => splitOptions(hint);
 
   /** จัดประเภท + parse สำหรับบันทึก/โหลด UI */
-  const classifyAssistantMessage = (text) => {
-    const cleaned = repairScreeningFormat(normalizeMessageText(text));
+  const classifyAssistantMessage = (text, locale = 'th') => {
+    let cleaned = repairScreeningFormat(normalizeMessageText(text));
+    const loc = resolveChatLocale(locale);
+    const isSummaryLike = /📋|สรุปอาการ|จากการซักประวัติ|Preliminary symptom summary|symptom summary|symptom assessment summary/i.test(cleaned);
+    if (isSummaryLike) {
+      cleaned = finalizeSummaryText(cleaned, loc);
+    }
     const lower = cleaned.toLowerCase();
     const isRedFlag = cleaned.includes('🚨')
       || lower.includes('อาการเสี่ยง')
       || lower.includes('พบเภสัชกรทันที');
-    const isSummary = cleaned.includes('📋')
-      || /สรุปอาการ|Preliminary symptom summary|symptom summary/i.test(cleaned);
+    const isSummary = isSummaryLike || /สรุปอาการ|จากการซักประวัติ|Preliminary symptom summary|symptom summary/i.test(cleaned);
     const isReview = !isSummary && !isRedFlag && isThanksOrReviewText(cleaned);
     const parts = parseAiMessage(cleaned);
     return { text: cleaned, parts, isRedFlag, isSummary, isReview };
   };
 
-  const buildAssistantMeta = (text) => {
-    const c = classifyAssistantMessage(text);
+  const buildAssistantMeta = (text, locale = 'th') => {
+    const c = classifyAssistantMessage(text, locale);
     return {
       parts: c.parts,
       isSummary: c.isSummary,
@@ -1062,7 +1084,7 @@ export function useAiChatRules() {
       };
     }
     return {
-      text: ensureSeePharmacistSection(rewritePharmacyConsultCta(text, loc), loc),
+      text: finalizeSummaryText(text, loc),
       isSummary: true,
       coerced: false,
     };
@@ -1099,6 +1121,8 @@ export function useAiChatRules() {
     formatFixedScreeningQuestion,
     isHallucinatedScreeningText,
     rewritePharmacyConsultCta,
+    finalizeSummaryText,
+    normalizeSummaryLayout,
     resolveUserGender,
     adaptScreeningPartsForGender,
     resolveChatLocale,

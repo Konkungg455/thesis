@@ -224,7 +224,7 @@ const fetchUserProfile = async () => {
 };
 
 /* ================= Computed (หัวข้อเปลี่ยนตาม Query) ================= */
-const { classifyInput, parseAiMessage, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, isActiveFixedScreening, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, rewritePharmacyConsultCta, resolveUserGender, adaptScreeningPartsForGender, getReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
+const { classifyInput, parseAiMessage, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, isActiveFixedScreening, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, rewritePharmacyConsultCta, finalizeSummaryText, resolveUserGender, adaptScreeningPartsForGender, getReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
 
 const displayTitle = computed(() => {
     const category = route.query.category;
@@ -265,7 +265,10 @@ const saveMessageToDB = async (role, message, extra = {}) => {
 /* ================= ฟังก์ชันหลัก (ส่งข้อความเชื่อม n8n + Logic ต่างๆ) ================= */
 
 const getMessageParts = (msg) => {
-    const raw = msg.parts?.length ? msg.parts : parseAiMessage(normalizeMessageText(msg.text));
+    const loc = resolveChatLocale(chatLocale.value);
+    const raw = msg.isSummary && msg.text
+        ? parseAiMessage(finalizeSummaryText(msg.text, loc))
+        : (msg.parts?.length ? msg.parts : parseAiMessage(normalizeMessageText(msg.text)));
     const adapted = adaptScreeningPartsForGender(
         raw,
         route.query.category,
@@ -274,7 +277,7 @@ const getMessageParts = (msg) => {
     );
     // หัวข้อสรุปมีใน <strong> ของ bubble แล้ว — ตัดบรรทัดซ้ำในเนื้อหาออก
     if (!msg.isSummary || !adapted?.length) return adapted;
-    const titleRe = /สรุปผลการประเมินอาการ|สรุปอาการเบื้องต้น|Preliminary symptom summary|Symptom assessment summary/i;
+    const titleRe = /สรุปผลการประเมินอาการ|สรุปอาการเบื้องต้น|จากการซักประวัติ|Preliminary symptom summary|Symptom assessment summary/i;
     let i = 0;
     while (i < adapted.length) {
         const p = adapted[i];
@@ -422,7 +425,7 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         );
         rawOutput = coerced.text;
         const aiOutput = sanitizeAiText(stripOffTopicLeak(rawOutput, textToSend, classifyOpts));
-        const meta = buildAssistantMeta(aiOutput);
+        const meta = buildAssistantMeta(aiOutput, chatLocale.value);
         const isSummary = response.isFinalSummary || meta.isSummary || coerced.isSummary
             || progress.readyForSummary || progress.highestAsked >= 5;
 
@@ -599,7 +602,7 @@ onMounted(async () => {
                                 }
                             ]">
                                 <strong v-if="msg.isRedFlag">{{ chatLocale === 'en' ? '🚨 Emergency symptom warning' : '🚨 คำเตือนอาการฉุกเฉิน' }}</strong>
-                                <strong v-else-if="msg.isSummary">{{ chatLocale === 'en' ? '📋 Symptom assessment summary' : '📋 สรุปผลการประเมินอาการ' }}</strong>
+                                <strong v-else-if="msg.isSummary">{{ chatLocale === 'en' ? 'Symptom assessment summary' : 'สรุปผลการประเมินอาการ' }}</strong>
                                 <div v-else-if="msg.isReview" class="thanks-header">
                                     <span class="thanks-header__icon">🙏</span>
                                     <span class="thanks-header__title">{{ chatLocale === 'en' ? 'Thank you for using our service' : 'ขอบคุณที่ใช้บริการ' }}</span>
@@ -638,6 +641,7 @@ onMounted(async () => {
                                             <span class="summary-list-num">{{ part.number ? part.number + '.' : '•' }}</span>
                                             <span class="summary-list-text">{{ part.text }}</span>
                                         </div>
+                                        <div v-else-if="part.type === 'footer_note'" class="summary-footer-note">{{ part.text }}</div>
                                         <div v-else-if="part.type === 'pharmacy_cta'" class="summary-cta-banner">
                                             <div class="summary-cta-rule" aria-hidden="true"></div>
                                             <div class="summary-cta-inner">

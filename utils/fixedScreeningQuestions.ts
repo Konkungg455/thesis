@@ -709,6 +709,149 @@ export function ensureSeePharmacistSection(text: string, locale: ChatLocale = 't
   return `${out}\n\n${section}`;
 }
 
+function stripSummaryClipboardEmoji(line: string): string {
+  return String(line || '')
+    .replace(/^\s*📋\s*/, '')
+    .replace(/\s*📋\s*$/, '')
+    .trim();
+}
+
+function isPharmacyCtaLine(line: string): boolean {
+  const t = String(line || '').trim();
+  return /หากต้องการคำแนะนำเพิ่มเติม\s*กรุณาติดต่อเภสัชกรผ่านเว็บ\s*TELEBOT-PHARMACY/i.test(t)
+    || /For more advice,\s*please contact a pharmacist on\s*TELEBOT-PHARMACY/i.test(t);
+}
+
+function isSummaryFooterLine(line: string): boolean {
+  const t = String(line || '').trim();
+  if (!t || /^-{2,}\s*$/.test(t)) return true;
+  if (/^\*หมายเหตุ|^หมายเหตุ\s*[:：]/i.test(t)) return true;
+  if (/^ข้อควรระวัง\s*[:：]/i.test(t)) return true;
+  if (/^⚠️\s*คำแนะนำเพิ่มเติม\s*[:：]/i.test(t) && !isPharmacyCtaLine(t)) return true;
+  if (/^คำแนะนำเพิ่มเติม\s*[:：]/i.test(t) && !isPharmacyCtaLine(t)) return true;
+  if (/^หากคุณมีข้อสงสัย|^If you have (?:any )?(?:further )?questions/i.test(t)) return true;
+  if (/^ข้อมูลนี้มีวัตถุประสงค์|^this information is for general|^information provided here is for general/i.test(t)) return true;
+  return false;
+}
+
+function isSeePharmacistTitleLine(line: string): boolean {
+  return /ควรพบเภสัชกรหากมีอาการเหล่านี้|see a pharmacist if you have these symptoms/i.test(String(line || ''));
+}
+
+function isSelfCareTitleLine(line: string): boolean {
+  const t = String(line || '').trim();
+  return /^💊/.test(t) || /วิธีดูแลตนเอง|basic self-care|self-care tips/i.test(t);
+}
+
+function isCtaHeaderLine(line: string): boolean {
+  return /^👨‍⚕️|ปรึกษาเภสัชกรของเรา|Consult (?:our )?pharmacist/i.test(String(line || '').trim());
+}
+
+/** แทรก CTA มาตรฐานท้ายสรุป ถ้ายังไม่มี */
+export function ensurePharmacyConsultCta(text: string, locale: ChatLocale = 'th'): string {
+  const out = String(text || '').trim();
+  if (!out) return out;
+  if (isPharmacyCtaLine(out) || /หากต้องการคำแนะนำเพิ่มเติม.*TELEBOT-PHARMACY|For more advice.*TELEBOT-PHARMACY/i.test(out)) {
+    return out;
+  }
+  const cta = pharmacyConsultCta(locale);
+  const header = locale === 'en' ? '👨‍⚕️ Consult our pharmacist' : '👨‍⚕️ ปรึกษาเภสัชกรของเรา';
+  return `${out}\n\n${header}\n${cta}`;
+}
+
+/**
+ * จัดลำดับสรุป: เนื้อหา → ดูแลตนเอง → ควรพบเภสัชกร → ข้อควรระวัง/หมายเหตุ → CTA
+ * และตัด 📋 ออกจากหัวข้อ "จากการซักประวัติอาการ"
+ */
+export function normalizeSummaryLayout(text: string, locale: ChatLocale = 'th'): string {
+  const raw = String(text || '').trim();
+  if (!raw) return raw;
+
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => stripSummaryClipboardEmoji(line))
+    .filter((line, idx, arr) => {
+      if (line) return true;
+      return idx > 0 && idx < arr.length - 1;
+    });
+
+  const intro: string[] = [];
+  const selfCare: string[] = [];
+  const seePharm: string[] = [];
+  const footer: string[] = [];
+  const cta: string[] = [];
+
+  let mode: 'intro' | 'selfcare' | 'seepharm' | 'footer' | 'cta' = 'intro';
+
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) continue;
+
+    if (isPharmacyCtaLine(t)) {
+      cta.push(t);
+      mode = 'cta';
+      continue;
+    }
+    if (isCtaHeaderLine(t)) continue;
+
+    if (isSummaryFooterLine(t)) {
+      if (!/^-{2,}\s*$/.test(t)) footer.push(t);
+      mode = 'footer';
+      continue;
+    }
+
+    if (isSeePharmacistTitleLine(t)) {
+      seePharm.push(t);
+      mode = 'seepharm';
+      continue;
+    }
+    if (isSelfCareTitleLine(t)) {
+      selfCare.push(t);
+      mode = 'selfcare';
+      continue;
+    }
+
+    if (mode === 'seepharm' && /^\d+[\.\)]\s+/.test(t)) {
+      seePharm.push(t);
+      continue;
+    }
+    if (mode === 'selfcare' && /^\d+[\.\)]\s+/.test(t)) {
+      selfCare.push(t);
+      continue;
+    }
+    if (mode === 'footer') {
+      footer.push(t);
+      continue;
+    }
+    if (mode === 'cta') {
+      cta.push(t);
+      continue;
+    }
+
+    intro.push(t);
+  }
+
+  const blocks: string[] = [];
+  if (intro.length) blocks.push(intro.join('\n'));
+  if (selfCare.length) blocks.push(selfCare.join('\n'));
+  if (seePharm.length) blocks.push(seePharm.join('\n'));
+  if (footer.length) blocks.push(footer.join('\n'));
+  if (cta.length) blocks.push(cta.join('\n'));
+
+  return blocks.join('\n\n').trim();
+}
+
+/** ปรับข้อความสรุปให้ครบ: CTA + ส่วนควรพบเภสัชกร + ลำดับมาตรฐาน */
+export function finalizeSummaryText(text: string, locale: ChatLocale = 'th'): string {
+  return normalizeSummaryLayout(
+    ensureSeePharmacistSection(
+      ensurePharmacyConsultCta(rewritePharmacyConsultCta(String(text || ''), locale), locale),
+      locale,
+    ),
+    locale,
+  );
+}
+
 /** สรุปสำรองเมื่อ AI หลุดกลับไปถามข้อใหม่หลังครบ 5 ข้อ */
 export function buildFallbackSummary(
   symptomName: string,
@@ -738,7 +881,7 @@ export function buildFallbackSummary(
 
   if (locale === 'en') {
     return [
-      '📋 Preliminary symptom summary',
+      'Preliminary symptom summary',
       `• Patient: ${patientLine}`,
       `• Likely symptom: ${symptom}`,
       `• Chronic conditions: ${disease || 'none'}`,
@@ -763,7 +906,7 @@ export function buildFallbackSummary(
   }
 
   return [
-    '📋 สรุปอาการเบื้องต้นของ User',
+    'สรุปอาการเบื้องต้นของ User',
     `• ผู้ป่วย: ${patient}`,
     `• อาการที่น่าจะเป็น: ${symptom}`,
     `• โรคประจำตัว: ${disease || 'ไม่มี'}`,
