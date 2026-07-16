@@ -68,6 +68,8 @@ const syncCategoryToUrl = () => {
 /* ================= State & Data ================= */
 const newMessage = ref('');
 const chatScroll = ref(null);
+const chatInput = ref(null);
+const isSending = ref(false);
 const isLoading = ref(false);
 const userName = ref('คุณลูกค้า');
 const userProfile = ref(null);
@@ -261,7 +263,7 @@ const openSidebar = () => { isSidebarOpen.value = true; };
 const closeSidebar = () => { isSidebarOpen.value = false; };
 
 // ใช้กฎร่วม (32 อาการบัตรทอง / red flag / off-topic) จาก composable
-const { classifyInput, parseAiMessage, getOptions, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, buildOffSymptomReply, checkScreeningAnswer, rewritePharmacyConsultCta, resolveUserGender, adaptScreeningPartsForGender, getReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
+const { classifyInput, parseAiMessage, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, isActiveFixedScreening, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, rewritePharmacyConsultCta, resolveUserGender, adaptScreeningPartsForGender, getReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
 const { isEnglish } = useAppLocale();
 const chatLocale = computed(() => (isEnglish.value ? 'en' : 'th'));
 const customerLabel = computed(() => (chatLocale.value === 'en' ? 'customer' : 'ลูกค้า'));
@@ -391,7 +393,6 @@ const mapStoredMessage = (msg) => {
     };
 };
 
-/** ใช้ใน template — ใช้ parts ที่บันทึกไว้ก่อน แล้วค่อย parse ใหม่ */
 const getMessageParts = (msg) => {
     const raw = msg.parts?.length ? msg.parts : parseAiMessage(normalizeMessageText(msg.text));
     const adapted = adaptScreeningPartsForGender(
@@ -414,6 +415,11 @@ const getMessageParts = (msg) => {
         break;
     }
     return i ? adapted.slice(i) : adapted;
+};
+
+const focusChatInput = async () => {
+    await nextTick();
+    chatInput.value?.focus?.();
 };
 
 /** ชื่ออาการสำหรับแสดง (TH key เหมือนเดิม — EN แปลเฉพาะตอนแสดง) */
@@ -496,6 +502,11 @@ const addMessage = async (role, text, extra = {}) => {
     }
     chatMessages.value.push(payload);
     await saveMessageToDB(role, text, payload);
+    if (role === 'assistant' && !extra.isReview && !extra.isSummary && !extra.isRedFlag) {
+        const hasQ = payload.parts?.some((p) => p.type === 'question' || p.type === 'question_block')
+            || /🩺\s*(?:ข้อ|question)\s*\d+/i.test(String(text || ''));
+        if (hasQ) await focusChatInput();
+    }
     await scrollToBottom();
 };
 
@@ -553,7 +564,7 @@ const loadChatHistory = async (sid) => {
 /* ================= Main Chat Logic ================= */
 const sendMessage = async (overrideText = null, isSilent = false) => {
     const textToSend = (overrideText || newMessage.value).trim();
-    if (!textToSend || isLoading.value) return;
+    if (!textToSend || isSending.value) return;
 
     if (!isSilent) {
         chatMessages.value.push({ role: 'user', text: textToSend });
@@ -563,72 +574,44 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         setTimeout(() => loadSessionList(), 400);
     }
 
-    isLoading.value = true;
-    await scrollToBottom();
+    isSending.value = true;
+    try {
+        await scrollToBottom();
 
-    // ข้อความ bootstrap (silent) จากระบบ → ข้าม classifier ส่งให้ AI ตรงๆ
-    const classifyOpts = { messages: chatMessages.value, symptomName: symptomName.value };
-    const kind = isSilent ? 'normal' : classifyInput(textToSend, classifyOpts);
+        // ข้อความ bootstrap (silent) จากระบบ → ข้าม classifier ส่งให้ AI ตรงๆ
+        const classifyOpts = { messages: chatMessages.value, symptomName: symptomName.value };
+        const kind = isSilent ? 'normal' : classifyInput(textToSend, classifyOpts);
 
-    if (kind === 'redflag') {
-        await addMessage('assistant', getReply('redflag', chatLocale.value), {
-            isRedFlag: true,
-            options: [chatLocale.value === 'en' ? '🚑 Contact our pharmacist now' : '🚑 ติดต่อเภสัชกรของเราทันที']
-        });
-        isLoading.value = false;
-        return;
-    }
-
-    if (kind === 'profanity') {
-        const last = chatMessages.value[chatMessages.value.length - 1];
-        if (last?.role === 'user') last.skipProgress = true;
-        await addMessage('assistant', getReply('profanity', chatLocale.value));
-        isLoading.value = false;
-        return;
-    }
-
-    if (kind === 'irrelevant') {
-        const last = chatMessages.value[chatMessages.value.length - 1];
-        if (last?.role === 'user') last.skipProgress = true;
-        await addMessage('assistant', getReply('irrelevant', chatLocale.value));
-        isLoading.value = false;
-        return;
-    }
-
-    if (kind === 'off_topic_symptom') {
-        const last = chatMessages.value[chatMessages.value.length - 1];
-        if (last?.role === 'user') last.skipProgress = true;
-        await addMessage('assistant', buildOffSymptomReply(symptomName.value, chatLocale.value));
-        isLoading.value = false;
-        return;
-    }
-
-    if (kind === 'thanks') {
-        await addMessage('assistant', getReply('thanks', chatLocale.value), {
-            isReview: true,
-            options: [chatLocale.value === 'en' ? '⭐ Write a review' : '⭐ เขียนรีวิวให้เรา']
-        });
-        isLoading.value = false;
-        return;
-    }
-
-    if (!isSilent) {
-        const answerCheck = await checkScreeningAnswer({
-            messages: chatMessages.value,
-            symptomName: symptomName.value,
-            userAnswer: textToSend,
-            locale: chatLocale.value,
-        });
-        if (answerCheck.valid === false) {
-            const last = chatMessages.value[chatMessages.value.length - 1];
-            if (last?.role === 'user') last.skipProgress = true;
-            await addMessage('assistant', answerCheck.reply || buildOffSymptomReply(symptomName.value, chatLocale.value));
-            isLoading.value = false;
+        if (kind === 'redflag') {
+            await addMessage('assistant', getReply('redflag', chatLocale.value), {
+                isRedFlag: true,
+                options: [chatLocale.value === 'en' ? '🚑 Contact our pharmacist now' : '🚑 ติดต่อเภสัชกรของเราทันที']
+            });
             return;
         }
-    }
 
-    try {
+        if (kind === 'profanity') {
+            const last = chatMessages.value[chatMessages.value.length - 1];
+            if (last?.role === 'user') last.skipProgress = true;
+            await addMessage('assistant', getReply('profanity', chatLocale.value));
+            return;
+        }
+
+        if (kind === 'gibberish') {
+            const last = chatMessages.value[chatMessages.value.length - 1];
+            if (last?.role === 'user') last.skipProgress = true;
+            await addMessage('assistant', getReply('gibberish', chatLocale.value));
+            return;
+        }
+
+        if (kind === 'thanks') {
+            await addMessage('assistant', getReply('thanks', chatLocale.value), {
+                isReview: true,
+                options: [chatLocale.value === 'en' ? '⭐ Write a review' : '⭐ เขียนรีวิวให้เรา']
+            });
+            return;
+        }
+
         // คำถามข้อ 1–5 ใช้ชุด fix — ไม่เรียก AI
         const fixed = getFixedScreeningReply(chatMessages.value, symptomName.value, {
             gender: resolveUserGender(userProfile.value),
@@ -638,8 +621,12 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         if (fixed?.text) {
             await new Promise(r => setTimeout(r, 350));
             await addMessage('assistant', fixed.text);
-            isLoading.value = false;
-            await scrollToBottom();
+            return;
+        }
+
+        // ยังไม่ครบ 5 ข้อ — ห้ามเรียก n8n (กัน AI ถามซ้ำ/หลอน)
+        if (isActiveFixedScreening(chatMessages.value)) {
+            console.warn('[AI Chat] Still in fixed screening but no next question — check progress');
             return;
         }
 
@@ -708,8 +695,9 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         console.error('[AI Chat]', err);
         await addMessage('assistant', getAiChatErrorMessage(err));
     } finally {
-        isLoading.value = false;
+        isSending.value = false;
         await scrollToBottom();
+        await focusChatInput();
     }
 };
 
@@ -925,14 +913,14 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="q-input-hint">✍️ {{ chatLocale === 'en' ? 'Please type your answer in the box below.' : 'กรุณาพิมพ์คำตอบในช่องด้านล่างได้เลยครับ' }}</div>
+                                            <div class="q-input-hint">✍️ {{ chatLocale === 'en' ? 'Type your answer in the box below.' : 'พิมพ์คำตอบเองในช่องด้านล่างได้เลย' }}</div>
                                         </div>
                                         <div v-else-if="part.type === 'question'" class="q-block">
                                             <div class="q-line">
                                                 {{ part.text }}
                                                 <span v-if="part.hint" class="q-line-hint">({{ chatLocale === 'en' ? 'e.g.' : 'เช่น' }} {{ part.hint }})</span>
                                             </div>
-                                            <div class="q-input-hint">✍️ {{ chatLocale === 'en' ? 'Please type your answer in the box below.' : 'กรุณาพิมพ์คำตอบในช่องด้านล่างได้เลยครับ' }}</div>
+                                            <div class="q-input-hint">✍️ {{ chatLocale === 'en' ? 'Type your answer in the box below.' : 'พิมพ์คำตอบเองในช่องด้านล่างได้เลย' }}</div>
                                         </div>
                                         <div v-else-if="part.type === 'ack'" class="ack-line">{{ part.text }}</div>
                                         <div v-else-if="part.type === 'section_title'" class="summary-section-title" :class="{ 'is-warn': part.variant === 'warn', 'is-care': part.variant === 'care' }">{{ part.text }}</div>
@@ -983,14 +971,14 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
                                     :key="opt" 
                                     class="choice-btn" 
                                     @click="handleOptionClick(opt, msg)" 
-                                    :disabled="isLoading"
+                                    :disabled="isSending"
                                 >
                                     {{ opt }}
                                 </button>
                             </div>
                         </div>
 
-                        <div v-if="isLoading" class="message-bubble pharma loading-bubble">
+                        <div v-if="isSending" class="message-bubble pharma loading-bubble">
                             <div class="loading-dots">
                                 <span>.</span><span>.</span><span>.</span>
                             </div>
@@ -1000,13 +988,18 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
                     <!-- Input Area: ส่วนรับข้อความ -->
                     <div class="chat-input-area">
                         <input 
+                            ref="chatInput"
                             type="text" 
                             v-model="newMessage" 
-                            :placeholder="chatLocale === 'en' ? 'Type your answer or choose an option above...' : 'พิมพ์ตอบ หรือเลือกตัวเลือกด้านบน...'"
-                            @keyup.enter="sendMessage()" 
-                            :disabled="isLoading"
+                            :placeholder="chatLocale === 'en' ? 'Type your answer here (or tap options above)...' : 'พิมพ์คำตอบที่นี่ (หรือกดตัวเลือกด้านบน)...'"
+                            @keyup.enter="!isSending && sendMessage()"
                         >
-                        <button class="btn-send" @click="sendMessage()" :disabled="isLoading || !newMessage.trim()">
+                        <button
+                            class="btn-send"
+                            @click="sendMessage()"
+                            :disabled="isSending || !newMessage.trim()"
+                            :title="isSending ? (chatLocale === 'en' ? 'Processing...' : 'กำลังประมวลผล...') : ''"
+                        >
                             {{ chatLocale === 'en' ? 'Send ✈️' : 'ส่ง ✈️' }}
                         </button>
                     </div>

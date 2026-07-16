@@ -15,6 +15,7 @@
     "demo:check": "powershell -ExecutionPolicy Bypass -File ./scripts/check-thesis-demo.ps1",
     "ai:start": "powershell -ExecutionPolicy Bypass -File ./scripts/start-ai-local.ps1",
     "ai:check": "powershell -ExecutionPolicy Bypass -File ./scripts/check-ai-local.ps1",
+    "ai:fix-webhook": "node scripts/fix-n8n-webhook.mjs",
     "ngrok:check": "powershell -ExecutionPolicy Bypass -File ./scripts/check-ngrok-n8n.ps1",
     "media:seed": "node scripts/seed-supabase-media.mjs",
     "db:seed-dummy-admins": "node scripts/seed-dummy-pending-admins.mjs",

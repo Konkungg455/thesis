@@ -12,36 +12,73 @@ type ValidateResult = {
     hint?: string;
 };
 
-const HEALTH_ANSWER_RE = /ห้องหมุน|หมุน|มึนหัว|ทรงตัว|ตุบ|ตื้อ|แปลบ|คลื่นไส้|ท้องเสีย|ไอ|เจ็บคอ|ผื่น|คัน|แดง|บวม|ชา|เหน็บ|เวียน|รู้สึก|เหมือน|เริ่ม|เป็น|มี|ไม่|เคย|ไม่เคย|\d|ชั่วโมง|นาที|วัน|สัปดาห์|เดือน|pain|ache|fever|mild|moderate|severe|better|worse|unknown|dizzy|headache|nausea/i;
+const PROFANITY_RE = /(ควย|เหี้ย|สัส+|ระยำ|ชาติ\s*หมา|หน้าหี|จิ๋ม|เย็ด|ชิบหาย|เชี่ย|เชี้ย|แม่ง|อีห่า|ไอ้สัตว์|ไอ้เวร|พ่อมึง|แม่มึง|\bf+u+c+k|\bshit\b|\bbitch\b)/i;
+
+function hasSpamRepetition(raw: string, compact: string): boolean {
+    if (/ๆ{2,}/.test(raw)) return true;
+    if (new RegExp('(.)\\1{3,}', 'u').test(compact)) return true;
+    if (/^(555+|666+|ฮา+|haha+|hehe+|lol+|wow+|omg+|เทพ+|เจ๋+|โคตร+|แจ่ม+|cool+|nice+|okok+|yesyes+)[ๆ]*$/iu.test(compact)) {
+        return true;
+    }
+    if (/^[ก-ฮ]{1,4}ๆ+$/u.test(compact)) return true;
+    return false;
+}
+
+function isGibberishInput(text: string): boolean {
+    const t = String(text || '').trim();
+    if (!t) return true;
+    if (t.length <= 1 || /^[\?\.\!\,\s]+$/.test(t)) return true;
+    if (/^[\d\s]+$/.test(t) && /\d/.test(t)) return true;
+    if (/^[\s\.\,\!\?\-\+\=\*\#\@\%\^\&\(\)\[\]\{\}\|\\\:\;\"\'\<\>\/\~\`_]+$/.test(t)) return true;
+
+    const compact = t.replace(/\s+/g, '');
+    if (hasSpamRepetition(t, compact)) return true;
+    if (/[ก-๙]/.test(t)) {
+        const vowelCount = (t.match(/[าิีึืุูเแโใไ]/g) || []).length;
+        if (compact.length <= 40) return false;
+        if (compact.length >= 6 && vowelCount === 0) return true;
+        return false;
+    }
+
+    if (/^[a-zA-Z\s]+$/.test(t) && compact.length >= 6) {
+        const vowels = (t.match(/[aeiouAEIOU]/g) || []).length;
+        const ratio = vowels / compact.length;
+        if (/^(ok|okay|yes|no|none|pain|hurt|mild|moderate|severe|today|yesterday|help|rest|food|sleep|stress|unknown|unsure|maybe|headache|fever|cough|nausea|dizzy|better|worse)$/i.test(compact)) {
+            return false;
+        }
+        if (!/\s/.test(t) && compact.length >= 7 && ratio < 0.38) return true;
+        if (vowels === 0) return true;
+        if (compact.length >= 12 && ratio <= 0.25) return true;
+        if (/^([b-df-hj-np-tv-xz]{2,6})\1+$/i.test(compact)) return true;
+    }
+
+    return false;
+}
+
+function isJokeAnswerInput(text: string): boolean {
+    const t = String(text || '').trim();
+    if (!t) return false;
+    const alwaysIrrelevant = [
+        'ปวดขี้', 'ปวดตด', 'ปวดง่วง', 'ปวดเบื่อ', 'ปวดรัก', 'ปวดเงิน', 'ปวดสอบ',
+        'ปวดการบ้าน', 'ปวดเกม', 'ปวดมือถือ', 'ปวดwifi', 'ปวดเน็ต',
+        'อยากขี้', 'อยากอึ', 'เล่าเรื่องผี', 'มุกตลก', 'ทายใจ', 'เป่ายิ้งฉุบ',
+        'จีบได้ไหม', 'รักฉันไหม', 'มีแฟนหรือยัง', 'ทีเด็ดบอล', 'แทงบอล',
+        'หวย', 'เลขเด็ด', 'ดูดวง', 'แต่งกลอน', 'เขียนโค้ด',
+    ];
+    const lower = t.toLowerCase();
+    if (alwaysIrrelevant.some((k) => lower.includes(k.toLowerCase()))) return true;
+    if (/ปวด\s*(ขี้|ตด|อึ|ง่วง|เบื่อ|รัก|เงิน|สอบ|การบ้าน|เกม|มือถือ|wifi|เน็ต|ใจ)/i.test(t)) return true;
+    if (/^(กินข้าว|ทานข้าว|ร้านอาหาร|แนะนำร้าน|ขอเพลง|ดูหนัง|เล่นเกม|หวย|ดูดวง|จีบได้ไหม|รักฉันไหม)/i.test(t)) return true;
+    return false;
+}
 
 function heuristicValidate(input: ValidateInput): ValidateResult | null {
     const answer = String(input.userAnswer || '').trim();
-    const question = String(input.questionText || '').trim();
-    if (!answer || !question) return { valid: false, source: 'heuristic', hint: 'empty' };
-
-    if (answer.length <= 1 || /^[\?\.\!\,\s]+$/.test(answer)) {
-        return { valid: false, source: 'heuristic', hint: 'too_short' };
-    }
-
-    if (/^(ครับ|ค่ะ|โอเค|ฮะ|อืม|ได้|ดี|555|ฮา|จ้า)$/i.test(answer)) {
-        return { valid: false, source: 'heuristic', hint: 'chit_chat' };
-    }
-
-    if (/^(กินข้าว|ทานข้าว|ร้านอาหาร|แนะนำร้าน|ขอเพลง|ดูหนัง|เล่นเกม|หวย|ดูดวง)/i.test(answer)) {
-        return { valid: false, source: 'heuristic', hint: 'irrelevant' };
-    }
-
-    const compact = answer.replace(/\s+/g, '');
-    const vowelCount = (answer.match(/[าิีึืุูเแโใไ]/g) || []).length;
-    if (compact.length >= 4 && vowelCount === 0 && !HEALTH_ANSWER_RE.test(answer)) {
-        return { valid: false, source: 'heuristic', hint: 'gibberish' };
-    }
-
-    if (HEALTH_ANSWER_RE.test(answer) || answer.length >= 8) {
-        return { valid: true, source: 'heuristic' };
-    }
-
-    return null;
+    if (!answer) return { valid: false, source: 'heuristic', hint: 'empty' };
+    if (PROFANITY_RE.test(answer)) return { valid: false, source: 'heuristic', hint: 'profanity' };
+    if (isGibberishInput(answer)) return { valid: false, source: 'heuristic', hint: 'gibberish' };
+    if (isJokeAnswerInput(answer)) return { valid: false, source: 'heuristic', hint: 'joke' };
+    return { valid: true, source: 'heuristic' };
 }
 
 function aiApiKey(config: ReturnType<typeof useRuntimeConfig>): string {
@@ -87,11 +124,9 @@ async function callGroqValidate(
     const locale = String(input.locale || 'th').toLowerCase() === 'en' ? 'en' : 'th';
     const system = [
         'You validate patient answers during telehealth symptom screening.',
-        'Reply ONLY with compact JSON: {"valid":true} or {"valid":false,"hint":"short reason in Thai or English matching locale"}.',
-        'valid=true when the answer reasonably addresses the current screening question about the locked symptom.',
-        'valid=false for gibberish, unrelated topics, jokes, single letters, or answers that ignore the question.',
-        'Mentioning feelings, duration, severity, triggers, or related body sensations counts as valid.',
-        'Do not require perfect grammar. Accept descriptive answers about vertigo/spinning even without exact medical terms.',
+        'Reply ONLY with compact JSON: {"valid":true} or {"valid":false,"hint":"gibberish"}.',
+        'valid=false ONLY for gibberish keyboard mash, digits-only, or punctuation-only replies.',
+        'valid=true for any real-language answer including "ไม่รู้", "ไม่ทราบ", off-topic chat, or short polite replies.',
     ].join(' ');
 
     const user = [
@@ -131,6 +166,7 @@ export async function validateScreeningAnswer(
 ): Promise<ValidateResult> {
     const heuristic = heuristicValidate(input);
     if (heuristic && !heuristic.valid) return heuristic;
+    if (heuristic?.valid) return heuristic;
 
     try {
         const ai = await callGroqValidate(config, input);
@@ -139,6 +175,5 @@ export async function validateScreeningAnswer(
         console.warn('[ai-validate-answer] AI failed, using fallback:', err);
     }
 
-    if (heuristic?.valid) return heuristic;
-    return { valid: false, source: 'fallback', hint: 'unclear' };
+    return { valid: true, source: 'fallback' };
 }

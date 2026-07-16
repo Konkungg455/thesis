@@ -44,16 +44,17 @@ http://127.0.0.1:5678/webhook/1f5ea30f-2ff0-4d32-b211-eccb342ee0df/chat
 ## โครงสร้าง workflow (`n8n_workflow_32_symptoms.json`)
 
 ```
-[Chat Trigger] → [Preprocess] → [AI Agent — ผู้ช่วยซักประวัติ]
+[Chat Trigger] → [Input Guard] → [Blocked?]
+                                    ├─ ใช่ → [Blocked Reply] (regex ไม่เรียก AI)
+                                    └─ ไม่ → [Preprocess] → [AI Agent — สรุปเท่านั้น]
                                       ↑ Ollama gemma4
                                       ↑ Window Buffer Memory (20)
                                       ↑ Wikipedia (tool)
                                       ↑ Web Search / DuckDuckGo (tool)
 ```
 
-- **ไม่ต้องใช้ Qdrant / Docker / API key** สำหรับ Web Search (ใช้ DuckDuckGo + Wikipedia)
-- อย่า Activate สอง workflow ที่ webhook ID เดียวกันพร้อมกัน
-- สร้างไฟล์ใหม่เมื่อแก้โครง: `node scripts/build-n8n-32-symptoms.mjs`
+- **Input Guard** — กรองคำหยาบ / พิมพ์มั่ว / มุก (เช่n ปวดขี้) ด้วย regex ใน Code node **ไม่ใช้ LLM → ไม่หลอน**
+- สร้าง/อัปเดต workflow: `node scripts/build-n8n-32-symptoms.mjs` แล้ว import ใหม่ใน n8n
 
 ## โน้ตบุ๊ค RAM ไม่พอ
 

@@ -52,7 +52,24 @@ function Get-ActiveWorkflowCount {
     return @($ids | Where-Object { $_.Trim() -ne "" }).Count
 }
 
+# n8n must be running before import/activate
+function Test-N8nPortOpen {
+    try {
+        $c = New-Object System.Net.Sockets.TcpClient
+        $c.Connect("127.0.0.1", 5678)
+        $c.Close()
+        return $true
+    } catch {
+        return $false
+    }
+}
+
 New-Item -ItemType Directory -Force -Path $N8nData | Out-Null
+
+if (-not (Test-N8nPortOpen)) {
+    Write-SetupLog "      n8n not running - start with npm run ai:start first" "Yellow"
+    return $false
+}
 
 if (Test-WebhookReady) {
     Write-SetupLog "      n8n webhook OK" "Green"
@@ -70,6 +87,8 @@ if (Test-Path $WorkflowFile) {
 }
 
 Invoke-N8nCli @("update:workflow", "--all", "--active=true") | Out-Null
+
+node (Join-Path $PSScriptRoot "sync-n8n-workflow-db.mjs") 2>&1 | Out-Null
 
 $activeCount = Get-ActiveWorkflowCount
 Write-SetupLog "      Active workflows: $activeCount" "Gray"
@@ -92,24 +111,20 @@ try {
 $nodeTools = & (Join-Path $PSScriptRoot "ensure-node22-for-n8n.ps1")
 if ($nodeTools.NodeDir) { $env:PATH = "$($nodeTools.NodeDir);$env:PATH" }
 $env:N8N_USER_FOLDER = $N8nData
+$env:N8N_HOST = "0.0.0.0"
+$env:N8N_PORT = "5678"
+$env:N8N_SECURE_COOKIE = "false"
+$env:N8N_RUNNERS_ENABLED = "true"
+$env:N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE = "true"
 $npx = if ($nodeTools.NpxCmd -match '[\\/]') { $nodeTools.NpxCmd } else { "npx" }
-$n8nStart = @("Set-Location '$ProjectRoot'")
-if ($nodeTools.NodeDir) {
-    $n8nStart += "`$env:PATH='$($nodeTools.NodeDir);' + `$env:PATH"
+$n8nArgs = @("--yes", "n8n@$N8nVersion", "start")
+if ($npx -match '\.cmd$') {
+    Start-Process -FilePath "cmd.exe" -ArgumentList (@("/c", $npx) + $n8nArgs) `
+        -WorkingDirectory $ProjectRoot -WindowStyle Minimized | Out-Null
+} else {
+    Start-Process -FilePath $npx -ArgumentList $n8nArgs `
+        -WorkingDirectory $ProjectRoot -WindowStyle Minimized | Out-Null
 }
-$n8nStart += @(
-    "`$env:N8N_USER_FOLDER='$N8nData'"
-    "`$env:N8N_HOST='0.0.0.0'"
-    "`$env:N8N_PORT='5678'"
-    "`$env:N8N_SECURE_COOKIE='false'"
-    "`$env:N8N_RUNNERS_ENABLED='true'"
-    "`$env:N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE='true'"
-    "& '$npx' --yes n8n@$N8nVersion start"
-)
-Start-Process powershell -ArgumentList @(
-    "-NoExit", "-WindowStyle", "Minimized", "-Command",
-    ($n8nStart -join "; ")
-) | Out-Null
 
 $deadline = (Get-Date).AddSeconds(60)
 while (-not (Test-WebhookReady) -and (Get-Date) -lt $deadline) {

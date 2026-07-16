@@ -4,13 +4,14 @@
  */
 import { spawn, spawnSync } from 'node:child_process';
 import { createConnection } from 'node:net';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(scriptDir, '..');
 const n8nData = join(projectRoot, '.tools', 'n8n-data');
-const model = 'gemma4:latest';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'gemma4:latest';
 const n8nVersion = '1.91.2';
 const quiet = process.argv.includes('--quiet');
 const skipModelPull = process.argv.includes('--skip-model-pull');
@@ -62,18 +63,10 @@ function loadNodeTools() {
   return JSON.parse(line || '{}');
 }
 
-function startN8nBackground(nodeTools) {
-  const npx = nodeTools.npxCmd?.includes('/') || nodeTools.npxCmd?.includes('\\')
-    ? nodeTools.npxCmd
-    : 'npx';
+function n8nEnv(nodeTools) {
   const env = {
     ...process.env,
     N8N_USER_FOLDER: n8nData,
-    N8N_HOST: '0.0.0.0',
-    N8N_PORT: '5678',
-    N8N_SECURE_COOKIE: 'false',
-    N8N_DIAGNOSTICS_ENABLED: 'false',
-    N8N_PERSONALIZATION_ENABLED: 'false',
     N8N_RUNNERS_ENABLED: 'true',
     N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: 'true',
   };
@@ -81,11 +74,49 @@ function startN8nBackground(nodeTools) {
     const sep = process.platform === 'win32' ? ';' : ':';
     env.PATH = `${nodeTools.nodeDir}${sep}${env.PATH || ''}`;
   }
-  const child = spawn(npx, ['--yes', `n8n@${n8nVersion}`, 'start'], {
+  return env;
+}
+
+function n8nSpawnArgs(nodeTools, args) {
+  const npx = nodeTools.npxCmd?.includes('/') || nodeTools.npxCmd?.includes('\\')
+    ? nodeTools.npxCmd
+    : 'npx';
+  const cliArgs = ['--yes', `n8n@${n8nVersion}`, ...args];
+  if (process.platform === 'win32' && /\.cmd$/i.test(npx)) {
+    const comspec = process.env.ComSpec || 'C:\\Windows\\System32\\cmd.exe';
+    return { cmd: comspec, args: ['/c', npx, ...cliArgs] };
+  }
+  return { cmd: npx, args: cliArgs };
+}
+
+function prefetchN8nPackage(nodeTools) {
+  const marker = join(projectRoot, '.tools', 'n8n-prefetch.ok');
+  if (existsSync(marker)) return;
+  log('      Downloading n8n@1.91.2 (first time, ~1-3 min)...');
+  const { cmd, args } = n8nSpawnArgs(nodeTools, ['--version']);
+  const status = spawnSync(cmd, args, { cwd: projectRoot, env: n8nEnv(nodeTools), stdio: 'ignore' }).status ?? 1;
+  if (status === 0) {
+    mkdirSync(join(projectRoot, '.tools'), { recursive: true });
+    writeFileSync(marker, 'ok');
+  }
+}
+
+function startN8nBackground(nodeTools) {
+  const env = {
+    ...n8nEnv(nodeTools),
+    N8N_HOST: '0.0.0.0',
+    N8N_PORT: '5678',
+    N8N_SECURE_COOKIE: 'false',
+    N8N_DIAGNOSTICS_ENABLED: 'false',
+    N8N_PERSONALIZATION_ENABLED: 'false',
+  };
+  const { cmd, args } = n8nSpawnArgs(nodeTools, ['start']);
+  const child = spawn(cmd, args, {
     cwd: projectRoot,
     env,
     detached: true,
     stdio: 'ignore',
+    windowsHide: true,
   });
   child.unref();
 }
@@ -128,31 +159,26 @@ if (await testPort(11434)) {
   process.exit(1);
 }
 
-if (!skipModelPull && (await testPort(11434)) && !(await testOllamaModel(model))) {
-  log(`      Pulling model ${model} (first time)...`);
-  spawnSync('ollama', ['pull', model], { stdio: 'ignore' });
+if (!skipModelPull && (await testPort(11434)) && !(await testOllamaModel(OLLAMA_MODEL))) {
+  log(`      Pulling model ${OLLAMA_MODEL} (first time)...`);
+  spawnSync('ollama', ['pull', OLLAMA_MODEL], { stdio: 'ignore' });
 }
 
-// --- n8n workflow ---
-spawnSync(process.execPath, [join(scriptDir, 'setup-n8n-workflow.mjs'), ...(quiet ? ['--quiet'] : [])], {
-  cwd: projectRoot,
-  stdio: 'inherit',
-});
-
-// --- n8n ---
+// --- n8n server (start before workflow import) ---
 if (!quiet) process.stderr.write('[2/2] n8n (port 5678)...');
 if (await testPort(5678)) {
   if (!quiet) process.stderr.write(' OK (already running)\n');
 } else {
   if (!quiet) process.stderr.write(' starting...\n');
   const nodeTools = loadNodeTools();
+  await prefetchN8nPackage(nodeTools);
   startN8nBackground(nodeTools);
-  const waitSec = quiet ? 12 : 45;
+  const waitSec = quiet ? 120 : 90;
   const ok = await waitForPort(5678, waitSec);
   if (ok) {
     if (!quiet) process.stderr.write(' OK\n');
   } else if (!quiet) {
-    process.stderr.write(' starting (wait for n8n)...\n');
+    process.stderr.write(' starting (first run may take 2-3 min - run npm run ai:start)\n');
   }
 }
 

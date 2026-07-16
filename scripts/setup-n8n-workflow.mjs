@@ -44,11 +44,21 @@ function n8nEnv(nodeTools) {
   return env;
 }
 
-function invokeN8nCli(nodeTools, args) {
+function n8nSpawnArgs(nodeTools, args) {
   const npx = nodeTools.npxCmd?.includes('/') || nodeTools.npxCmd?.includes('\\')
     ? nodeTools.npxCmd
     : 'npx';
-  return spawnSync(npx, ['--yes', `n8n@${n8nVersion}`, ...args], {
+  const cliArgs = ['--yes', `n8n@${n8nVersion}`, ...args];
+  if (process.platform === 'win32' && /\.cmd$/i.test(npx)) {
+    const comspec = process.env.ComSpec || 'C:\\Windows\\System32\\cmd.exe';
+    return { cmd: comspec, args: ['/c', npx, ...cliArgs] };
+  }
+  return { cmd: npx, args: cliArgs };
+}
+
+function invokeN8nCli(nodeTools, args) {
+  const { cmd, args: cliArgs } = n8nSpawnArgs(nodeTools, args);
+  return spawnSync(cmd, cliArgs, {
     cwd: projectRoot,
     env: n8nEnv(nodeTools),
     stdio: 'ignore',
@@ -70,10 +80,8 @@ async function testWebhookReady() {
 }
 
 function getActiveWorkflowCount(nodeTools) {
-  const npx = nodeTools.npxCmd?.includes('/') || nodeTools.npxCmd?.includes('\\')
-    ? nodeTools.npxCmd
-    : 'npx';
-  const out = spawnSync(npx, ['--yes', `n8n@${n8nVersion}`, 'list:workflow', '--active=true', '--onlyId'], {
+  const { cmd, args } = n8nSpawnArgs(nodeTools, ['list:workflow', '--active=true', '--onlyId']);
+  const out = spawnSync(cmd, args, {
     cwd: projectRoot,
     env: n8nEnv(nodeTools),
     encoding: 'utf8',
@@ -82,14 +90,17 @@ function getActiveWorkflowCount(nodeTools) {
 }
 
 function killPort5678() {
-  if (process.platform === 'win32') return;
+  if (process.platform === 'win32') {
+    spawnSync('powershell', [
+      '-NoProfile', '-Command',
+      "Get-NetTCPConnection -LocalPort 5678 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }",
+    ], { stdio: 'ignore' });
+    return;
+  }
   spawnSync('sh', ['-c', "lsof -ti :5678 | xargs kill -9 2>/dev/null || true"], { stdio: 'ignore' });
 }
 
 function startN8n(nodeTools) {
-  const npx = nodeTools.npxCmd?.includes('/') || nodeTools.npxCmd?.includes('\\')
-    ? nodeTools.npxCmd
-    : 'npx';
   const env = {
     ...n8nEnv(nodeTools),
     N8N_HOST: '0.0.0.0',
@@ -98,11 +109,13 @@ function startN8n(nodeTools) {
     N8N_DIAGNOSTICS_ENABLED: 'false',
     N8N_PERSONALIZATION_ENABLED: 'false',
   };
-  const child = spawn(npx, ['--yes', `n8n@${n8nVersion}`, 'start'], {
+  const { cmd, args } = n8nSpawnArgs(nodeTools, ['start']);
+  const child = spawn(cmd, args, {
     cwd: projectRoot,
     env,
     detached: true,
     stdio: 'ignore',
+    windowsHide: true,
   });
   child.unref();
 }
@@ -120,6 +133,12 @@ const nodeTools = loadNodeTools();
 if (existsSync(credsFile)) invokeN8nCli(nodeTools, ['import:credentials', `-i=${credsFile}`]);
 if (existsSync(workflowFile)) invokeN8nCli(nodeTools, ['import:workflow', `-i=${workflowFile}`]);
 invokeN8nCli(nodeTools, ['update:workflow', '--all', '--active=true']);
+
+// CLI import may not update the webhook-bound published graph — patch sqlite directly
+spawnSync(process.execPath, [join(scriptDir, 'sync-n8n-workflow-db.mjs')], {
+  cwd: projectRoot,
+  stdio: 'inherit',
+});
 
 log(`      Active workflows: ${getActiveWorkflowCount(nodeTools)}`);
 

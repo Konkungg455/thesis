@@ -37,7 +37,15 @@ if ($n8n) {
         Invoke-RestMethod -Uri $uri -Method POST -Body $body -ContentType "application/json" -TimeoutSec 90 | Out-Null
         Write-Host "Webhook: OK (AI responded)" -ForegroundColor Green
     } catch {
-        Write-Host "Webhook: FAIL - import n8n_workflow_telebot_chat.json, Activate, set Ollama credential" -ForegroundColor Yellow
+        $err = $_.Exception.Message
+        if ($err -match 'GiB|memory|requires more system memory') {
+            Write-Host "Webhook: FAIL - Ollama RAM not enough for gemma4 (~7GB) - set OLLAMA_MODEL=gemma3:1b or npm run ai:fix-webhook" -ForegroundColor Yellow
+        } elseif ($err -match '404|Not Found') {
+            Write-Host "Webhook: FAIL - import n8n_workflow_32_symptoms.json and Activate" -ForegroundColor Yellow
+        } else {
+            Write-Host "Webhook: FAIL - run npm run ai:start (re-import workflow)" -ForegroundColor Yellow
+            Write-Host "  Detail: $err" -ForegroundColor Gray
+        }
     }
 }
 

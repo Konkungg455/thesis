@@ -13,6 +13,8 @@ const nuxiEntry = join(projectRoot, 'node_modules', '@nuxt', 'cli', 'bin', 'nuxi
 
 if (process.env.SKIP_AI !== '1') {
   console.log('Starting AI services in background (Ollama + n8n)...');
+  console.log('  n8n: http://127.0.0.1:5678 (first run may take 2-3 min to download)');
+  console.log('  Check status: npm run ai:check  |  Start manually: npm run ai:start');
   if (isWin) {
     spawn('powershell', [
       '-NoProfile', '-ExecutionPolicy', 'Bypass',

@@ -1,10 +1,14 @@
 /**
- * สร้าง n8n_workflow_32_symptoms.json ให้ครบโหนด + Web Search
+ * สร้าง n8n_workflow_32_symptoms.json ให้ครบโหนด + Web Search + Input Guard
  * รัน: node scripts/build-n8n-32-symptoms.mjs
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  buildN8nInputGuardCode,
+  buildN8nBlockedReplyCode,
+} from '../utils/n8nChatInputFilter.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const prompt = readFileSync(join(root, 'n8n_system_prompt.txt'), 'utf-8').trimEnd();
@@ -70,6 +74,8 @@ return [{
 }];`;
 
 const AGENT_NAME = 'AI Agent — ผู้ช่วยซักประวัติ';
+const INPUT_GUARD_JS = buildN8nInputGuardCode();
+const BLOCKED_REPLY_JS = buildN8nBlockedReplyCode();
 
 const workflow = {
   name: 'TELEBOT-PHARMACY — 32 อาการ + Web Search',
@@ -87,6 +93,61 @@ const workflow = {
       typeVersion: 1.1,
       position: [-520, 280],
       webhookId: '1f5ea30f-2ff0-4d32-b211-eccb342ee0df',
+    },
+    {
+      parameters: {
+        mode: 'runOnceForAllItems',
+        language: 'javaScript',
+        jsCode: INPUT_GUARD_JS,
+      },
+      id: 'f1l2t3e4-r5g6-7890-abcd-inputguard01',
+      name: 'Input Guard',
+      type: 'n8n-nodes-base.code',
+      typeVersion: 2,
+      position: [-420, 280],
+    },
+    {
+      parameters: {
+        conditions: {
+          options: {
+            caseSensitive: true,
+            leftValue: '',
+            typeValidation: 'strict',
+            version: 2,
+          },
+          conditions: [
+            {
+              id: 'blocked-check-001',
+              leftValue: '={{ $json.blocked }}',
+              rightValue: true,
+              operator: {
+                type: 'boolean',
+                operation: 'true',
+                singleValue: true,
+              },
+            },
+          ],
+          combinator: 'and',
+        },
+        options: {},
+      },
+      id: 'f1l2t3e4-r5g6-7890-abcd-ifblocked01',
+      name: 'Blocked?',
+      type: 'n8n-nodes-base.if',
+      typeVersion: 2.2,
+      position: [-240, 280],
+    },
+    {
+      parameters: {
+        mode: 'runOnceForAllItems',
+        language: 'javaScript',
+        jsCode: BLOCKED_REPLY_JS,
+      },
+      id: 'f1l2t3e4-r5g6-7890-abcd-blockreply01',
+      name: 'Blocked Reply',
+      type: 'n8n-nodes-base.code',
+      typeVersion: 2,
+      position: [-40, 120],
     },
     {
       parameters: {
@@ -116,7 +177,7 @@ const workflow = {
     },
     {
       parameters: {
-        model: 'gemma4:latest',
+        model: process.env.OLLAMA_MODEL || 'gemma4:latest',
         options: {
           temperature: 0.2,
           topP: 0.9,
@@ -223,7 +284,16 @@ const workflow = {
   ],
   connections: {
     'Chat Trigger': {
-      main: [[{ node: 'Preprocess', type: 'main', index: 0 }]],
+      main: [[{ node: 'Input Guard', type: 'main', index: 0 }]],
+    },
+    'Input Guard': {
+      main: [[{ node: 'Blocked?', type: 'main', index: 0 }]],
+    },
+    'Blocked?': {
+      main: [
+        [{ node: 'Blocked Reply', type: 'main', index: 0 }],
+        [{ node: 'Preprocess', type: 'main', index: 0 }],
+      ],
     },
     Preprocess: {
       main: [[{ node: AGENT_NAME, type: 'main', index: 0 }]],

@@ -50,6 +50,10 @@
     background: white;
     border-top: 1px solid #eee;
     gap: 10px;
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
 }
 
 .chat-input-area input {
@@ -58,6 +62,13 @@
     border: 1px solid #ddd;
     border-radius: 8px;
     outline: none;
+    font-size: 16px;
+    min-width: 0;
+    background: #fff;
+}
+.chat-input-area input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
 }
 
 .btn-send {
@@ -265,6 +276,12 @@
     transition: all 0.15s;
     user-select: none;
     box-shadow: 0 1px 3px rgba(37, 99, 235, 0.12);
+}
+.q-hint-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
 }
 .ai-text .q-hint-chip:hover:not(:disabled) {
     background: #1d4ed8;
@@ -907,6 +924,21 @@ html.dark .chat-history-page .footer-divider svg {
 /* มือถือ — โชว์ตลอด */
 @media (max-width: 768px) {
     .msg-delete-btn { opacity: 0.65; }
+}
+
+@media (max-width: 768px) {
+    .chat-history-page .chat-input-area,
+    .user-layout .chat-input-area {
+        flex-wrap: nowrap !important;
+        padding: 10px 12px !important;
+    }
+    .chat-history-page .chat-input-area input[type="text"],
+    .user-layout .chat-input-area input[type="text"] {
+        flex: 1 1 auto !important;
+        width: auto !important;
+        min-width: 0 !important;
+        font-size: 16px !important;
+    }
 }
 
 /* ให้ช่องพิมพ์กับปุ่ม "ส่ง" อยู่แถวเดียวกันบนมือถือ

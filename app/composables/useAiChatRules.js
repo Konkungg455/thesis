@@ -132,6 +132,60 @@ export function useAiChatRules() {
     return PROFANITY_RE.test(t);
   };
 
+  /** พิมพ์มั่ว / ตัวเลขล้วน / สัญลักษณ์ล้วน / ตัวอักษรซ้ำ เช่n เทพๆๆๆ — ไม่นับเป็นคำตอบ */
+  const hasSpamRepetition = (raw, compact) => {
+    if (/ๆ{2,}/.test(raw)) return true;
+    if (new RegExp('(.)\\1{3,}', 'u').test(compact)) return true;
+    if (/^(555+|666+|ฮา+|haha+|hehe+|lol+|wow+|omg+|เทพ+|เจ๋+|โคตร+|แจ่ม+|cool+|nice+|okok+|yesyes+)[ๆ]*$/iu.test(compact)) {
+      return true;
+    }
+    if (/^[ก-ฮ]{1,4}ๆ+$/u.test(compact)) return true;
+    return false;
+  };
+
+  const isGibberishInput = (text) => {
+    const t = String(text || '').trim();
+    if (!t) return true;
+    if (t.length <= 1 || /^[\?\.\!\,\s]+$/.test(t)) return true;
+    if (/^[\d\s]+$/.test(t) && /\d/.test(t)) return true;
+    if (/^[\s\.\,\!\?\-\+\=\*\#\@\%\^\&\(\)\[\]\{\}\|\\\:\;\"\'\<\>\/\~\`_]+$/.test(t)) return true;
+
+    const compact = t.replace(/\s+/g, '');
+    if (hasSpamRepetition(t, compact)) return true;
+    if (/[ก-๙]/.test(t)) {
+      const vowelCount = (t.match(/[าิีึืุูเแโใไ]/g) || []).length;
+      if (compact.length <= 40) return false;
+      if (compact.length >= 6 && vowelCount === 0) return true;
+      return false;
+    }
+
+    if (/^[a-zA-Z\s]+$/.test(t) && compact.length >= 6) {
+      const vowels = (t.match(/[aeiouAEIOU]/g) || []).length;
+      const ratio = vowels / compact.length;
+      if (/^(ok|okay|yes|no|none|pain|hurt|mild|moderate|severe|today|yesterday|help|rest|food|sleep|stress|unknown|unsure|maybe|headache|fever|cough|nausea|dizzy|better|worse)$/i.test(compact)) {
+        return false;
+      }
+      if (!/\s/.test(t) && compact.length >= 7 && ratio < 0.38) return true;
+      if (vowels === 0) return true;
+      if (compact.length >= 12 && ratio <= 0.25) return true;
+      if (/^([b-df-hj-np-tv-xz]{2,6})\1+$/i.test(compact)) return true;
+    }
+
+    return false;
+  };
+
+  /** มุก/คำตอบแกล้ง — เช่n ปวดขี้, ปวดเงิน (ไม่ใช่คำตอบซักประวัติจริง) */
+  const JOKE_ANSWER_RE = /ปวด\s*(ขี้|ตด|อึ|ง่วง|เบื่อ|รัก|เงิน|สอบ|การบ้าน|เกม|มือถือ|wifi|เน็ต|ใจ)/i;
+
+  const isJokeAnswerInput = (text) => {
+    const t = String(text || '').trim();
+    if (!t) return false;
+    if (containsAny(t, ALWAYS_IRRELEVANT)) return true;
+    if (JOKE_ANSWER_RE.test(t)) return true;
+    if (/^(กินข้าว|ทานข้าว|ร้านอาหาร|แนะนำร้าน|ขอเพลง|ดูหนัง|เล่นเกม|หวย|ดูดวง|จีบได้ไหม|รักฉันไหม)/i.test(t)) return true;
+    return false;
+  };
+
   /**
    * จำแนกประเภทข้อความ
    * - ถ้าข้อความมีคำว่า "อาการ" หรือ "ปวด" หรือชื่ออาการใน 32 list → ถือเป็น normal เลย
@@ -144,12 +198,15 @@ export function useAiChatRules() {
     'ประจำเดือน', 'นอนไม่หลับ', 'เครียด', 'วิตก', 'แผล', 'หนอง', 'กัด', 'ลวก',
     'มึน', 'เวียน', 'ชา', 'เหน็บ', 'เมา', 'ห้องหมุน', 'หมุน', 'ทรงตัว', 'ตื้อ', 'ตุบ', 'แปลบ',
     'รู้สึก', 'เหมือน', 'สิ่งแวดล้อม', 'เริ่ม', 'เป็นมา', 'มีอาการ', 'ไม่มี', 'ไม่ทราบ',
+    'เล็กน้อย', 'ปานกลาง', 'รุนแรง', 'วันนี้', 'เมื่อวาน', 'เลือด', 'เลือดออก', 'บาด', 'มีด', 'ตำ', 'ฟกช้ำ', 'ฉีก',
+    'นิดหน่อย', 'เฉยๆ', 'มือ', 'ขา', 'แขน', 'นิ้ว', 'แสบ',
+    'ไม่แน่ใจ', 'จำไม่ได้', 'ไม่ค่อยรู้', 'ไม่รู้สาเหตุ', 'ไม่ว่า',
     'pain', 'ache', 'fever', 'cough', 'nausea', 'vomit', 'rash', 'itch', 'allergy',
     'diarrhea', 'constipation', 'wound', 'tooth', 'headache', 'dizzy', 'burn', 'sting',
     'sore', 'swelling', 'sensitivity', 'throbbing', 'symptom', 'injury',
   ];
 
-  const SCREENING_ANSWER_RE = /ห้องหมุน|หมุน|มึนหัว|ทรงตัว|ตุบ|ตื้อ|แปลบ|คลื่นไส้|ท้องเสีย|ไอ|เจ็บคอ|ผื่น|คัน|แดง|บวม|ชา|เหน็บ|เวียน|รู้สึก|เหมือน|สิ่งแวดล้อม|ดีขึ้น|แย่ลง|ไม่ทราบ|ไม่รู้|เคย|ไม่เคย|\d|ชั่วโมง|นาที|วัน|สัปดาห์|เดือน|throbbing|sensitivity|mild|moderate|severe|yesterday|today|week|hour|day|none|fever|nausea|rest|painkiller|better|worse|unknown|itchy|swollen|dizzy|cough|headache|spinning|vertigo|lightheaded/i;
+  const SCREENING_ANSWER_RE = /ห้องหมุน|หมุน|มึนหัว|ทรงตัว|ตุบ|ตื้อ|แปลบ|คลื่นไส้|ท้องเสีย|ไอ|เจ็บคอ|ผื่น|คัน|แดง|บวม|ชา|เหน็บ|เวียน|รู้สึก|เหมือน|สิ่งแวดล้อม|เล็กน้อย|ปานกลาง|รุนแรง|วันนี้|เมื่อวาน|เลือด|เลือดออก|บาด|แผล|มีด|ตำ|ฟกช้ำ|ฉีก|นิดหน่อย|ดีขึ้น|แย่ลง|ไม่ทราบ|ไม่รู้|เคย|ไม่เคย|\d|ชั่วโมง|นาที|วัน|สัปดาห์|เดือน|throbbing|sensitivity|mild|moderate|severe|yesterday|today|week|hour|day|none|fever|nausea|rest|painkiller|better|worse|unknown|itchy|swollen|dizzy|cough|headache|spinning|vertigo|lightheaded/i;
 
   /** เลือดออกเล็กน้อยระหว่างซักประวัติ → ไม่ใช่ฉุกเฉิน */
   const isRedFlagInput = (text) => {
@@ -179,15 +236,25 @@ export function useAiChatRules() {
     const t = String(text || '');
     const lower = t.toLowerCase();
     const hits = new Set();
-    for (const s of SYMPTOMS_32) {
+    const sorted = [...SYMPTOMS_32].sort((a, b) => b.length - a.length);
+    for (const s of sorted) {
+      if (s.length < 3) continue;
       if (t.includes(s) || normalizeSymptom(t).includes(normalizeSymptom(s))) hits.add(s);
       const en = symptomDisplayName(s, 'en');
-      if (en && lower.includes(String(en).toLowerCase())) hits.add(s);
+      if (en && en.length >= 3 && lower.includes(String(en).toLowerCase())) hits.add(s);
     }
-    // English free-text → Thai key
     const key = normalizeSymptomKey(t);
     if (key && SYMPTOMS_32.includes(key)) hits.add(key);
     return [...hits];
+  };
+
+  const getLastScreeningAssistant = (messages) => {
+    let last = null;
+    for (const msg of messages || []) {
+      if (msg.role !== 'assistant') continue;
+      if (isScreeningQuestion(msg.text) || extractQuestionNumber(msg) > 0) last = msg;
+    }
+    return last;
   };
 
   /** ตอบชี้ไปอาการอื่นนอกหัวข้อที่เลือก — แต่ไม่บล็อกคำตอบอาการร่วม/ตัวเลือกในข้อ */
@@ -196,15 +263,25 @@ export function useAiChatRules() {
     if (!t) return false;
     const opts = getLastQuestionOptions(messages);
     if (!opts.length) return false;
+
+    const optionTokens = ['เล็กน้อย', 'ปานกลาง', 'รุนแรง', 'วันนี้', 'เมื่อวาน', 'ไม่ทราบ', 'ไม่รู้', 'mild', 'moderate', 'severe', 'today', 'yesterday', 'unknown', 'unsure'];
+    for (const token of optionTokens) {
+      const tok = token.toLowerCase();
+      if (t.includes(tok) && opts.some((o) => String(o || '').toLowerCase().includes(tok))) return true;
+    }
+
     return opts.some((o) => {
       const opt = String(o || '').trim().toLowerCase();
       if (!opt) return false;
-      return t === opt || t.includes(opt) || opt.includes(t);
+      if (t === opt || t.includes(opt) || opt.includes(t)) return true;
+      const optHead = opt.split(/[\s,]+/)[0];
+      if (optHead.length >= 3 && t.includes(optHead)) return true;
+      return false;
     });
   };
 
   const isAccompanyingSymptomQuestion = (messages) => {
-    const lastAssistant = [...(messages || [])].reverse().find((m) => m.role === 'assistant');
+    const lastAssistant = getLastScreeningAssistant(messages);
     if (!lastAssistant) return false;
     const t = String(lastAssistant.text || '');
     if (/อาการร่วม|มีอาการอื่น|ร่วมด้วย|accompanying symptoms|any other symptoms/i.test(t)) return true;
@@ -218,7 +295,8 @@ export function useAiChatRules() {
 
   const isWrongSymptomTopic = (text, symptomName, options = {}) => {
     const locked = String(symptomName || '').trim();
-    if (!locked || locked === 'ทั่วไป') return false;
+    const lockedKey = normalizeSymptomKey(locked) || locked;
+    if (!lockedKey || lockedKey === 'ทั่วไป') return false;
     const t = String(text || '').trim();
     if (!t) return false;
     // ฉุกเฉินไม่ใช่การเปลี่ยนหัวข้อ
@@ -236,7 +314,7 @@ export function useAiChatRules() {
 
     const mentioned = findMentionedSymptoms(t);
     if (!mentioned.length) return false;
-    const lockedN = normalizeSymptom(locked);
+    const lockedN = normalizeSymptom(lockedKey);
     const other = mentioned.filter((s) => {
       const sn = normalizeSymptom(s);
       return sn !== lockedN && !lockedN.includes(sn) && !sn.includes(lockedN);
@@ -257,9 +335,9 @@ export function useAiChatRules() {
     return true;
   };
 
-  /** ดึงตัวเลือกจากคำถามล่าสุดของ AI (เช่น ...) */
+  /** ดึงตัวเลือกจากคำถามคัดกรองล่าสุด (ไม่ใช่ข้อความเตือน) */
   const getLastQuestionOptions = (messages) => {
-    const lastAssistant = [...(messages || [])].reverse().find((m) => m.role === 'assistant');
+    const lastAssistant = getLastScreeningAssistant(messages);
     if (!lastAssistant) return [];
     if (lastAssistant.parts?.length) {
       const q = lastAssistant.parts.find((p) => p.type === 'question_block' || p.type === 'question');
@@ -291,6 +369,9 @@ export function useAiChatRules() {
 
     // ตรงตัวเลือกในคำถาม → ผ่านก่อน (กัน false positive เรื่องอาการอื่น)
     if (matchesQuestionOption(t, options.messages)) return true;
+
+    // ตอบว่าไม่ทราบ/ไม่รู้สาเหตุ → ผ่าน (เช่n ไม่ทราบ, ไม่ว่าเกิดจากอะไร)
+    if (isUncertaintyAnswer(t)) return true;
 
     const symptomName = String(options.symptomName || '').trim();
     if (isWrongSymptomTopic(t, symptomName, options)) return false;
@@ -348,43 +429,19 @@ export function useAiChatRules() {
   };
 
   /**
-   * จำแนกประเภทข้อความ
-   * @returns {'redflag' | 'profanity' | 'irrelevant' | 'off_topic_symptom' | 'thanks' | 'normal'}
+   * จำแนกประเภทข้อความ — red flag, คำหยาบ, พิมพ์มั่ว, มุก/คำตอบแกล้ง
+   * @returns {'redflag' | 'profanity' | 'gibberish' | 'thanks' | 'normal'}
    */
-  const classifyInput = (text, options = {}) => {
-    const ctx = {
-      ...options,
-      inScreening: options.inScreening ?? isInScreening(options.messages),
-      symptomName: options.symptomName,
-    };
-
+  const classifyInput = (text) => {
     if (isRedFlagInput(text)) return 'redflag';
     if (isProfanityInput(text)) return 'profanity';
-    // ด่านแรก: มุก/นอกเรื่อง เช่น "ปวดขี้" — ห้ามส่ง AI แม้มีคำว่าปวด
-    if (isOffTopicInput(text, ctx)) return 'irrelevant';
-    if (isWrongSymptomTopic(text, options.symptomName, ctx) && ctx.inScreening) return 'off_topic_symptom';
-    if (ctx.inScreening && !isAnswerOnTopic(text, ctx)) return 'off_topic_symptom';
-    if (containsAny(text, HEALTH_HINTS)) return 'normal';
-    if (containsAny(text, SYMPTOMS_32)) return 'normal';
+    if (isGibberishInput(text)) return 'gibberish';
+    if (isJokeAnswerInput(text)) return 'gibberish';
     if (containsAny(text, THANKS)) return 'thanks';
-    if (containsAny(text, IRRELEVANT) || containsAny(text, ALWAYS_IRRELEVANT)) return 'irrelevant';
     return 'normal';
   };
 
-  /** กันหลุด — ถ้า user ตอบนอกเรื่อง ห้าม AI ถามข้อถัดไป */
-  const stripOffTopicLeak = (aiOutput, userInput, options = {}) => {
-    const ctx = { ...options, inScreening: options.inScreening ?? isInScreening(options.messages) };
-    if (!isOffTopicInput(userInput, ctx) && !isWrongSymptomTopic(userInput, options.symptomName, ctx)) {
-      return aiOutput;
-    }
-    if (isScreeningQuestion(aiOutput) || /🩺\s*(?:ข้อ|question)\s*\d+/i.test(String(aiOutput || ''))) {
-      if (isWrongSymptomTopic(userInput, options.symptomName, ctx)) {
-        return buildOffSymptomReply(options.symptomName, options.locale);
-      }
-      return getReply('irrelevant', options.locale);
-    }
-    return aiOutput;
-  };
+  const stripOffTopicLeak = (aiOutput) => aiOutput;
 
   // ข้อความสำเร็จรูป
   const REPLY_REDFLAG =
@@ -407,6 +464,11 @@ export function useAiChatRules() {
   const REPLY_PROFANITY_EN =
     'Sorry, please use polite language with telebot. ' +
     'Describe your symptoms politely and telebot will continue the screening.';
+
+  const REPLY_GIBBERISH =
+    'ขออภัยค่ะ คำตอบนี้ไม่เกี่ยวกับอาการที่กำลังซักอยู่ กรุณาพิมพ์คำตอบเรื่องอาการให้ชัดเจนอีกครั้งนะคะ';
+  const REPLY_GIBBERISH_EN =
+    'Sorry, that reply is not about the symptom being screened. Please answer about your symptom clearly.';
 
   const buildOffSymptomReply = (symptomName, locale = 'th') => {
     const loc = resolveChatLocale(locale);
@@ -432,6 +494,7 @@ export function useAiChatRules() {
       redflag: loc === 'en' ? REPLY_REDFLAG_EN : REPLY_REDFLAG,
       irrelevant: loc === 'en' ? REPLY_IRRELEVANT_EN : REPLY_IRRELEVANT,
       profanity: loc === 'en' ? REPLY_PROFANITY_EN : REPLY_PROFANITY,
+      gibberish: loc === 'en' ? REPLY_GIBBERISH_EN : REPLY_GIBBERISH,
       thanks: loc === 'en' ? REPLY_THANKS_EN : REPLY_THANKS,
     };
     return map[kind] || '';
@@ -486,6 +549,7 @@ export function useAiChatRules() {
   const isScreeningQuestion = (text) => {
     const t = String(text || '');
     return /🩺\s*(?:ข้อ|question)\s*\d+/i.test(t)
+      || /(?:^|\n)\s*(?:ข้อ(?:ที่)?|question)\s*\d+\s*[:：]/im.test(t)
       || /(?:ข้อ|question)\s*\d+\s*[:：][\s\S]*\*/im.test(t)
       || /รบกวนตอบคำถามเหล่านี้|Please answer the questions below/i.test(t);
   };
@@ -727,6 +791,15 @@ export function useAiChatRules() {
 
   const SCREENING_TOTAL = 5;
 
+  const UNCERTAINTY_ANSWER_RE = /ไม่ทราบ|ไม่รู้|ไม่แน่ใจ|จำไม่ได้|ไม่ค่อยรู้|ไม่รู้สาเหตุ|ไม่ว่า|ไม่คิดว่า|unknown|not sure|don't know|dont know|no idea|unsure/i;
+
+  const isUncertaintyAnswer = (text) => UNCERTAINTY_ANSWER_RE.test(String(text || '').trim());
+
+  const parseScreeningQuestionNumFromText = (text) => {
+    const m = String(text || '').match(/(?:🩺\s*)?(?:ข้อ(?:ที่)?|question)\s*(\d+)/i);
+    return m ? parseInt(m[1], 10) || 0 : 0;
+  };
+
   const extractQuestionNumber = (msg) => {
     const text = msg?.text || '';
     if (msg?.parts?.length) {
@@ -738,38 +811,51 @@ export function useAiChatRules() {
       }
     }
     const m = String(text).match(/(?:ข้อ(?:ที่)?|question)\s*(\d+)/i);
-    return m ? parseInt(m[1], 10) : 0;
+    return m ? parseInt(m[1], 10) : parseScreeningQuestionNumFromText(text);
   };
 
-  /** นับความคืบหน้าการซักประวัติ 5 ข้อ — ไม่นับคำตอบนอกประเด็น */
+  /** นับความคืบหน้าการซักประวัติ 5 ข้อ — จับคู่ Q→A ตามลำดับ */
   const getChatProgress = (messages) => {
     const asked = new Set();
     let userAnswers = 0;
-    let inScreening = false;
     let answeredUpTo = 0;
+    let pendingQ = 0;
+    let lastAssistantQ = 0;
+    let inScreening = false;
 
     for (const msg of messages || []) {
       if (msg.role === 'assistant') {
-        const n = extractQuestionNumber(msg);
-        if (n > 0 || isScreeningQuestion(msg.text)) {
+        let n = extractQuestionNumber(msg);
+        if (n <= 0 && isScreeningQuestion(msg.text)) {
+          n = parseScreeningQuestionNumFromText(msg.text);
+        }
+        if (n > 0) {
           inScreening = true;
-          if (n > 0) asked.add(n);
+          asked.add(n);
+          lastAssistantQ = n;
+          pendingQ = n;
+        } else if (isScreeningQuestion(msg.text)) {
+          inScreening = true;
         }
       } else if (msg.role === 'user' && inScreening) {
         if (msg.skipProgress) continue;
         userAnswers++;
-        // จับคู่คำตอบกับข้อล่าสุดที่ถามไป ณ ตอนนั้น
-        const askedSoFar = asked.size ? Math.max(...asked) : 0;
-        if (askedSoFar > 0) answeredUpTo = Math.max(answeredUpTo, askedSoFar);
+        const qForAnswer = pendingQ || lastAssistantQ;
+        if (qForAnswer > 0) {
+          answeredUpTo = Math.max(answeredUpTo, qForAnswer);
+          pendingQ = 0;
+        } else if (asked.size) {
+          answeredUpTo = Math.max(answeredUpTo, Math.max(...asked));
+        }
       }
     }
 
     const highestAsked = asked.size ? Math.max(...asked) : 0;
     const nextQ = Math.min(Math.max(highestAsked, answeredUpTo) + 1, SCREENING_TOTAL + 1);
     const readyForSummary =
-      userAnswers >= SCREENING_TOTAL
-      || (highestAsked >= SCREENING_TOTAL && userAnswers >= highestAsked)
-      || (answeredUpTo >= SCREENING_TOTAL);
+      answeredUpTo >= SCREENING_TOTAL
+      || userAnswers >= SCREENING_TOTAL
+      || (highestAsked >= SCREENING_TOTAL && answeredUpTo >= SCREENING_TOTAL);
 
     return {
       highestAsked,
@@ -778,6 +864,7 @@ export function useAiChatRules() {
       nextQ,
       readyForSummary,
       total: SCREENING_TOTAL,
+      pendingQ,
     };
   };
 
@@ -794,13 +881,8 @@ export function useAiChatRules() {
 
   /** ข้อความคำถามคัดกรองล่าสุด (ก่อนคำตอบของผู้ใช้) */
   const getLastScreeningQuestionText = (messages) => {
-    let last = '';
-    for (const msg of messages || []) {
-      if (msg.role === 'assistant' && isScreeningQuestion(msg.text)) {
-        last = String(msg.text || '').trim();
-      }
-    }
-    return last;
+    const last = getLastScreeningAssistant(messages);
+    return last ? String(last.text || '').trim() : '';
   };
 
   const buildInvalidAnswerReply = (symptomName, questionText, locale = 'th') => {
@@ -822,59 +904,8 @@ export function useAiChatRules() {
     ].filter(Boolean).join('\n');
   };
 
-  /** ตรวจคำตอบก่อนขึ้นข้อถัดไป — heuristic + AI */
-  const checkScreeningAnswer = async (options = {}) => {
-    const {
-      messages = [],
-      symptomName = '',
-      userAnswer = '',
-      locale = 'th',
-      fetchImpl = null,
-    } = options;
-
-    const progress = getChatProgress(messages);
-    if (progress.readyForSummary || progress.highestAsked <= 0) {
-      return { valid: true, skipped: true };
-    }
-
-    const questionText = getLastScreeningQuestionText(messages);
-    const classifyOpts = { messages, symptomName, inScreening: true };
-    if (!isAnswerOnTopic(userAnswer, classifyOpts)) {
-      return {
-        valid: false,
-        source: 'heuristic',
-        reply: buildInvalidAnswerReply(symptomName, questionText, locale),
-      };
-    }
-
-    const fetcher = fetchImpl || (typeof $fetch !== 'undefined' ? $fetch : null);
-    if (!fetcher) return { valid: true, source: 'heuristic' };
-
-    try {
-      const res = await fetcher('/api/ai-validate-answer', {
-        method: 'POST',
-        timeout: 25_000,
-        body: {
-          symptom: symptomName,
-          questionNum: progress.highestAsked,
-          questionText,
-          userAnswer,
-          locale,
-        },
-      });
-      if (res?.valid === false) {
-        return {
-          valid: false,
-          source: res.source || 'ai',
-          reply: buildInvalidAnswerReply(symptomName, questionText, locale),
-        };
-      }
-      return { valid: true, source: res?.source || 'ai' };
-    } catch (err) {
-      console.warn('[checkScreeningAnswer] API failed, using heuristic pass:', err);
-      return { valid: true, source: 'fallback' };
-    }
-  };
+  /** @deprecated ไม่ validate คำตอบแล้ว — ให้ผ่านเสมอ (กรองที่ classifyInput แล้ว) */
+  const checkScreeningAnswer = async () => ({ valid: true, skipped: true });
 
   /** ดึงคู่ Q/A จากประวัติ สำหรับสรุปสำรอง */
   const extractScreeningQA = (messages) => {
@@ -919,20 +950,43 @@ export function useAiChatRules() {
     const key = normalizeSymptomKey(symptomName);
     if (!key) return null;
     const progress = getChatProgress(messages);
-    if (progress.readyForSummary || progress.highestAsked >= SCREENING_TOTAL) return null;
+    if (progress.readyForSummary || progress.answeredUpTo >= SCREENING_TOTAL) return null;
 
     let qNum = resolveNextFixedQuestionNum(progress);
-    if (!qNum) return null;
-    // กันย้อนกลับ: ข้อถัดไปต้องมากกว่า highestAsked ที่ตอบครบแล้ว
-    if (progress.userAnswers >= progress.highestAsked && progress.highestAsked > 0) {
-      qNum = Math.max(qNum, progress.highestAsked + 1);
+
+    // กันถามซ้ำ: ตอบข้อล่าสุดครบแล้ว → บังคับไปข้อถัดไป
+    if (progress.answeredUpTo > 0 && progress.answeredUpTo >= progress.highestAsked) {
+      qNum = Math.max(qNum || 0, progress.answeredUpTo + 1);
+    } else if (progress.highestAsked > 0 && progress.answeredUpTo < progress.highestAsked) {
+      qNum = progress.highestAsked;
     }
-    if (qNum > SCREENING_TOTAL) return null;
+
+    if (!qNum && progress.answeredUpTo < SCREENING_TOTAL) {
+      qNum = progress.answeredUpTo + 1 || 1;
+    }
+    if (!qNum || qNum > SCREENING_TOTAL) return null;
+
+    // กันถามซ้ำ: เพิ่งตอบข้อ N แล้ว → ห้ามถามข้อ N อีก
+    const lastMsg = messages?.[messages.length - 1];
+    if (
+      lastMsg?.role === 'user'
+      && !lastMsg.skipProgress
+      && qNum <= progress.answeredUpTo
+      && progress.answeredUpTo < SCREENING_TOTAL
+    ) {
+      qNum = progress.answeredUpTo + 1;
+    }
 
     const gender = opts.gender || resolveUserGender(opts.profile || null);
     const locale = resolveChatLocale(opts.locale);
     const text = formatFixedScreeningQuestion(key, qNum, { gender, locale });
     return text ? { text, questionNum: qNum, symptom: key } : null;
+  };
+
+  /** ยังอยู่ในช่วงคัดกรอง 5 ข้อ (ห้ามเรียก n8n ถามซ้ำ) */
+  const isActiveFixedScreening = (messages) => {
+    const p = getChatProgress(messages);
+    return !p.readyForSummary && p.answeredUpTo < SCREENING_TOTAL;
   };
 
   /**
@@ -983,15 +1037,8 @@ export function useAiChatRules() {
     const mustSummarize = progress.readyForSummary || progress.highestAsked >= SCREENING_TOTAL;
 
     if (!mustSummarize) {
-      if (isScreeningQuestion(text)) {
-        const n = extractQuestionNumber({ text });
-        if (n > 0 && n <= progress.highestAsked && progress.userAnswers >= n) {
-          const fixed = getFixedScreeningReply(messages, symptomName, { locale: loc });
-          if (fixed?.text) return { text: fixed.text, isSummary: false, coerced: true };
-        }
-      }
-      if (isHallucinatedScreeningText(text)) {
-        const fixed = getFixedScreeningReply(messages, symptomName, { locale: loc });
+      if (isScreeningQuestion(text) || isHallucinatedScreeningText(text)) {
+        const fixed = getFixedScreeningReply(messages, symptomName, { locale: loc, ...opts });
         if (fixed?.text) return { text: fixed.text, isSummary: false, coerced: true };
       }
       return { text, isSummary: false, coerced: false };
@@ -1031,6 +1078,8 @@ export function useAiChatRules() {
     classifyInput,
     isRedFlagInput,
     isProfanityInput,
+    isGibberishInput,
+    isJokeAnswerInput,
     isOffTopicInput,
     isWrongSymptomTopic,
     isAnswerOnTopic,
@@ -1044,6 +1093,7 @@ export function useAiChatRules() {
     buildScreeningHint,
     getChatProgress,
     getFixedScreeningReply,
+    isActiveFixedScreening,
     coerceSummaryOrPass,
     buildSummaryChatInput,
     formatFixedScreeningQuestion,

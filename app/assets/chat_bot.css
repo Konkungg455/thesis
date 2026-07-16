@@ -667,6 +667,10 @@ html.dark .mobile-title {
     gap: 10px;
     background: #fff;
     align-items: center;
+    flex-shrink: 0;
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
 }
 
 .chat-input-area input {

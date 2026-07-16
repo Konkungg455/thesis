@@ -10,7 +10,7 @@ $ErrorActionPreference = "Continue"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $N8nData = Join-Path $ProjectRoot ".tools\n8n-data"
 $OllamaExe = Join-Path $env:LOCALAPPDATA "Programs\Ollama\Ollama.exe"
-$Model = "gemma4:latest"
+$Model = if ($env:OLLAMA_MODEL) { $env:OLLAMA_MODEL } else { "gemma4:latest" }
 $N8nVersion = "1.91.2"
 
 function Write-AiLog([string]$Text, [string]$Color = "Gray") {
@@ -38,27 +38,45 @@ function Test-OllamaModel([string]$Name) {
     return $false
 }
 
+function Set-N8nProcessEnv([hashtable]$NodeTools) {
+    if ($NodeTools.NodeDir) {
+        $env:PATH = "$($NodeTools.NodeDir);$env:PATH"
+    }
+    $env:N8N_USER_FOLDER = $N8nData
+    $env:N8N_HOST = "0.0.0.0"
+    $env:N8N_PORT = "5678"
+    $env:N8N_SECURE_COOKIE = "false"
+    $env:N8N_DIAGNOSTICS_ENABLED = "false"
+    $env:N8N_PERSONALIZATION_ENABLED = "false"
+    $env:N8N_RUNNERS_ENABLED = "true"
+    $env:N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE = "true"
+}
+
+function Prefetch-N8nPackage([hashtable]$NodeTools) {
+    $marker = Join-Path $ProjectRoot ".tools\n8n-prefetch.ok"
+    if (Test-Path $marker) { return }
+    Write-AiLog "      Downloading n8n@$N8nVersion (first time, ~1-3 min)..." "Yellow"
+    Set-N8nProcessEnv -NodeTools $NodeTools
+    $npx = if ($NodeTools.NpxCmd -match '[\\/]') { $NodeTools.NpxCmd } else { "npx" }
+    & $npx --yes "n8n@$N8nVersion" --version 2>&1 | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        New-Item -ItemType File -Path $marker -Force | Out-Null
+    }
+}
+
 function Start-N8nBackground {
     param([hashtable]$NodeTools)
     $n8nNpx = $NodeTools.NpxCmd
-    $n8nLines = @("Set-Location '$ProjectRoot'")
-    if ($NodeTools.NodeDir) {
-        $n8nLines += "`$env:PATH='$($NodeTools.NodeDir);' + `$env:PATH"
+    Set-N8nProcessEnv -NodeTools $NodeTools
+    $n8nArgs = @("--yes", "n8n@$N8nVersion", "start")
+    if ($n8nNpx -match '\.cmd$') {
+        $comspec = if ($env:ComSpec) { $env:ComSpec } else { "$env:SystemRoot\System32\cmd.exe" }
+        Start-Process -FilePath $comspec -ArgumentList (@("/c", $n8nNpx) + $n8nArgs) `
+            -WorkingDirectory $ProjectRoot -WindowStyle Minimized | Out-Null
+    } else {
+        Start-Process -FilePath $n8nNpx -ArgumentList $n8nArgs `
+            -WorkingDirectory $ProjectRoot -WindowStyle Minimized | Out-Null
     }
-    $n8nLines += @(
-        "`$env:N8N_USER_FOLDER='$N8nData'"
-        "`$env:N8N_HOST='0.0.0.0'"
-        "`$env:N8N_PORT='5678'"
-        "`$env:N8N_SECURE_COOKIE='false'"
-        "`$env:N8N_DIAGNOSTICS_ENABLED='false'"
-        "`$env:N8N_PERSONALIZATION_ENABLED='false'"
-        "`$env:N8N_RUNNERS_ENABLED='true'"
-        "`$env:N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE='true'"
-        "Write-Host 'n8n -> http://127.0.0.1:5678' -ForegroundColor Cyan"
-        "& '$n8nNpx' --yes n8n@$N8nVersion start"
-    )
-    $n8nCmd = $n8nLines -join "; "
-    Start-Process powershell -ArgumentList @("-NoExit", "-WindowStyle", "Minimized", "-Command", $n8nCmd) | Out-Null
 }
 
 if (-not $Quiet) {
@@ -98,18 +116,16 @@ if (-not $SkipModelPull -and (Test-PortOpen 11434)) {
     }
 }
 
-# --- n8n workflow (import + activate before server start) ---
-& (Join-Path $PSScriptRoot "setup-n8n-workflow.ps1") -Quiet:$Quiet | Out-Null
-
-# --- n8n ---
+# --- n8n server (start before workflow import) ---
 if (-not $Quiet) { Write-Host "[2/2] n8n (port 5678)..." -NoNewline }
 if (Test-PortOpen 5678) {
     if (-not $Quiet) { Write-Host " OK (already running)" -ForegroundColor Green }
 } else {
     if (-not $Quiet) { Write-Host " starting..." -ForegroundColor Yellow }
     $nodeTools = & (Join-Path $PSScriptRoot "ensure-node22-for-n8n.ps1")
+    Prefetch-N8nPackage -NodeTools $nodeTools
     Start-N8nBackground -NodeTools $nodeTools
-    $waitSec = if ($Quiet) { 12 } else { 45 }
+    $waitSec = if ($Quiet) { 120 } else { 90 }
     $deadline = (Get-Date).AddSeconds($waitSec)
     while (-not (Test-PortOpen 5678) -and (Get-Date) -lt $deadline) {
         Start-Sleep -Seconds 3
@@ -117,11 +133,11 @@ if (Test-PortOpen 5678) {
     if (Test-PortOpen 5678) {
         if (-not $Quiet) { Write-Host " OK" -ForegroundColor Green }
     } elseif (-not $Quiet) {
-        Write-Host " starting (wait for n8n window)..." -ForegroundColor Yellow
+        Write-Host " starting (first run may take 2-3 min - run npm run ai:start)" -ForegroundColor Yellow
     }
 }
 
-# Verify webhook after n8n is up
+# Import + activate workflow after n8n is listening
 if (Test-PortOpen 5678) {
     & (Join-Path $PSScriptRoot "setup-n8n-workflow.ps1") -Quiet:$Quiet | Out-Null
 }

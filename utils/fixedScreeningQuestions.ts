@@ -404,6 +404,7 @@ const ALIASES: Record<string, string> = {
   'อาเจียน': 'คลื่นไส้/อาเจียน',
   'น้ำมูกไหล': 'คัดจมูก/น้ำมูกไหล',
   'คัดจมูก': 'คัดจมูก/น้ำมูกไหล',
+  'แผล': 'บาดแผลทั่วไป',
   'แผลไหม้': 'แผลถลอก/ไหม้',
   'แผลถลอก': 'แผลถลอก/ไหม้',
   'กลาก': 'กลาก/เกลื้อน',
@@ -545,23 +546,34 @@ export function isHallucinatedScreeningText(text: string): boolean {
   return false;
 }
 
-/** เลือกเลขข้อถัดไปจาก progress ของ chat — ไม่ย้อนกลับไปข้อที่ถามไปแล้ว */
+/** เลือกเลขข้อถัดไปจาก progress ของ chat — ไม่ย้อนกลับไปข้อที่ตอบครบแล้ว */
 export function resolveNextFixedQuestionNum(progress: {
   highestAsked: number;
   userAnswers: number;
+  answeredUpTo: number;
   nextQ: number;
   readyForSummary: boolean;
 }): number | null {
   if (progress.readyForSummary) return null;
-  if (progress.highestAsked >= 5) return null;
+  if (progress.answeredUpTo >= 5) return null;
+
+  // ยังตอบข้อที่ถามค้างไว้ไม่ครบ → ถามข้อเดิมซ้ำ
+  if (progress.highestAsked > 0 && progress.answeredUpTo < progress.highestAsked) {
+    return progress.highestAsked;
+  }
+
+  // ตอบครบแล้ว → ไปข้อถัดไป (อิง answeredUpTo เป็นหลัก)
+  if (progress.answeredUpTo > 0) {
+    const next = progress.answeredUpTo + 1;
+    return next <= 5 ? next : null;
+  }
+
   if (progress.highestAsked === 0) return 1;
-  // ตอบข้อล่าสุดครบแล้ว → ไปข้อถัดไป (ห้ามกลับไปข้อเล็กกว่า)
   if (progress.userAnswers >= progress.highestAsked) {
     const next = Math.max(progress.nextQ, progress.highestAsked + 1);
     return next <= 5 ? next : null;
   }
-  // ยังตอบข้อล่าสุดไม่ครบ → ถามข้อเดิมซ้ำเท่านั้น (ไม่ย้อนไปข้อ 1)
-  return progress.highestAsked;
+  return progress.highestAsked > 0 ? progress.highestAsked : 1;
 }
 
 /** ประโยคปิดท้ายมาตรฐาน — ห้ามให้ AI เสนอแนะนำยาเอง */
