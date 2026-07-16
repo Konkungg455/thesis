@@ -413,8 +413,10 @@ onMounted(async () => {
                   </td>
                   <td>เภสัชกรประจำร้าน</td>
                   <td class="td-actions">
-                    <button class="btn-link" @click="openDetail(p)">รายละเอียด</button>
-                    <button class="btn-yellow" @click="rejectPharma(p)">นำออก</button>
+                    <div class="tbl-actions">
+                      <button class="btn-detail" @click="openDetail(p)">รายละเอียด</button>
+                      <button class="btn-yellow" @click="rejectPharma(p)">นำออก</button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -533,12 +535,20 @@ onMounted(async () => {
                 </thead>
                 <tbody>
                   <tr v-for="t in transactions" :key="`${t.type}-${t.id}`" :class="{ 'row-slip': t.type === 'slip' }">
-                    <td>
-                      <span class="tx-type-badge" :class="`type-${t.type}`">
-                        <i :class="t.type === 'slip' ? 'fa-solid fa-money-check-dollar' : 'fa-solid fa-file-prescription'"></i>
-                        {{ t.type === 'slip' ? 'โอนเข้าบัญชี' : 'ใบสรุปรายการยา' }}
-                      </span>
-                      <img v-if="t.type === 'slip' && t.slip_image" :src="slipUrl(t.slip_image)" class="tx-slip-thumb" @click="openSlipPreview(t.slip_image)" title="ดูสลิป" />
+                    <td class="td-type">
+                      <div class="tx-type-cell">
+                        <span class="tx-type-badge" :class="`type-${t.type}`">
+                          <i :class="t.type === 'slip' ? 'fa-solid fa-money-check-dollar' : 'fa-solid fa-file-prescription'"></i>
+                          {{ t.type === 'slip' ? 'โอนเข้าบัญชี' : 'ใบสรุปรายการยา' }}
+                        </span>
+                        <img
+                          v-if="t.type === 'slip' && t.slip_image"
+                          :src="slipUrl(t.slip_image)"
+                          class="tx-slip-thumb"
+                          @click="openSlipPreview(t.slip_image)"
+                          title="ดูสลิป"
+                        >
+                      </div>
                     </td>
                     <td>{{ t.patient_name || '-' }}</td>
                     <td>{{ t.pharmacist_name || '-' }}</td>
@@ -1128,7 +1138,7 @@ onMounted(async () => {
 }
 .data-table tbody tr:hover { background: #f8fbff; }
 .data-table .th-actions,
-.data-table .td-actions { text-align: right; white-space: nowrap; }
+.data-table .td-actions { text-align: right; white-space: nowrap; min-width: 130px; }
 .data-table .th-num,
 .data-table .td-num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: #00469c; }
 .tbl-person { display: flex; align-items: center; gap: 10px; }
@@ -1136,10 +1146,52 @@ onMounted(async () => {
   width: 40px; height: 40px; border-radius: 50%;
   object-fit: cover; border: 2px solid #e2e8f0;
 }
-.tx-table-wrap { margin-top: 0; border: none; border-radius: 0; }
+.tbl-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.tbl-actions .btn-detail {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: 0.2s;
+}
+.tbl-actions .btn-detail:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+.tbl-actions .btn-yellow {
+  border-radius: 999px;
+  padding: 8px 18px;
+  font-size: 0.85rem;
+}
+.tx-type-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+.tx-table td.td-type,
+.tx-table th:first-child {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  vertical-align: top;
+}
+.tx-table-wrap { margin-top: 0; border: none; border-radius: 0; overflow-x: auto; max-width: 100%; }
+.tx-table { min-width: 520px; }
 .tx-table .row-slip { background: #f0fdf4; }
-.tx-table .tx-type-badge { display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; }
-.tx-table .tx-slip-thumb { width: 36px; height: 36px; border-radius: 6px; object-fit: cover; cursor: pointer; vertical-align: middle; }
 
 .transaction-item { padding: 12px; border: 1px solid #eee; border-radius: 10px; margin-top: 10px; font-size: 0.85rem; }
 .transaction-item.is-slip { background: #f0fdf4; border-color: #bbf7d0; border-left: 4px solid #22c55e; }
@@ -1151,12 +1203,16 @@ onMounted(async () => {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 2px 9px; border-radius: 999px;
   font-size: 0.72rem; font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .tx-type-badge.type-prescription { background: #eff6ff; color: #1d4ed8; }
 .tx-type-badge.type-slip { background: #dcfce7; color: #166534; }
 .tx-slip-thumb {
   width: 36px; height: 36px; object-fit: cover; border-radius: 6px;
   border: 1px solid #bbf7d0; cursor: pointer; transition: 0.2s;
+  flex-shrink: 0;
+  display: block;
 }
 .tx-slip-thumb:hover { transform: scale(1.1); border-color: #22c55e; }
 .user-name { font-weight: 600; color: #3b82f6; }
@@ -1699,6 +1755,29 @@ onMounted(async () => {
   .slip-actions .btn-info-sm {
     flex: 0 1 auto;
     max-width: 100%;
+  }
+
+  /* ตาราง — กันปุ่ม/badge ทับกัน โดยไม่เปลี่ยนดีไซน์ */
+  .data-table .td-actions {
+    white-space: normal;
+    min-width: 120px;
+    vertical-align: top;
+  }
+  .data-table .tbl-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .data-table .tbl-actions .btn-detail,
+  .data-table .tbl-actions .btn-yellow {
+    width: 100%;
+    text-align: center;
+    padding: 10px 16px;
+    min-height: 40px;
+  }
+  .tx-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
   }
 
   /* Modal — bottom sheet */

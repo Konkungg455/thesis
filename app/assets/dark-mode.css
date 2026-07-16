@@ -2620,6 +2620,16 @@ html.dark body #__nuxt .partner-layout .btn-link {
   color: #7dd3fc !important;
 }
 
+html.dark body #__nuxt .partner-layout .tbl-actions .btn-detail {
+  background: rgba(59, 130, 246, 0.16) !important;
+  border-color: rgba(125, 211, 252, 0.35) !important;
+  color: #7dd3fc !important;
+}
+
+html.dark body #__nuxt .partner-layout .tbl-actions .btn-detail:hover {
+  background: rgba(59, 130, 246, 0.26) !important;
+}
+
 html.dark body #__nuxt .partner-layout .btn-yellow {
   background: #fbbf24 !important;
   color: #111827 !important;

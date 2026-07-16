@@ -118,7 +118,7 @@ const fetchPharmaInfo = async () => {
     }
 };
 
-import { parsePrescriptionMessage, normalizeChatDisplayText, buildDeliveryChoiceMessage, findPendingDeliveryRx, parseDeliveryChoiceMessage, parsePharmaPaymentSuccessMessage } from '~/utils/prescription';
+import { parsePrescriptionMessage, normalizeChatDisplayText, buildDeliveryChoiceMessage, findPendingDeliveryRx, parseDeliveryChoiceMessage, parsePharmaPaymentSuccessMessage, RX_DELIVERY_NOTICE } from '~/utils/prescription';
 import { useAdaptivePoll } from '~/composables/useChatApi';
 
 const deliveryParsed = (text) => parseDeliveryChoiceMessage(text);
@@ -1697,6 +1697,9 @@ const closePreview = () => {
                                         {{ parsePrescriptionMessage(msg.message_text).headerText }}
                                         <span v-if="msg.edited_at" class="edited-mark">(แก้ไขแล้ว)</span>
                                     </div>
+                                    <div class="text rx-delivery-notice">
+                                        {{ RX_DELIVERY_NOTICE }}
+                                    </div>
                                     <div
                                         class="prescription-card"
                                         @click="openPrescriptionPdf(parsePrescriptionMessage(msg.message_text).prescriptionId)"
@@ -2982,6 +2985,16 @@ const closePreview = () => {
     color: #10b981;
     font-size: 0.95rem;
     padding: 6px 8px;
+}
+.text.rx-delivery-notice {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: #fef2f2;
+    border-left: 3px solid #ef4444;
+    border-radius: 6px;
+    font-weight: 600;
+    color: #dc2626;
+    line-height: 1.45;
 }
 .text.rx-payment-note {
     margin-top: 10px;

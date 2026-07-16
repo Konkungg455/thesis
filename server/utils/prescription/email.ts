@@ -1,5 +1,6 @@
 import { basename, extname } from 'node:path';
 import { buildMedDetailsQtyHtml, formatMedDetailsWithQty } from '#shared/utils/prescriptionMed';
+import { RX_DELIVERY_NOTICE } from '#shared/utils/prescriptionCopy';
 import { sendRichEmail, type EmailAttachment } from '../mail';
 import { buildPrescriptionPdfBinary } from './pdf';
 import { getPrescriptionBillNo, type PrescriptionRow } from './receiptHtml';
@@ -146,6 +147,10 @@ export function buildPrescriptionEmailContent(input: {
     const totalRow = total
         ? `<tr><td style='padding:6px 10px;color:#475569;'>ยอดสุทธิ</td><td style='padding:6px 10px;font-weight:bold;'>${rxEsc(total)} บาท</td></tr>`
         : '';
+    const deliveryNotice = total
+        ? "<p style='margin:12px 0 0;font-size:13px;color:#dc2626;font-weight:600;line-height:1.55;'>"
+            + `${rxEsc(RX_DELIVERY_NOTICE)}</p>`
+        : '';
     const patientRow = patientName
         ? `<tr><td style='padding:6px 10px;color:#475569;'>ผู้รับ</td><td style='padding:6px 10px;'>${rxEsc(patientName)}</td></tr>`
         : '';
@@ -191,6 +196,7 @@ export function buildPrescriptionEmailContent(input: {
         + `<td style='padding:6px 10px;'>${rxEsc(pDate)}</td></tr>`
         + patientRow + doctorRow + medRow + totalRow
         + '</table>'
+        + deliveryNotice
         + bankRows
         + "<p style='margin-top:18px;font-size:12px;color:#64748b;'>หากมีคำถามเกี่ยวกับใบสรุปรายการยานี้ ท่านสามารถติดต่อผ่านช่องทางแชทของระบบหรือสอบถามเภสัชกรผู้ออกได้โดยตรง</p>"
         + "<p style='margin-top:8px;font-size:12px;color:#64748b;'>ขอบคุณที่ใช้บริการ Telebot Pharmacy</p>"
@@ -210,6 +216,7 @@ export function buildPrescriptionEmailContent(input: {
         patientName ? `ผู้รับ: ${patientName}` : '',
         medSummary ? `รายการยา:\n${medSummary}` : '',
         total ? `ยอดสุทธิ: ${total} บาท` : '',
+        total ? RX_DELIVERY_NOTICE : '',
         pdfAvailable ? 'แนบ PDF มาในอีเมลฉบับนี้' : 'รายละเอียดอยู่ในเนื้อหาอีเมล (ไม่มีไฟล์ PDF แนบ)',
     ].filter(Boolean);
     if (paymentBankIncluded) {

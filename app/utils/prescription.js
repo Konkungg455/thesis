@@ -1,4 +1,5 @@
 export { formatMedDetailsWithQty } from '#shared/utils/prescriptionMed'
+export { RX_DELIVERY_NOTICE } from '#shared/utils/prescriptionCopy'
 
 const PRESCRIPTION_MARKER = /\[PRESCRIPTION_PDF:(\d+)\]/
 const RX_FOOTER_START = 'กรุณาเช็คที่อีเมลของผู้ใช้งาน'
