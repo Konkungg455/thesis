@@ -43,7 +43,7 @@ export async function handleGetAdminOverviewActivity(event: H3Event) {
                        ${end.toISOString()}::timestamptz AS end_at
             ),
             active_users AS (
-                SELECT DISTINCT id_account AS id
+                SELECT DISTINCT id_account
                 FROM (
                     SELECT su.id_account
                     FROM service_usage su, bounds b
@@ -71,10 +71,10 @@ export async function handleGetAdminOverviewActivity(event: H3Event) {
                       AND p.created_at >= b.start_at
                       AND p.created_at <= b.end_at
                 ) u
-                WHERE id IS NOT NULL
+                WHERE id_account IS NOT NULL
             ),
             active_pharmas AS (
-                SELECT DISTINCT id_pharma AS id
+                SELECT DISTINCT id_pharma
                 FROM (
                     SELECT su.id_pharma
                     FROM service_usage su, bounds b
@@ -102,7 +102,7 @@ export async function handleGetAdminOverviewActivity(event: H3Event) {
                       AND p.created_at >= b.start_at
                       AND p.created_at <= b.end_at
                 ) p
-                WHERE id IS NOT NULL
+                WHERE id_pharma IS NOT NULL
             )
             SELECT
                 (SELECT COUNT(*)::int FROM active_users) AS active_users,

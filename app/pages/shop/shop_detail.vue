@@ -957,8 +957,8 @@ onMounted(async () => {
 .details .role { font-size: 0.85rem; color: #64748b; }
 
 /* --- Dashboard & Statement --- */
-.dashboard-grid { display: grid; grid-template-columns: 1fr 350px; gap: 20px; }
-.main-stats { display: flex; flex-direction: column; gap: 20px; }
+.dashboard-grid { display: grid; grid-template-columns: 1fr 350px; gap: 20px; min-width: 0; }
+.main-stats { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
 /* === Income hero card === */
 .income-card {
@@ -1039,9 +1039,10 @@ onMounted(async () => {
   display: flex; flex-direction: column; gap: 4px;
   font-size: 0.82rem;
   transition: 0.2s;
+  min-width: 0;
 }
 .brk-item:hover { transform: translateY(-2px); border-color: #3b82f6; }
-.brk-item span { color: #64748b; display: flex; align-items: center; gap: 6px; }
+.brk-item span { color: #64748b; display: flex; align-items: center; gap: 6px; min-width: 0; }
 .brk-item strong { color: #1e293b; font-size: 1rem; font-weight: 600; }
 .brk-item.highlight { background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-color: #86efac; }
 .brk-item.highlight strong { color: #15803d; }
@@ -1219,6 +1220,7 @@ onMounted(async () => {
 .slip-item {
   padding: 12px; border: 1px solid #eee; border-radius: 10px;
   margin-top: 10px; transition: 0.2s;
+  max-width: 100%; box-sizing: border-box;
 }
 .slip-item.st-approved { border-left: 4px solid #22c55e; }
 .slip-item.st-pending  { border-left: 4px solid #f59e0b; }
@@ -1232,11 +1234,12 @@ onMounted(async () => {
 }
 .slip-thumb-store:hover { transform: scale(1.05); border-color: #3b82f6; }
 .slip-info { flex: 1; min-width: 0; }
-.slip-from { font-weight: 600; color: #1e293b; margin: 0 0 2px; font-size: 0.9rem; }
-.slip-note { color: #64748b; font-size: 0.8rem; margin: 0 0 6px; }
+.slip-from { font-weight: 600; color: #1e293b; margin: 0 0 2px; font-size: 0.9rem; overflow-wrap: anywhere; word-break: break-word; }
+.slip-note { color: #64748b; font-size: 0.8rem; margin: 0 0 6px; overflow-wrap: anywhere; word-break: break-word; }
 .slip-meta {
   display: flex; justify-content: space-between; align-items: center;
   font-size: 0.78rem; color: #94a3b8; gap: 8px;
+  min-width: 0; flex-wrap: wrap;
 }
 .slip-amount { color: #10b981; font-weight: 600; font-size: 0.95rem; }
 .slip-actions {
@@ -1561,9 +1564,17 @@ onMounted(async () => {
   .dashboard-grid {
     grid-template-columns: 1fr !important;
     gap: 14px !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
-  .main-stats { gap: 14px !important; }
-  .history-panel { order: 2; }
+  .main-stats { gap: 14px !important; min-width: 0; max-width: 100%; }
+  .history-panel {
+    order: 2;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+  }
 
   .content-header { padding: 11px 14px !important; border-radius: 12px !important; gap: 10px !important; }
   .content-header > i.fa-magnifying-glass { font-size: 0.95rem; color: #94a3b8; }
@@ -1605,6 +1616,12 @@ onMounted(async () => {
   }
 
   /* Income card */
+  .income-card,
+  .schedule-card {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
   .income-card { padding: 18px !important; border-radius: 16px !important; }
   .income-head { gap: 12px !important; }
   .income-head-title { gap: 10px !important; flex: 1; min-width: 0; }
@@ -1620,7 +1637,8 @@ onMounted(async () => {
     margin-top: 14px !important;
     padding-top: 12px !important;
   }
-  .brk-item { padding: 10px 12px !important; font-size: 0.78rem; }
+  .brk-item { padding: 10px 12px !important; font-size: 0.78rem; min-width: 0; }
+  .brk-item span { flex-wrap: wrap; }
   .brk-item strong { font-size: 0.92rem; }
   .brk-item.highlight {
     grid-column: 1 / -1;
@@ -1647,17 +1665,41 @@ onMounted(async () => {
 
   /* History panel */
   .history-panel { padding: 16px !important; border-radius: 14px !important; }
-  .tx-tabs { gap: 4px; flex-wrap: wrap; }
-  .tx-tab { padding: 7px 10px; font-size: 0.82rem; }
+  .tx-tabs {
+    gap: 4px;
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .tx-tab {
+    padding: 7px 10px;
+    font-size: 0.82rem;
+    min-width: 0;
+    flex: 1 1 auto;
+    max-width: 100%;
+  }
+  .tx-tabs .btn-refresh { flex-shrink: 0; margin-left: auto; }
   .transaction-item { padding: 10px; font-size: 0.8rem; }
   .meta-info { flex-wrap: wrap; }
 
-  /* Slip cards */
-  .slip-item { padding: 10px; }
-  .slip-head { gap: 8px; }
+  /* Slip cards — กันล้นจอเมื่อเปิด tab สลิปรออนุมัติ */
+  .slip-item { padding: 10px; max-width: 100%; }
+  .slip-head { gap: 8px; min-width: 0; }
   .slip-thumb-store { width: 42px; height: 42px; }
   .slip-from { font-size: 0.85rem; }
-  .slip-actions { gap: 4px; }
+  .slip-actions {
+    gap: 6px;
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .slip-actions .btn-green-sm,
+  .slip-actions .btn-red-sm,
+  .slip-actions .btn-info-sm {
+    flex: 0 1 auto;
+    max-width: 100%;
+  }
 
   /* Modal — bottom sheet */
   .modal-overlay { padding: 0 !important; align-items: flex-end !important; }
