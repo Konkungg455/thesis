@@ -117,18 +117,25 @@ function buildWorkTime(days, start, end) {
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
+const EVERYDAY_OPEN = '07:30';
+const EVERYDAY_CLOSE = '16:30';
+const EVERYDAY_COUNT = 5;
+
 function buildMockPharmaWorkTime(index) {
+    if (index < EVERYDAY_COUNT) {
+        return `Everyday (${EVERYDAY_OPEN}-${EVERYDAY_CLOSE})`;
+    }
     const patterns = [
         { days: WEEKDAYS, start: '08:00', end: '17:00' },
         { days: [...WEEKDAYS, 'Saturday'], start: '08:30', end: '18:00' },
         { days: WEEKDAYS, start: '09:00', end: '18:00' },
         { days: ['Monday', 'Wednesday', 'Friday'], start: '08:00', end: '16:00' },
         { days: WEEKDAYS, start: '10:00', end: '19:00' },
-        { days: [...WEEKDAYS, 'Saturday'], start: '07:30', end: '16:30' },
         { days: ['Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], start: '08:00', end: '17:30' },
         { days: WEEKDAYS, start: '08:30', end: '17:30' },
+        { days: [...WEEKDAYS, 'Sunday'], start: '09:00', end: '15:00' },
     ];
-    const pattern = patterns[index % patterns.length];
+    const pattern = patterns[(index - EVERYDAY_COUNT) % patterns.length];
     return buildWorkTime(pattern.days, pattern.start, pattern.end);
 }
 

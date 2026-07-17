@@ -2,6 +2,7 @@ import type { H3Event } from 'h3';
 import { issueAgoraRtcToken } from '../agora/issueToken';
 import { resolveGoogleMapsSearchUrl } from '#shared/utils/googleMapsLinks';
 import { joinThaiAddressParts } from '#shared/utils/formatThaiAddress';
+import { formatScheduleTime, summarizeStoreSchedule, type StoreScheduleRow } from '#shared/utils/storeSchedule';
 import {
     handleGetPrescriptionDetail,
     handleSavePrescription,
@@ -816,6 +817,28 @@ async function handleGetNearbyPharmacies(event: H3Event) {
         return { status: 'success', total: 0, stores: [] };
     }
 
+    const storeIds = rows.map((row) => Number(row.id)).filter((id) => id > 0);
+    const scheduleRows = storeIds.length
+        ? await dbQuery(async (sql) => sql`
+            SELECT id_store, day_of_week, open_time, close_time, is_open
+            FROM store_schedule
+            WHERE id_store IN ${sql(storeIds)}
+        `)
+        : [];
+    const schedulesByStore = new Map<number, StoreScheduleRow[]>();
+    for (const row of scheduleRows || []) {
+        const storeId = Number(row.id_store);
+        if (!storeId) continue;
+        const list = schedulesByStore.get(storeId) || [];
+        list.push({
+            day_of_week: String(row.day_of_week || ''),
+            open_time: formatScheduleTime(row.open_time),
+            close_time: formatScheduleTime(row.close_time),
+            is_open: Number(row.is_open) === 1,
+        });
+        schedulesByStore.set(storeId, list);
+    }
+
     const stores = [];
     for (const row of rows) {
         const name = String(row.store_name || '').trim();
@@ -837,8 +860,12 @@ async function handleGetNearbyPharmacies(event: H3Event) {
             distance = Math.round(haversineKm(lat, lng, storeLat, storeLng) * 100) / 100;
         }
 
+        const storeId = Number(row.id);
+        const schedules = schedulesByStore.get(storeId) || [];
+        const scheduleInfo = summarizeStoreSchedule(schedules);
+
         stores.push({
-            id: Number(row.id),
+            id: storeId,
             store_name: name,
             address: address || 'ไม่ระบุที่อยู่',
             phone: String(row.store_phone || row.personal_phone || '').trim(),
@@ -853,6 +880,11 @@ async function handleGetNearbyPharmacies(event: H3Event) {
             latitude: storeLat,
             longitude: storeLng,
             distance,
+            schedules,
+            hours_today: scheduleInfo.hours,
+            hours_label: scheduleInfo.label,
+            is_open_now: scheduleInfo.is_open_now,
+            schedule_status: scheduleInfo.status,
         });
     }
 

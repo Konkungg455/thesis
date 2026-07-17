@@ -96,6 +96,41 @@
               <p v-if="shop.store_phone" class="phone">
                 <i class="fa-solid fa-phone"></i> {{ shop.store_phone }}
               </p>
+              <div v-if="shopScheduleInfo(shop).label" class="store-hours">
+                <div class="store-hours-main">
+                  <span class="store-hours-icon" aria-hidden="true">
+                    <i class="fa-regular fa-clock"></i>
+                  </span>
+                  <div class="store-hours-text">
+                    <span class="store-hours-label">{{ shopScheduleInfo(shop).label }}</span>
+                    <span
+                      v-if="shopScheduleInfo(shop).hours && shopScheduleInfo(shop).status !== 'open'"
+                      class="store-hours-range"
+                    >
+                      เวลา {{ shopScheduleInfo(shop).hours }} น.
+                    </span>
+                    <span
+                      v-else-if="shopScheduleInfo(shop).next_open"
+                      class="store-hours-next"
+                    >
+                      เปิดอีกครั้ง {{ shopScheduleInfo(shop).next_open.dayTH }}
+                      {{ shopScheduleInfo(shop).next_open.start }} น.
+                    </span>
+                  </div>
+                  <span
+                    v-if="shopScheduleInfo(shop).is_open_now"
+                    class="store-hours-badge open"
+                  >
+                    <i class="fa-solid fa-circle"></i> เปิดอยู่
+                  </span>
+                  <span
+                    v-else-if="shopScheduleInfo(shop).status === 'closed_today'"
+                    class="store-hours-badge closed"
+                  >
+                    ปิดวันนี้
+                  </span>
+                </div>
+              </div>
               <div class="shop-foot">
                 <span v-if="shop.distance_km != null" class="distance">
                   📏 {{ shop.distance_km }} กม.
@@ -149,6 +184,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { loadGoogleMaps } from '~/composables/useGoogleMaps'
 import { openGoogleMapsNavigation } from '#shared/utils/googleMapsLinks'
+import { summarizeStoreSchedule } from '#shared/utils/storeSchedule'
 
 const { apiUrl } = useApiBase()
 
@@ -174,7 +210,9 @@ const maxDistanceKm = ref(0)       // 0 = ไม่จำกัดระยะ (
 const hasSearched = ref(false)     // แสดงผลค้นหาเฉพาะหลังกดปุ่ม
 const countdown = ref(20)
 const searchStatus = ref(null)
+const nowTick = ref(Date.now())
 let timerInterval = null
+let statusTimer = null
 let loadingStartedAt = 0
 let searchSession = 0
 let pageHiddenAt = 0
@@ -286,6 +324,11 @@ const filteredPartners = computed(() => {
 
 const displayPartners = computed(() => filteredPartners.value)
 
+const shopScheduleInfo = (shop) => {
+    void nowTick.value
+    return summarizeStoreSchedule(shop?.schedules || [], new Date(nowTick.value))
+}
+
 const getUserPosition = () =>
     new Promise((resolve) => {
         if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -327,6 +370,7 @@ const loadPartners = async (pos = null) => {
             ...s,
             distance_km: s.distance ?? null,
             store_phone: s.phone || '',
+            schedules: s.schedules || [],
         }))
     } catch (e) {
         console.warn('โหลดร้านยาในระบบไม่สำเร็จ', e)
@@ -547,6 +591,9 @@ const openMap = (placeId, name) => {
 
 onMounted(() => {
     bindPageLifecycle()
+    statusTimer = setInterval(() => {
+        nowTick.value = Date.now()
+    }, 30 * 1000)
 })
 
 onUnmounted(() => {
@@ -554,6 +601,7 @@ onUnmounted(() => {
     unbindPageLifecycle()
     clearSearchResults()
     resetSearchState()
+    if (statusTimer) clearInterval(statusTimer)
 })
 </script>
 
@@ -696,6 +744,90 @@ onUnmounted(() => {
     color: #475569;
     margin: 4px 0 0;
 }
+
+.store-hours {
+    margin-top: 10px;
+}
+
+.store-hours-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+    border: 1px solid #dbeafe;
+}
+
+.store-hours-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #2563eb;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.12);
+}
+
+.store-hours-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.store-hours-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1e3a8a;
+    line-height: 1.35;
+}
+
+.store-hours-range,
+.store-hours-next {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.35;
+}
+
+.store-hours-badge {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.store-hours-badge.open {
+    background: #dcfce7;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+}
+
+.store-hours-badge.open i {
+    font-size: 7px;
+    animation: pulse-open 1.6s ease-in-out infinite;
+}
+
+.store-hours-badge.closed {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+@keyframes pulse-open {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
 .no-distance {
     color: #94a3b8 !important;
     font-size: 13px !important;
@@ -883,6 +1015,32 @@ html.dark .shop-badge.nearest {
 html.dark .address,
 html.dark .phone {
   color: #cbd5e1 !important;
+}
+html.dark .store-hours-main {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.28) 0%, rgba(15, 23, 42, 0.72) 100%);
+  border-color: rgba(96, 165, 250, 0.22);
+}
+html.dark .store-hours-icon {
+  background: rgba(15, 23, 42, 0.85);
+  color: #7dd3fc;
+  box-shadow: none;
+}
+html.dark .store-hours-label {
+  color: #e2e8f0;
+}
+html.dark .store-hours-range,
+html.dark .store-hours-next {
+  color: #94a3b8;
+}
+html.dark .store-hours-badge.open {
+  background: rgba(34, 197, 94, 0.16);
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.28);
+}
+html.dark .store-hours-badge.closed {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.28);
 }
 html.dark .shop-foot {
   border-top-color: rgba(148, 163, 184, 0.22);
