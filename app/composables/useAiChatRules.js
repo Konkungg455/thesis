@@ -10,7 +10,7 @@
  */
 import { repairScreeningFormat } from '../../utils/repairScreeningFormat';
 import { isAdultContentInput, REPLY_ADULT } from '../../utils/chatAdultContentFilter';
-import { isGibberishInput } from '../../utils/gibberishFilter.js';
+import { isGibberishInput, isObviousGibberishOnly, stripExamplePrefix } from '../../utils/gibberishFilter.js';
 import {
   formatFixedScreeningQuestion,
   isHallucinatedScreeningText,
@@ -222,7 +222,7 @@ export function useAiChatRules() {
 
   /** ตอบชี้ไปอาการอื่นนอกหัวข้อที่เลือก — แต่ไม่บล็อกคำตอบอาการร่วม/ตัวเลือกในข้อ */
   const matchesQuestionOption = (text, messages) => {
-    const t = String(text || '').trim().toLowerCase();
+    const t = stripExamplePrefix(String(text || '').trim()).toLowerCase();
     if (!t) return false;
     const opts = getLastQuestionOptions(messages);
     if (!opts.length) return false;
@@ -393,13 +393,18 @@ export function useAiChatRules() {
 
   /**
    * จำแนกประเภทข้อความ — red flag, คำหยาด, พิมพ์มั่ว (เฉพาะช่วงซักประวัติ)
+   * ระหว่างคัดกรอง: ถ้าไม่อยู่ในรายการบล็อก → ให้ผ่าน (default accept)
    * @returns {'redflag' | 'adult' | 'profanity' | 'gibberish' | 'thanks' | 'normal'}
    */
   const classifyInput = (text, options = {}) => {
     if (isRedFlagInput(text)) return 'redflag';
     if (isAdultContentInput(text)) return 'adult';
     if (isProfanityInput(text)) return 'profanity';
-    if (isGibberishInput(text) && isActiveFixedScreening(options.messages)) return 'gibberish';
+    if (isActiveFixedScreening(options.messages)) {
+      if (isObviousGibberishOnly(text)) return 'gibberish';
+    } else if (isGibberishInput(text)) {
+      return 'gibberish';
+    }
     if (containsAny(text, THANKS)) return 'thanks';
     return 'normal';
   };

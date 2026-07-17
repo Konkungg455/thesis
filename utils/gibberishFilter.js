@@ -7,7 +7,8 @@ export const SCREENING_VALID_RE = new RegExp(
     'เล็กน้อย', 'ปานกลาง', 'รุนแรง', 'วันนี้', 'เมื่อวาน', 'ไม่ทราบ', 'ไม่รู้', 'ไม่แน่ใจ',
     'ไม่มี', 'ไม่ค่อย', 'ไม่ได้', 'ยังไม่', 'ไม่เคย', 'ทำ', 'กิน', 'ดื่ม', 'ทาน', 'อะไร',
     'ค่อนข้าง', 'มาก', 'น้อย', 'ปาน', 'พอใจ', 'นิดหน่อย', 'นิดเดียว',
-    'สัปดาห์', 'เดือน', 'ชั่วโมง', 'ประมาณ', 'เริ่ม', 'เป็นมา', 'มีอาการ', 'ไม่มีอาการ',
+    'สัปดาห์', 'เดือน', 'ชั่วโมง', 'นาที', 'ครั้ง', 'ประมาณ', 'เริ่ม', 'เป็นมา', 'มีอาการ', 'ไม่มีอาการ',
+    'เหลว', 'เป็นน้ำ', 'เมือก', 'อุจจาระ', 'ถ่าย', 'ท้องเสีย', 'ท้องผูก', 'เช่น', 'ตัวอย่าง',
     'mild', 'moderate', 'severe', 'today', 'yesterday', 'unknown', 'unsure', 'none', 'no',
     'pain', 'hurt', 'headache', 'fever', 'cough', 'nausea', 'dizzy', 'better', 'worse',
   ].join('|'),
@@ -57,10 +58,58 @@ const THAI_HEALTH_ANSWER_RE = new RegExp(
     'บีบ', 'จี๊ด', 'แปลบ', 'เมื่อย', 'อ่อนแรง', 'เหงื่อ', 'หนาว', 'ร้อน', 'ใจสั่น',
     'เล็กน้อย', 'ปานกลาง', 'รุนแรง', 'วันนี้', 'เมื่อวาน', 'ไม่ทราบ', 'ไม่รู้', 'ไม่แน่ใจ',
     'มี', 'ไม่มี', 'ไม่ได้', 'ยังไม่', 'ไม่เคย', 'ทำ', 'กิน', 'ดื่ม', 'ทาน', 'อะไร',
-    'เป็น', 'เริ่ม', 'ชั่วโมง', 'นาที', 'วัน', 'สัปดาห์', 'เดือน',
+    'เป็น', 'เริ่ม', 'ชั่วโมง', 'นาที', 'วัน', 'สัปดาห์', 'เดือน', 'ครั้ง', 'เหลว', 'เป็นน้ำ', 'เมือก', 'อุจจาระ', 'ถ่าย',
   ].join('|'),
   'i',
 );
+
+/** คำตอบซักประวัติที่มีตัวเลข + ภาษาไทย (เช่น 1-2 ครั้งเหลว) */
+const NUMERIC_SCREENING_ANSWER_RE = /\d[\d\s\-–~to]*(?:ครั้ง|ชม|ชั่วโมง|นาที|วัน|สัปดาห์|เดือน|ml|mg|%)/i;
+
+export function stripExamplePrefix(text) {
+  return String(text || '')
+    .replace(/^\s*(?:เช่น|ตัวอย่าง|eg\.?|e\.g\.?)\s*[:：]?\s*/i, '')
+    .trim();
+}
+
+/** มั่วชัดเจนมากเท่านั้น — ใช้ระหว่างคัดกรอง (default ให้ผ่าน) */
+export function isObviousGibberishOnly(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return true;
+  if (/^[\?\.\!\,\s]+$/.test(raw)) return true;
+
+  const compact = raw.replace(/\s+/g, '');
+  if (hasSpamRepetition(raw, compact)) return true;
+
+  // ตัวเลข + ไทย / คำตอบซักประวัติที่รู้จัก → ไม่ใช่มั่ว
+  if (NUMERIC_SCREENING_ANSWER_RE.test(raw)) return false;
+  if (/\d/.test(raw) && /[ก-๙]/.test(raw)) return false;
+  if (SCREENING_VALID_RE.test(stripExamplePrefix(raw))) return false;
+  if (THAI_HEALTH_ANSWER_RE.test(stripExamplePrefix(raw))) return false;
+
+  if (/^[\d\s]+$/.test(raw) && /\d/.test(raw) && countGraphemes(compact) <= 2) return true;
+  if (/^[\s\.\,\!\?\-\+\=\*\#\@\%\^\&\(\)\[\]\{\}\|\\\:\;\"\'\<\>\/\~\`_]+$/.test(raw)) return true;
+
+  if (isTooShortAnswer(raw)) return true;
+
+  if (/[ก-๙]/.test(raw)) {
+    const stripped = stripExamplePrefix(raw).replace(/\s+/g, '');
+    if (isShortThaiConsonantMash(stripped)) return true;
+    return isThaiKeyboardMash(stripped);
+  }
+
+  if (/^[a-zA-Z\s]+$/.test(raw)) {
+    if (ENGLISH_VALID_RE.test(compact)) return false;
+    if (SCREENING_VALID_RE.test(compact)) return false;
+    const vowels = (raw.match(/[aeiouAEIOU]/g) || []).length;
+    const ratio = compact.length ? vowels / compact.length : 0;
+    if (compact.length >= 4 && compact.length <= 5 && vowels === 0) return true;
+    if (compact.length >= 6 && vowels === 0) return true;
+    if (compact.length >= 10 && ratio <= 0.28) return true;
+  }
+
+  return false;
+}
 
 function isShortThaiConsonantMash(compact) {
   if (THAI_HEALTH_ANSWER_RE.test(compact)) return false;
@@ -100,6 +149,13 @@ function isThaiKeyboardMash(compact) {
 export function isGibberishInput(text) {
   const raw = String(text || '').trim();
   if (!raw) return true;
+
+  const normalized = stripExamplePrefix(raw);
+  if (NUMERIC_SCREENING_ANSWER_RE.test(normalized)) return false;
+  if (/\d/.test(normalized) && /[ก-๙]/.test(normalized)) return false;
+  if (SCREENING_VALID_RE.test(normalized)) return false;
+  if (THAI_HEALTH_ANSWER_RE.test(normalized)) return false;
+
   if (isTooShortAnswer(raw)) return true;
   if (/^[\?\.\!\,\s]+$/.test(raw)) return true;
   if (/^[\d\s]+$/.test(raw) && /\d/.test(raw)) return true;
@@ -109,8 +165,9 @@ export function isGibberishInput(text) {
   if (hasSpamRepetition(raw, compact)) return true;
 
   if (/[ก-๙]/.test(raw)) {
-    if (isShortThaiConsonantMash(compact)) return true;
-    return isThaiKeyboardMash(compact);
+    const thaiCompact = normalized.replace(/\s+/g, '');
+    if (isShortThaiConsonantMash(thaiCompact)) return true;
+    return isThaiKeyboardMash(thaiCompact);
   }
 
   if (/^[a-zA-Z\s]+$/.test(raw)) {
