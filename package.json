@@ -40,6 +40,7 @@
     "db:seed-mock-prescriptions-extra": "node scripts/seed-mock-prescriptions-extra.mjs",
     "db:seed-mock-prescription-symptoms": "node scripts/seed-mock-prescription-symptoms.mjs",
     "vercel:prepare-import": "node scripts/prepare-vercel-import.mjs",
+    "vercel:sync-env": "node scripts/sync-vercel-env.mjs",
     "db:fix-store-addresses": "node scripts/fix-weird-store-addresses.mjs",
     "db:setup-pharma-tracking": "node scripts/setup-pharma-tracking-list.mjs",
     "rag:prepare": "node scripts/prepare-rag-train.mjs",

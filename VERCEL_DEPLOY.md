@@ -30,7 +30,8 @@
 
 | สาเหตุ | วิธีแก้ |
 |--------|---------|
-| **ตัวแปรชื่อเดิมมีอยู่แล้ว** ใน Vercel | ไป Settings → Environment Variables → ลบตัวเก่าหรือกด Edit แล้ว import ใหม่ |
+| **Import แล้วขึ้นข้อความนี้ทั้งก้อน** | **ไม่ใช่ error** — ตัวแปรใน `import.env` **มีอยู่แล้ว** บน Vercel (import ไม่ overwrite) |
+| อยากอัปเดตค่าจาก `import.env` | รัน **`npm run vercel:sync-env`** (ต้อง `npx vercel link` ก่อน) แล้ว **Redeploy** |
 | **ไม่ได้ติ๊ก Environment** | ติ๊ก **Production + Preview + Development** ก่อน Import |
 | ไฟล์มีแต่ comment / รูปแบบผิด | ตรวจ **`import.env`** ว่ามีบรรทัด `KEY=VALUE` (ไม่ขึ้นต้นด้วย `#`) · สำรอง: `npm run vercel:prepare-import` |
 | ใช้ `NUXT_AI_MODE=n8n` บน Vercel | เปลี่ยเป็น **`NUXT_AI_MODE=cloud`** (ไม่มี n8n บน serverless) |
