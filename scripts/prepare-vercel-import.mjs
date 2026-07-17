@@ -1,5 +1,6 @@
 /**
- * สร้างไฟล์ .env สะอาดสำหรับ Vercel → Settings → Environment Variables → Import .env
+ * สำรอง: สร้าง .env ไม่มี comment จาก import.env (ใช้เมื่อ Vercel import ไฟล์ต้นฉบับไม่ได้)
+ * ไฟล์หลักที่ใช้ import คือ import.env โดยตรง
  * ใช้: npm run vercel:prepare-import
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -104,7 +105,8 @@ writeFileSync(outPath, `${lines.join('\n')}\n`, 'utf8');
 
 console.log(JSON.stringify({
     status: 'success',
-    message: `สร้าง ${lines.length} ตัวแปรใน .env.vercel-import — อัปโหลดไฟล์นี้ใน Vercel (เลือก Production + Preview + Development)`,
+    message: `สำรอง: สร้าง ${lines.length} ตัวแปรใน .env.vercel-import จาก import.env — ปกติใช้ import.env โดยตรงใน Vercel`,
+    source: 'import.env',
     output: '.env.vercel-import',
     count: lines.length,
     keys: lines.map((l) => l.split('=')[0]),

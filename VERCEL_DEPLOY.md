@@ -8,9 +8,9 @@
 1. เปิด https://vercel.com/dashboard
 2. **Add New → Project** → เลือก GitHub repo
 3. Framework: **Nuxt.js** (auto)
-4. **Environment Variables → Import .env**
+4. **Environment Variables → Import .env** → เลือกไฟล์ **`import.env`** ในโปรเจกต (Production + Preview + Development)
 5. กด **Deploy**
-6. ตรวจ: `https://YOUR-PROJECT.vercel.app/api/ai-chat/health` → `"mode": "n8n"`
+6. ตรวจ: `https://YOUR-PROJECT.vercel.app/api/ai-chat/health` → `"mode": "cloud"`
 
 > ไม่ต้อง pin domain — ลิงก์ reset password ใช้ domain จาก request อัตโนมัติ
 
@@ -32,7 +32,7 @@
 |--------|---------|
 | **ตัวแปรชื่อเดิมมีอยู่แล้ว** ใน Vercel | ไป Settings → Environment Variables → ลบตัวเก่าหรือกด Edit แล้ว import ใหม่ |
 | **ไม่ได้ติ๊ก Environment** | ติ๊ก **Production + Preview + Development** ก่อน Import |
-| ไฟล์มีแต่ comment / รูปแบบผิด | รัน `npm run vercel:prepare-import` แล้วอัปโหลด **`.env.vercel-import`** |
+| ไฟล์มีแต่ comment / รูปแบบผิด | ตรวจ **`import.env`** ว่ามีบรรทัด `KEY=VALUE` (ไม่ขึ้นต้นด้วย `#`) · สำรอง: `npm run vercel:prepare-import` |
 | ใช้ `NUXT_AI_MODE=n8n` บน Vercel | เปลี่ยเป็น **`NUXT_AI_MODE=cloud`** (ไม่มี n8n บน serverless) |
 | **`NUXT_PUBLIC_SITE_ORIGIN`** | **ไม่จำเป็น** — ระบบใช้ domain จาก request อัตโนมัติ. ข้อความนี้ที่ตัวนี้ = **มีค่าเดิมอยู่แล้ว** หรือ **ข้ามได้** (ไม่ใช่ error) |
 
@@ -42,7 +42,12 @@
 
 ## Environment Variables (Vercel → Settings → Environment Variables)
 
-ใส่ครบทุกตัว แล้ว **Redeploy**
+**ไฟล์หลัก:** `import.env` (ในโฟลเดอร์โปรเจกต — ไม่ commit ขึ้น Git เพราะมี secret)
+
+1. เปิด `import.env` ใส่ค่าจริง (หรือ copy จาก `vercel.env.template`)
+2. Vercel → **Import .env** → เลือก **`import.env`**
+3. ติ๊ก **Production + Preview + Development**
+4. **Redeploy**
 
 ### Database (จำเป็น — login, เภสัช, ใบสรุปรายการยา)
 
