@@ -439,6 +439,28 @@ export function normalizeSymptomKey(name: string): string {
   return raw;
 }
 
+const SYMPTOM_32_KEYS = new Set(Object.keys(BANK));
+
+/** แสดงอาการเดียว — ถ้าอยู่ใน 32 อาการใช้ชื่อมาตรฐาน ไม่อยู่ในรายการจึงเป็น "ทั่วไป" */
+export function resolveDisplaySymptom(raw: string): string {
+  const text = String(raw || '').trim();
+  if (!text || text === 'ทั่วไป' || text.toLowerCase() === 'general') return 'ทั่วไป';
+
+  const parts = text.split(/[,;/|]+/).map((s) => s.trim()).filter(Boolean);
+  const candidates = parts.length > 1 ? parts : [text];
+
+  for (const part of candidates) {
+    if (part === 'ทั่วไป' || part.toLowerCase() === 'general') continue;
+    const key = normalizeSymptomKey(part);
+    if (key && SYMPTOM_32_KEYS.has(key)) return key;
+  }
+
+  const whole = normalizeSymptomKey(text);
+  if (whole && SYMPTOM_32_KEYS.has(whole)) return whole;
+
+  return 'ทั่วไป';
+}
+
 export function getFixedQuestion(
   symptomName: string,
   questionNum: number,
@@ -725,13 +747,21 @@ function isPharmacyCtaLine(line: string): boolean {
 function isSummaryFooterLine(line: string): boolean {
   const t = String(line || '').trim();
   if (!t || /^-{2,}\s*$/.test(t)) return true;
+  if (/^\*\s*$/.test(t)) return true;
   if (/^\*หมายเหตุ|^หมายเหตุ\s*[:：]/i.test(t)) return true;
-  if (/^ข้อควรระวัง\s*[:：]/i.test(t)) return true;
+  if (/^คำเตือน\s*[:：]/i.test(t)) return true;
   if (/^⚠️\s*คำแนะนำเพิ่มเติม\s*[:：]/i.test(t) && !isPharmacyCtaLine(t)) return true;
   if (/^คำแนะนำเพิ่มเติม\s*[:：]/i.test(t) && !isPharmacyCtaLine(t)) return true;
   if (/^หากคุณมีข้อสงสัย|^If you have (?:any )?(?:further )?questions/i.test(t)) return true;
   if (/^ข้อมูลนี้มีวัตถุประสงค์|^this information is for general|^information provided here is for general/i.test(t)) return true;
+  if (/^หากอาการยังคง|^หากอาการรุนแรง|^If (?:symptoms|your symptoms) (?:persist|continue|worsen)/i.test(t)) return true;
+  if (/^ไม่สามารถใช้แทนคำแนะนำ|^cannot (?:replace|substitute) (?:medical )?(?:advice|diagnosis|treatment)/i.test(t)) return true;
+  if (/^โปรดไปพบแพทย์ทันที|^please (?:see|consult) a (?:doctor|physician) immediately/i.test(t)) return true;
   return false;
+}
+
+function isPrecautionTitleLine(line: string): boolean {
+  return /^ข้อควรระวัง\s*[:：]|^precautions?\s*[:：]|^things to (?:watch|avoid)\s*[:：]/i.test(String(line || '').trim());
 }
 
 function isSeePharmacistTitleLine(line: string): boolean {
@@ -740,7 +770,35 @@ function isSeePharmacistTitleLine(line: string): boolean {
 
 function isSelfCareTitleLine(line: string): boolean {
   const t = String(line || '').trim();
-  return /^💊/.test(t) || /วิธีดูแลตนเอง|basic self-care|self-care tips/i.test(t);
+  return /^💊/.test(t)
+    || /วิธีดูแลตนเอง|คำแนะนำในการดูแลตนเอง|basic self-care|self-care tips/i.test(t);
+}
+
+export const SUMMARY_LIST_MAX = 5;
+
+/** จำกัดรายการในส่วนสรุป + ลำดับเลขใหม่ 1..n */
+function capAndRenumberListSection(
+  lines: string[],
+  maxItems = SUMMARY_LIST_MAX,
+  style: 'number' | 'bullet' = 'number',
+): string[] {
+  if (!lines.length) return lines;
+  const header: string[] = [];
+  const items: string[] = [];
+  for (const line of lines) {
+    const t = line.trim();
+    const isItem = /^\d+[\.\)]\s+/.test(t) || /^[-•*]\s+/.test(t);
+    if (isItem) {
+      const body = t.replace(/^\d+[\.\)]\s+/, '').replace(/^[-•*]\s+/, '').trim();
+      if (body) items.push(body);
+    } else if (!items.length) {
+      header.push(line);
+    }
+  }
+  const capped = items.slice(0, maxItems).map((body, idx) => (
+    style === 'bullet' ? `• ${body}` : `${idx + 1}. ${body}`
+  ));
+  return [...header, ...capped];
 }
 
 function isCtaHeaderLine(line: string): boolean {
@@ -760,8 +818,8 @@ export function ensurePharmacyConsultCta(text: string, locale: ChatLocale = 'th'
 }
 
 /**
- * จัดลำดับสรุป: เนื้อหา → ดูแลตนเอง → ควรพบเภสัชกร → ข้อควรระวัง/หมายเหตุ → CTA
- * และตัด 📋 ออกจากหัวข้อ "จากการซักประวัติอาการ"
+ * จัดลำดับสรุป: เนื้อหา → ดูแลตนเอง → ข้อควรระวัง → ควรพบเภสัชกร → หมายเหตุ → CTA
+ * และจำกัดรายการดูแลตนเอง / ควรพบเภสัชกร ไม่เกิน 5 ข้อ
  */
 export function normalizeSummaryLayout(text: string, locale: ChatLocale = 'th'): string {
   const raw = String(text || '').trim();
@@ -777,11 +835,12 @@ export function normalizeSummaryLayout(text: string, locale: ChatLocale = 'th'):
 
   const intro: string[] = [];
   const selfCare: string[] = [];
+  const precautions: string[] = [];
   const seePharm: string[] = [];
   const footer: string[] = [];
   const cta: string[] = [];
 
-  let mode: 'intro' | 'selfcare' | 'seepharm' | 'footer' | 'cta' = 'intro';
+  let mode: 'intro' | 'selfcare' | 'precaution' | 'seepharm' | 'footer' | 'cta' = 'intro';
 
   for (const line of lines) {
     const t = line.trim();
@@ -795,7 +854,7 @@ export function normalizeSummaryLayout(text: string, locale: ChatLocale = 'th'):
     if (isCtaHeaderLine(t)) continue;
 
     if (isSummaryFooterLine(t)) {
-      if (!/^-{2,}\s*$/.test(t)) footer.push(t);
+      if (!/^-{2,}\s*$/.test(t) && !/^\*\s*$/.test(t)) footer.push(t);
       mode = 'footer';
       continue;
     }
@@ -805,18 +864,27 @@ export function normalizeSummaryLayout(text: string, locale: ChatLocale = 'th'):
       mode = 'seepharm';
       continue;
     }
+    if (isPrecautionTitleLine(t)) {
+      precautions.push(t);
+      mode = 'precaution';
+      continue;
+    }
     if (isSelfCareTitleLine(t)) {
       selfCare.push(t);
       mode = 'selfcare';
       continue;
     }
 
-    if (mode === 'seepharm' && /^\d+[\.\)]\s+/.test(t)) {
+    if (mode === 'seepharm' && (/^\d+[\.\)]\s+/.test(t) || /^[-•*]\s+/.test(t))) {
       seePharm.push(t);
       continue;
     }
-    if (mode === 'selfcare' && /^\d+[\.\)]\s+/.test(t)) {
+    if (mode === 'selfcare' && (/^\d+[\.\)]\s+/.test(t) || /^[-•*]\s+/.test(t))) {
       selfCare.push(t);
+      continue;
+    }
+    if (mode === 'precaution' && (/^\d+[\.\)]\s+/.test(t) || /^[-•*]\s+/.test(t))) {
+      precautions.push(t);
       continue;
     }
     if (mode === 'footer') {
@@ -833,8 +901,9 @@ export function normalizeSummaryLayout(text: string, locale: ChatLocale = 'th'):
 
   const blocks: string[] = [];
   if (intro.length) blocks.push(intro.join('\n'));
-  if (selfCare.length) blocks.push(selfCare.join('\n'));
-  if (seePharm.length) blocks.push(seePharm.join('\n'));
+  if (selfCare.length) blocks.push(capAndRenumberListSection(selfCare, SUMMARY_LIST_MAX, 'number').join('\n'));
+  if (precautions.length) blocks.push(capAndRenumberListSection(precautions, SUMMARY_LIST_MAX, 'bullet').join('\n'));
+  if (seePharm.length) blocks.push(capAndRenumberListSection(seePharm, SUMMARY_LIST_MAX, 'number').join('\n'));
   if (footer.length) blocks.push(footer.join('\n'));
   if (cta.length) blocks.push(cta.join('\n'));
 

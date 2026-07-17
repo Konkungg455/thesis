@@ -10,6 +10,7 @@ const { apiUrl } = useApiBase()
 
 const allData = ref([])
 const searchQuery = ref('')
+const searchTopic = ref('all')
 const isLoading = ref(false)
 const selectedData = ref(null)
 const showModal = ref(false)
@@ -36,6 +37,44 @@ const tabMeta = {
   placeholder: 'ค้นหาชื่อ-นามสกุล / username ผู้ใช้บริการ...',
 }
 
+const SEARCH_TOPICS = [
+  { value: 'all', label: 'ทุกหัวข้อ', placeholder: 'ค้นหาชื่อ / username / อีเมล / เบอร์โทร / ที่อยู่...' },
+  { value: 'name', label: 'ชื่อ-นามสกุล', placeholder: 'ค้นหาชื่อหรือนามสกุลผู้ใช้บริการ...' },
+  { value: 'username', label: 'Username', placeholder: 'ค้นหา username ผู้ใช้บริการ...' },
+  { value: 'email', label: 'อีเมล', placeholder: 'ค้นหาอีเมลผู้ใช้บริการ...' },
+  { value: 'phone', label: 'เบอร์โทร', placeholder: 'ค้นหาเบอร์โทร เช่น 0982150751' },
+  { value: 'location', label: 'ที่อยู่', placeholder: 'ค้นหาจังหวัด / อำเภอ / ตำบล / รหัสไปรษณีย์...' },
+]
+
+const searchPlaceholder = computed(() =>
+  SEARCH_TOPICS.find((t) => t.value === searchTopic.value)?.placeholder || tabMeta.placeholder,
+)
+
+const matchesSearch = (item, q, topic) => {
+  const fields = {
+    all: [
+      item.username, item.firstname, item.lastname, item.email, item.phone,
+      item.province, item.district, item.sub_district, item.zipcode,
+      `${item.firstname || ''} ${item.lastname || ''}`.trim(),
+    ],
+    name: [item.firstname, item.lastname, `${item.firstname || ''} ${item.lastname || ''}`.trim()],
+    username: [item.username],
+    email: [item.email],
+    phone: [item.phone],
+    location: [item.province, item.district, item.sub_district, item.zipcode, item.house_no, item.road],
+  }
+  const list = fields[topic] || fields.all
+  if (list.some((v) => String(v || '').toLowerCase().includes(q))) return true
+  if (topic === 'all' || topic === 'phone') {
+    const qDigits = q.replace(/\D/g, '')
+    if (qDigits.length >= 3) {
+      const phone = String(item.phone || '').replace(/\D/g, '')
+      if (phone.includes(qDigits)) return true
+    }
+  }
+  return false
+}
+
 const handleFetch = async () => {
   isLoading.value = true
   try {
@@ -59,11 +98,7 @@ const handleFetch = async () => {
 const filteredList = computed(() => {
   const q = searchQuery.value.toLowerCase().trim()
   if (!q) return allData.value
-  return allData.value.filter(item =>
-    item.username?.toLowerCase().includes(q) ||
-    item.firstname?.toLowerCase().includes(q) ||
-    item.lastname?.toLowerCase().includes(q)
-  )
+  return allData.value.filter((item) => matchesSearch(item, q, searchTopic.value))
 })
 
 const {
@@ -79,7 +114,7 @@ const {
   resetPage,
 } = useTablePagination(filteredList)
 
-watch([searchQuery, deletedFilter], () => resetPage())
+watch([searchQuery, searchTopic, deletedFilter], () => resetPage())
 watch(deletedFilter, () => handleFetch())
 
 const openDetail = (item) => {
@@ -195,12 +230,22 @@ onMounted(() => {
 
         <!-- ===== Search ===== -->
         <div class="mgmt-search-wrap">
-          <div class="mgmt-search">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" v-model="searchQuery" :placeholder="tabMeta.placeholder">
-            <button v-if="searchQuery" class="mgmt-search-clear" @click="searchQuery = ''" title="ล้างคำค้น">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
+          <div class="mgmt-search-row">
+            <div class="mgmt-search">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" v-model="searchQuery" :placeholder="searchPlaceholder">
+              <button v-if="searchQuery" class="mgmt-search-clear" @click="searchQuery = ''" title="ล้างคำค้น">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div class="mgmt-search-topic">
+              <i class="fa-solid fa-filter" aria-hidden="true"></i>
+              <select v-model="searchTopic" aria-label="หัวข้อที่ต้องการค้นหา">
+                <option v-for="opt in SEARCH_TOPICS" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
           </div>
           <div v-if="searchQuery" class="mgmt-search-hint">
             พบ <strong>{{ filteredList.length }}</strong> รายการจากคำค้น "{{ searchQuery }}"

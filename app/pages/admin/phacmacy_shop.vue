@@ -11,6 +11,7 @@ const { apiUrl } = useApiBase()
 
 const allData = ref([])
 const searchQuery = ref('')
+const searchTopic = ref('all')
 const isLoading = ref(false)
 const selectedData = ref(null)
 const showModal = ref(false)
@@ -110,6 +111,47 @@ const tabMeta = {
   placeholder: 'ค้นหาชื่อร้านยา / จังหวัด / เบอร์โทร...',
 }
 
+const SEARCH_TOPICS = [
+  { value: 'all', label: 'ทุกหัวข้อ', placeholder: 'ค้นหาชื่อร้าน / เจ้าของ / จังหวัด / เบอร์โทร / อีเมล...' },
+  { value: 'store', label: 'ชื่อร้าน', placeholder: 'ค้นหาชื่อร้านยา...' },
+  { value: 'owner', label: 'เจ้าของร้าน', placeholder: 'ค้นหาชื่อเจ้าของ / username...' },
+  { value: 'phone', label: 'เบอร์โทร', placeholder: 'ค้นหาเบอร์โทรร้านหรือเจ้าของ...' },
+  { value: 'email', label: 'อีเมล', placeholder: 'ค้นหาอีเมลร้านหรือเจ้าของ...' },
+  { value: 'location', label: 'ที่อยู่', placeholder: 'ค้นหาจังหวัด / อำเภอ / ตำบล / ที่อยู่...' },
+]
+
+const searchPlaceholder = computed(() =>
+  SEARCH_TOPICS.find((t) => t.value === searchTopic.value)?.placeholder || tabMeta.placeholder,
+)
+
+const matchesSearch = (item, q, topic) => {
+  const fields = {
+    all: [
+      item.store_name, item.username, item.firstname, item.lastname,
+      item.province, item.district, item.sub_district, item.address,
+      item.store_phone, item.personal_phone, item.phone,
+      item.store_email, item.personal_email, item.email,
+      `${item.firstname || ''} ${item.lastname || ''}`.trim(),
+    ],
+    store: [item.store_name],
+    owner: [item.username, item.firstname, item.lastname, `${item.firstname || ''} ${item.lastname || ''}`.trim()],
+    phone: [item.store_phone, item.personal_phone, item.phone],
+    email: [item.store_email, item.personal_email, item.email],
+    location: [item.province, item.district, item.sub_district, item.address, item.zipcode],
+  }
+  const list = fields[topic] || fields.all
+  if (list.some((v) => String(v || '').toLowerCase().includes(q))) return true
+  if (topic === 'all' || topic === 'phone') {
+    const qDigits = q.replace(/\D/g, '')
+    if (qDigits.length >= 3) {
+      const phones = [item.store_phone, item.personal_phone, item.phone]
+        .map((p) => String(p || '').replace(/\D/g, ''))
+      if (phones.some((p) => p.includes(qDigits))) return true
+    }
+  }
+  return false
+}
+
 const handleFetch = async () => {
   isLoading.value = true
   try {
@@ -146,14 +188,7 @@ const filteredList = computed(() => {
   }
   const q = searchQuery.value.toLowerCase().trim()
   if (!q) return list
-  return list.filter(item =>
-    item.store_name?.toLowerCase().includes(q) ||
-    item.province?.toLowerCase().includes(q) ||
-    item.district?.toLowerCase().includes(q) ||
-    item.store_phone?.toLowerCase().includes(q) ||
-    item.store_email?.toLowerCase().includes(q) ||
-    item.address?.toLowerCase().includes(q)
-  )
+  return list.filter((item) => matchesSearch(item, q, searchTopic.value))
 })
 
 const {
@@ -169,7 +204,7 @@ const {
   resetPage,
 } = useTablePagination(filteredList)
 
-watch([searchQuery, statusFilter, deletedFilter], () => resetPage())
+watch([searchQuery, searchTopic, statusFilter, deletedFilter], () => resetPage())
 watch(deletedFilter, () => handleFetch())
 
 // 🚩 ตั้งค่า partnerForm จากข้อมูลใน list (ใช้ก่อน fetch detail)
@@ -430,12 +465,26 @@ onMounted(() => {
 
         <!-- ===== Search + Tabs ===== -->
         <div class="mgmt-search-wrap">
-          <div class="mgmt-search">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" v-model="searchQuery" :placeholder="tabMeta.placeholder">
-            <button v-if="searchQuery" class="mgmt-search-clear" @click="searchQuery = ''" title="ล้างคำค้น">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
+          <div class="mgmt-search-row">
+            <div class="mgmt-search">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" v-model="searchQuery" :placeholder="searchPlaceholder">
+              <button v-if="searchQuery" class="mgmt-search-clear" @click="searchQuery = ''" title="ล้างคำค้น">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div class="mgmt-search-topic">
+              <i class="fa-solid fa-filter" aria-hidden="true"></i>
+              <select v-model="searchTopic" aria-label="หัวข้อที่ต้องการค้นหา">
+                <option v-for="opt in SEARCH_TOPICS" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div v-if="searchQuery" class="mgmt-search-hint">
+            พบ <strong>{{ filteredList.length }}</strong> รายการจากคำค้น "{{ searchQuery }}"
           </div>
 
           <div class="soft-delete-tabs">
@@ -461,10 +510,6 @@ onMounted(() => {
             <button class="store-tab tab-all" :class="{ active: statusFilter === 'all' }" @click="statusFilter = 'all'">
               <i class="fa-solid fa-layer-group"></i> ทั้งหมด
             </button>
-          </div>
-
-          <div v-if="searchQuery" class="mgmt-search-hint">
-            พบ <strong>{{ filteredList.length }}</strong> รายการจากคำค้น "{{ searchQuery }}"
           </div>
         </div>
 

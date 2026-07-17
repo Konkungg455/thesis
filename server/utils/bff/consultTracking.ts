@@ -72,6 +72,7 @@ async function ensureTrackingColumns(sql: ReturnType<typeof useDb>) {
         `ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS last_followup_at TIMESTAMPTZ NULL`,
         `ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS auto_created SMALLINT NOT NULL DEFAULT 0`,
         `ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS id_consult_request INT NULL`,
+        `ALTER TABLE prescriptions ADD COLUMN IF NOT EXISTS tracking_hidden_at TIMESTAMPTZ NULL`,
     ];
     for (const stmt of alters) {
         try {
@@ -336,12 +337,23 @@ export async function handleCompleteTracking(event: H3Event) {
                 UPDATE prescriptions SET
                     tracking_status = 'active',
                     tracking_completed_at = NULL,
+                    tracking_hidden_at = NULL,
                     last_followup_at = NOW()
                 WHERE id = ${rxId}
             `;
             await syncTrackingAdviceFromPrescription(sql, rxId);
             invalidateConsultCaches(pId, uId);
             return { ok: true, reopened: true };
+        }
+
+        if (action === 'hide') {
+            await sql`
+                UPDATE prescriptions SET tracking_hidden_at = NOW()
+                WHERE id = ${rxId}
+            `;
+            await syncTrackingAdviceFromPrescription(sql, rxId);
+            invalidateConsultCaches(pId, uId);
+            return { ok: true, hidden: true };
         }
 
         const updated = await sql`
@@ -368,6 +380,10 @@ export async function handleCompleteTracking(event: H3Event) {
 
     if (result.reopened) {
         return { status: 'success', message: 'เปิดติดตามอีกครั้งแล้ว' };
+    }
+
+    if (result.hidden) {
+        return { status: 'success', message: 'ลบรายการออกจากหน้าติดตามแล้ว' };
     }
 
     return {

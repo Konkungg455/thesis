@@ -545,6 +545,10 @@ html.dark .mobile-title {
     color: #0f766e;
 }
 
+.summary-section-title.is-precaution {
+    color: #1e40af;
+}
+
 .summary-section-title.is-warn {
     color: #b45309;
 }
@@ -555,6 +559,14 @@ html.dark .mobile-title {
 
 .summary-list-item.is-care .summary-list-num {
     color: #0f766e;
+}
+
+.summary-list-item.is-precaution {
+    border-left-color: #38bdf8;
+}
+
+.summary-list-item.is-precaution .summary-list-num {
+    color: #2563eb;
 }
 
 .summary-list-item.is-warn {

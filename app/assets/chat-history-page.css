@@ -112,6 +112,9 @@
 .ai-text .summary-section-title.is-care {
     color: #0f766e;
 }
+.ai-text .summary-section-title.is-precaution {
+    color: #1e40af;
+}
 .ai-text .summary-section-title.is-warn {
     color: #b45309;
 }
@@ -120,6 +123,12 @@
 }
 .ai-text .summary-list-item.is-care .summary-list-num {
     color: #0f766e;
+}
+.ai-text .summary-list-item.is-precaution {
+    border-left-color: #38bdf8;
+}
+.ai-text .summary-list-item.is-precaution .summary-list-num {
+    color: #2563eb;
 }
 .ai-text .summary-list-item.is-warn {
     border-left-color: #f59e0b;

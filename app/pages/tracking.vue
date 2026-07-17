@@ -2,6 +2,8 @@
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { formatChatDateTime, formatChatMessageTime } from '@/utils/datetime'
+import { matchPrescriptionSearch, PRESCRIPTION_SEARCH_TOPICS, PRESCRIPTION_SEARCH_PLACEHOLDERS } from '@/utils/prescriptionSearch'
+import { resolveDisplaySymptom } from '@/utils/fixedScreeningQuestions'
 
 definePageMeta({
     middleware: 'pharmacist-only'
@@ -34,6 +36,9 @@ const isLoading = ref(false)
 const isAuthorized = ref(false)
 const sidebarOpen = ref(false)
 const showCompleted = ref(false)         // เปิดหน้ามาแสดง "กำลังติดตาม" ก่อน
+const searchQuery = ref('')
+const searchTopic = ref('all')
+const searchPlaceholder = computed(() => PRESCRIPTION_SEARCH_PLACEHOLDERS[searchTopic.value] || PRESCRIPTION_SEARCH_PLACEHOLDERS.all)
 let timerInterval = null
 
 const toggleSidebar = () => { sidebarOpen.value = !sidebarOpen.value }
@@ -90,7 +95,7 @@ const fetchPrescriptionHistory = async () => {
     if (!isAuthorized.value) return;
     isLoading.value = true
     try {
-        const res = await $fetch(apiUrl(`get-prescriptions.php?_t=${Date.now()}`), { credentials: 'include' });
+        const res = await $fetch(apiUrl(`get-prescriptions.php?for_tracking=1&_t=${Date.now()}`), { credentials: 'include' });
         if (res.status === 'success') {
             const trackable = dedupeTrackingItems((res.data || []).filter(isTrackableItem));
             historyData.value = trackable.map(item => ({
@@ -182,6 +187,12 @@ const openPharmaChatForRound = (patientId, patientName = '', session = null) => 
         try {
             localStorage.setItem('bell-incoming-patient-id', String(accountId))
             if (patientName) localStorage.setItem('bell-incoming-patient-name', patientName)
+            const symptom = resolveDisplaySymptom(String(session?.symptom_name || '').trim())
+            if (symptom && symptom !== 'ทั่วไป') {
+                localStorage.setItem('bell-incoming-patient-symptom', symptom)
+            } else {
+                localStorage.removeItem('bell-incoming-patient-symptom')
+            }
         } catch { /* ignore */ }
     }
     navigateTo(`/pharmacy_web?${params.toString()}`)
@@ -199,7 +210,8 @@ const viewChat = (item) => {
     }
     const session = {
         consult_id: item?.id_consult_request,
-        service_code: item?.service_code
+        service_code: item?.service_code,
+        symptom_name: item?.symptom_name,
     }
     openPharmaChatForRound(accountId, displayPatientName(item), session)
 }
@@ -214,6 +226,8 @@ const writePrescription = (item) => {
     if (!accountId) return
     navigateTo(`/Summary?id=${accountId}`)
 }
+
+const displaySymptom = (item) => resolveDisplaySymptom(item?.symptom_name || '');
 
 const formatDate = (dateStr) => {
     if (!dateStr) return '-'
@@ -339,11 +353,35 @@ const reopenTracking = async (item) => {
     }
 }
 
-// Filter list ตามสถานะ
+// Filter list ตามสถานะ + คำค้น
 const filteredHistoryData = computed(() => {
-    if (showCompleted.value) return historyData.value
-    return historyData.value.filter(item => item.tracking_status !== 'completed')
+    let list = showCompleted.value
+        ? historyData.value
+        : historyData.value.filter(item => item.tracking_status !== 'completed')
+    const q = searchQuery.value.trim()
+    if (!q) return list
+    return list.filter((item) => matchPrescriptionSearch(item, q, searchTopic.value))
 })
+
+const {
+    PAGE_SIZE_OPTIONS,
+    pageSize,
+    currentPage,
+    totalPages,
+    pagedList,
+    pageStart,
+    pageEnd,
+    pageNumbers,
+    goToPage,
+    resetPage,
+} = useTablePagination(filteredHistoryData)
+
+watch([searchQuery, searchTopic, showCompleted], () => resetPage())
+
+const onPageSizeChange = (v) => {
+    pageSize.value = v
+    resetPage()
+}
 
 const counts = computed(() => {
     let active = 0, completed = 0
@@ -654,6 +692,45 @@ const formatArchiveExpiry = (expiresAt) => {
                     </div>
                 </div>
 
+                <!-- Search + Filter -->
+                <div class="pharma-list-search-wrap">
+                    <div class="pharma-list-search-row">
+                        <div class="pharma-list-search-input">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input
+                                v-model="searchQuery"
+                                type="search"
+                                :placeholder="searchPlaceholder"
+                                aria-label="ค้นหารายการติดตาม"
+                            />
+                            <button
+                                v-if="searchQuery"
+                                type="button"
+                                class="pharma-list-search-clear"
+                                @click="searchQuery = ''"
+                                aria-label="ล้างคำค้น"
+                            >
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <label class="pharma-list-search-topic">
+                            <i class="fa-solid fa-filter" aria-hidden="true"></i>
+                            <select v-model="searchTopic" aria-label="หัวข้อที่ต้องการค้นหา">
+                                <option
+                                    v-for="opt in PRESCRIPTION_SEARCH_TOPICS"
+                                    :key="opt.value"
+                                    :value="opt.value"
+                                >
+                                    {{ opt.label }}
+                                </option>
+                            </select>
+                        </label>
+                    </div>
+                    <div v-if="searchQuery.trim()" class="pharma-list-search-hint">
+                        พบ <strong>{{ filteredHistoryData.length }}</strong> รายการจากคำค้น "{{ searchQuery.trim() }}"
+                    </div>
+                </div>
+
                 <div class="table-container shadow-card">
                     <div v-if="isLoading" class="loading-state">
                         <div class="spinner"></div>
@@ -674,7 +751,7 @@ const formatArchiveExpiry = (expiresAt) => {
                         </thead>
                         <tbody>
                             <tr
-                                v-for="item in filteredHistoryData"
+                                v-for="item in pagedList"
                                 :key="item.id"
                                 :class="{ 'row-completed': item.tracking_status === 'completed' }"
                             >
@@ -705,7 +782,7 @@ const formatArchiveExpiry = (expiresAt) => {
                                     <div class="symptom-text">{{ item.med_details || '-' }}</div>
                                 </td>
                                 <td>
-                                    <span class="symptom-text">{{ item.symptom_name || 'ทั่วไป' }}</span>
+                                    <span class="symptom-text">{{ displaySymptom(item) }}</span>
                                 </td>
                                 <td>{{ formatDate(item.created_at) }}</td>
                                 <td>
@@ -771,7 +848,7 @@ const formatArchiveExpiry = (expiresAt) => {
                     <!-- Mobile Card View -->
                     <div v-if="!isLoading && filteredHistoryData.length > 0" class="card-list">
                         <div
-                            v-for="item in filteredHistoryData"
+                            v-for="item in pagedList"
                             :key="'c-'+item.id"
                             class="patient-card"
                             :class="{ 'card-completed': item.tracking_status === 'completed' }"
@@ -817,7 +894,7 @@ const formatArchiveExpiry = (expiresAt) => {
                             </div>
                             <div class="card-row">
                                 <span class="card-label">🤒 อาการ</span>
-                                <span class="card-value">{{ item.symptom_name || 'ทั่วไป' }}</span>
+                                <span class="card-value">{{ displaySymptom(item) }}</span>
                             </div>
                             <div class="card-row">
                                 <span class="card-label">🕒 บันทึก</span>
@@ -864,12 +941,27 @@ const formatArchiveExpiry = (expiresAt) => {
 
                     <div v-if="!isLoading && filteredHistoryData.length === 0" class="empty-state">
                         <div class="empty-icon">📭</div>
-                        <p v-if="!showCompleted && counts.completed > 0">
+                        <p v-if="searchQuery">ไม่พบรายการที่ตรงกับคำค้น — ลองเปลี่ยนคำค้นใหม่</p>
+                        <p v-else-if="!showCompleted && counts.completed > 0">
                             ไม่มีเคสที่ต้องติดตามแล้ว — กดปุ่ม "แสดงทั้งหมด" เพื่อดูเคสที่ปิดไปแล้ว
                         </p>
                         <p v-else>ไม่มีรายการที่ต้องติดตามในขณะนี้</p>
                     </div>
                 </div>
+
+                <AdminPagination
+                    v-if="!isLoading && filteredHistoryData.length > 0"
+                    :page-start="pageStart"
+                    :page-end="pageEnd"
+                    :total-items="filteredHistoryData.length"
+                    :current-page="currentPage"
+                    :total-pages="totalPages"
+                    :page-numbers="pageNumbers"
+                    :page-size="pageSize"
+                    :sizes="PAGE_SIZE_OPTIONS"
+                    @go="goToPage"
+                    @size-change="onPageSizeChange"
+                />
             </section>
         </div>
 
@@ -1908,3 +2000,5 @@ const formatArchiveExpiry = (expiresAt) => {
     }
 }
 </style>
+
+<style src="@/assets/pharma-list-search.css"></style>

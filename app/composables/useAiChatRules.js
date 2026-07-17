@@ -10,12 +10,7 @@
  */
 import { repairScreeningFormat } from '../../utils/repairScreeningFormat';
 import { isAdultContentInput, REPLY_ADULT } from '../../utils/chatAdultContentFilter';
-import {
-  hasSpamRepetition,
-  isGibberishInput,
-  REPLY_GIBBERISH_EN,
-  REPLY_GIBBERISH_TH,
-} from '../../utils/gibberishFilter.js';
+import { isGibberishInput } from '../../utils/gibberishFilter.js';
 import {
   formatFixedScreeningQuestion,
   isHallucinatedScreeningText,
@@ -141,9 +136,6 @@ export function useAiChatRules() {
     if (containsAny(t, PROFANITY)) return true;
     return PROFANITY_RE.test(t);
   };
-
-  /** @deprecated alias — ใช้ isGibberishInput จาก utils/gibberishFilter.js */
-  const isGibberishInputLocal = isGibberishInput;
 
   /** มุก/คำตอบแกล้ง — เช่n ปวดขี้, ปวดเงิน (ไม่ใช่คำตอบซักประวัติจริง) */
   const JOKE_ANSWER_RE = /ปวด\s*(ขี้|ตด|อึ|ง่วง|เบื่อ|รัก|เงิน|สอบ|การบ้าน|เกม|มือถือ|wifi|เน็ต|ใจ)/i;
@@ -400,15 +392,14 @@ export function useAiChatRules() {
   };
 
   /**
-   * จำแนกประเภทข้อความ — red flag, คำหยาบ, พิมพ์มั่ว, มุก/คำตอบแกล้ง
+   * จำแนกประเภทข้อความ — red flag, คำหยาด, พิมพ์มั่ว (เฉพาะช่วงซักประวัติ)
    * @returns {'redflag' | 'adult' | 'profanity' | 'gibberish' | 'thanks' | 'normal'}
    */
-  const classifyInput = (text) => {
+  const classifyInput = (text, options = {}) => {
     if (isRedFlagInput(text)) return 'redflag';
     if (isAdultContentInput(text)) return 'adult';
     if (isProfanityInput(text)) return 'profanity';
-    if (isGibberishInputLocal(text)) return 'gibberish';
-    if (isJokeAnswerInput(text)) return 'gibberish';
+    if (isGibberishInput(text) && isActiveFixedScreening(options.messages)) return 'gibberish';
     if (containsAny(text, THANKS)) return 'thanks';
     return 'normal';
   };
@@ -440,9 +431,6 @@ export function useAiChatRules() {
   const REPLY_ADULT_TH = REPLY_ADULT.th;
   const REPLY_ADULT_EN = REPLY_ADULT.en;
 
-  const REPLY_GIBBERISH = REPLY_GIBBERISH_TH;
-  const REPLY_GIBBERISH_EN_LOCAL = REPLY_GIBBERISH_EN;
-
   const buildOffSymptomReply = (symptomName, locale = 'th') => {
     const loc = resolveChatLocale(locale);
     const name = symptomDisplayName(symptomName, loc);
@@ -468,30 +456,9 @@ export function useAiChatRules() {
       adult: loc === 'en' ? REPLY_ADULT_EN : REPLY_ADULT_TH,
       irrelevant: loc === 'en' ? REPLY_IRRELEVANT_EN : REPLY_IRRELEVANT,
       profanity: loc === 'en' ? REPLY_PROFANITY_EN : REPLY_PROFANITY,
-      gibberish: loc === 'en' ? REPLY_GIBBERISH_EN_LOCAL : REPLY_GIBBERISH,
       thanks: loc === 'en' ? REPLY_THANKS_EN : REPLY_THANKS,
     };
     return map[kind] || '';
-  };
-
-  /** ตอบเมื่อพิมพ์มั่ว/สั้นเกินไป — ถามข้อเดิมซ้ำ ไม่ข้ามไปข้อถัดไป */
-  const buildGibberishScreeningReply = (messages, symptomName = '', locale = 'th', opts = {}) => {
-    const base = getReply('gibberish', locale);
-    if (!isActiveFixedScreening(messages)) return base;
-    const lastQ = getLastScreeningQuestionText(messages);
-    if (lastQ) return `${base}\n\n${lastQ}`;
-    const key = normalizeSymptomKey(symptomName);
-    const progress = getChatProgress(messages);
-    const qNum = progress.highestAsked || progress.answeredUpTo + 1 || 1;
-    if (key && qNum <= SCREENING_TOTAL) {
-      const gender = opts.gender || resolveUserGender(opts.profile || null);
-      const qText = formatFixedScreeningQuestion(key, qNum, {
-        gender,
-        locale: resolveChatLocale(locale),
-      });
-      if (qText) return `${base}\n\n${qText}`;
-    }
-    return base;
   };
 
   /**
@@ -581,7 +548,11 @@ export function useAiChatRules() {
 
     const parts = [];
     let hasQuestionBlock = false;
-    let listVariant = ''; // 'care' | 'warn' | ''
+    let listVariant = ''; // 'care' | 'precaution' | 'warn' | ''
+    let careListCount = 0;
+    let precListCount = 0;
+    let warnListCount = 0;
+    const SUMMARY_LIST_MAX = 5;
     let i = 0;
     while (i < rawLines.length) {
       const clean = stripBold(rawLines[i]);
@@ -677,26 +648,47 @@ export function useAiChatRules() {
       const pushListItems = (number, text) => {
         const body = String(text || '').trim();
         if (!body) return;
+
+        let variant = listVariant;
+        let displayNum = number == null ? '' : String(number);
+
+        if (variant === 'care') {
+          if (careListCount >= SUMMARY_LIST_MAX) return;
+          careListCount += 1;
+          displayNum = String(careListCount);
+        } else if (variant === 'warn') {
+          if (warnListCount >= SUMMARY_LIST_MAX) return;
+          warnListCount += 1;
+          displayNum = String(warnListCount);
+        } else if (variant === 'precaution') {
+          if (precListCount >= SUMMARY_LIST_MAX) return;
+          precListCount += 1;
+          displayNum = '';
+        }
+
         // กรณีเตือนที่ติด "/" ในบรรทัดเดียว → แยกเป็นข้อๆ
-        if (listVariant === 'warn' && /\s\/\s/.test(body) && !/^\d+[\.\)]/.test(body)) {
+        if (variant === 'warn' && /\s\/\s/.test(body) && !/^\d+[\.\)]/.test(body)) {
           const pieces = body.split(/\s*\/\s*/).map((s) => s.trim()).filter((s) => s.length >= 2);
           if (pieces.length >= 2) {
-            pieces.forEach((t, idx) => {
+            pieces.forEach((t) => {
+              if (warnListCount >= SUMMARY_LIST_MAX) return;
+              warnListCount += 1;
               parts.push({
                 type: 'list_item',
-                number: String(idx + 1),
+                number: String(warnListCount),
                 text: t,
-                variant: listVariant || undefined,
+                variant: variant || undefined,
               });
             });
             return;
           }
         }
+
         parts.push({
           type: 'list_item',
-          number: number == null ? '' : String(number),
+          number: displayNum,
           text: body,
-          variant: listVariant || undefined,
+          variant: variant || undefined,
         });
       };
 
@@ -726,14 +718,17 @@ export function useAiChatRules() {
         continue;
       }
 
-      // ข้อควรระวัง / คำแนะนำเพิ่มเติม / หมายเหตุ — แสดงท้ายสรุป
+      // ข้อควรระวัง / คำแนะนำเพิ่มเติม / หมายเหตุ — แสดงท้ายสรุป (หลังส่วนควรพบเภสัชกร)
       if (
-        /^ข้อควรระวัง\s*[:：]/i.test(noEmoji)
-        || /^⚠️\s*คำแนะนำเพิ่มเติม\s*[:：]/i.test(noEmoji)
+        /^⚠️\s*คำแนะนำเพิ่มเติม\s*[:：]/i.test(noEmoji)
         || /^คำแนะนำเพิ่มเติม\s*[:：]/i.test(noEmoji)
         || /^หากคุณมีข้อสงสัย/i.test(noEmoji)
         || /^\*หมายเหตุ|^หมายเหตุ\s*[:：]/i.test(noEmoji)
         || /^ข้อมูลนี้มีวัตถุประสงค์/i.test(noEmoji)
+        || /^คำเตือน\s*[:：]/i.test(noEmoji)
+        || /^หากอาการยังคง|^หากอาการรุนแรง/i.test(noEmoji)
+        || /^ไม่สามารถใช้แทนคำแนะนำ/i.test(noEmoji)
+        || /^โปรดไปพบแพทย์ทันที/i.test(noEmoji)
       ) {
         parts.push({ type: 'footer_note', text: clean.trim() });
         listVariant = '';
@@ -741,8 +736,14 @@ export function useAiChatRules() {
         continue;
       }
 
+      // ข้ามเครื่องหมาย * เดี่ยวที่ AI ใส่มา
+      if (/^\*\s*$/.test(clean.trim())) {
+        i++;
+        continue;
+      }
+
       if (/^(?:💊|⚠️|👨‍⚕️|📋)/.test(clean.trim())
-        || /วิธีดูแลตนเอง|ควรพบเภสัชกร|สรุปอาการ|จากการซักประวัติ|self-care|see a pharmacist|symptom summary|Preliminary|โรคประจำตัว|chronic condition/i.test(clean)) {
+        || /วิธีดูแลตนเอง|คำแนะนำในการดูแลตนเอง|ข้อควรระวัง|ควรพบเภสัชกร|สรุปอาการ|จากการซักประวัติ|self-care|see a pharmacist|symptom summary|Preliminary|โรคประจำตัว|chronic condition|precautions?\s*[:：]/i.test(clean)) {
         let title = clean.trim().replace(/^📋\s*/, '');
         // หัวข้อปรึกษาเภสัชก่อน CTA — รวมไปกับแบนเนอร์ถ้าบรรทัดถัดไปเป็น CTA
         if (/👨‍⚕️|ปรึกษาเภสัชกรของเรา|Consult our pharmacist/i.test(title)
@@ -758,7 +759,8 @@ export function useAiChatRules() {
           i++;
           continue;
         }
-        if (/วิธีดูแลตนเอง|self-care/i.test(title)) listVariant = 'care';
+        if (/วิธีดูแลตนเอง|คำแนะนำในการดูแลตนเอง|self-care/i.test(title)) listVariant = 'care';
+        else if (/ข้อควรระวัง|precautions?\s*[:：]/i.test(title)) listVariant = 'precaution';
         else if (/ควรพบเภสัชกร|see a pharmacist/i.test(title)) listVariant = 'warn';
         else listVariant = '';
         parts.push({ type: 'section_title', text: title, variant: listVariant || undefined });
@@ -898,6 +900,24 @@ export function useAiChatRules() {
     return last ? String(last.text || '').trim() : '';
   };
 
+  /** พิมพ์มั่วระหว่างซักประวัติ — ถามข้อเดิมซ้ำ (ไม่แสดงข้อความเตือน) */
+  const buildGibberishScreeningReply = (messages, symptomName = '', locale = 'th', opts = {}) => {
+    if (!isActiveFixedScreening(messages)) return getLastScreeningQuestionText(messages) || '';
+
+    const key = normalizeSymptomKey(symptomName);
+    const progress = getChatProgress(messages);
+    const qNum = progress.pendingQ || progress.highestAsked || progress.answeredUpTo + 1 || 1;
+    if (key && qNum <= SCREENING_TOTAL) {
+      const gender = opts.gender || resolveUserGender(opts.profile || null);
+      const qText = formatFixedScreeningQuestion(key, qNum, {
+        gender,
+        locale: resolveChatLocale(locale),
+      });
+      if (qText) return qText;
+    }
+    return getLastScreeningQuestionText(messages) || '';
+  };
+
   const buildInvalidAnswerReply = (symptomName, questionText, locale = 'th') => {
     const loc = resolveChatLocale(locale);
     const name = symptomDisplayName(symptomName, loc) || String(symptomName || '').trim();
@@ -1026,7 +1046,7 @@ export function useAiChatRules() {
       : `[CHRONIC_CONDITIONS] ${disease || 'ไม่มี'}\n[CHRONIC_RULE] ต้องนำโรคประจำตัวมาประกอบการสรุป แนะนำการดูแลตนเอง และข้อควรพบเภสัชกรเสมอ ถ้าไม่มีให้ระบุว่า "ไม่มี" ห้ามแนะนำยา`;
     const systemLine = loc === 'en'
       ? `[SYSTEM] Screening is complete — write the assessment summary in clear natural English using the screening answers AND chronic conditions. Do not ask a new question. Do not print 🩺 Question N or placeholders. Do not recommend medicines. Mention relevant chronic conditions in the summary. Include both "💊 Basic self-care tips" and "⚠️ See a pharmacist if you have these symptoms" as numbered lists 1. 2. 3. … (3–5 items each, short, no long paragraphs, do not join with "/"). End exactly with: ${cta}`
-      : `[SYSTEM] ครบ 5 ข้อคัดกรองแล้ว — เขียนสรุปผลการประเมินอาการเองเป็นภาษาธรรมชาติ โดยต้องวิเคราะห์ร่วมกับโรคประจำตัวใน [CHRONIC_CONDITIONS]/[PROFILE] ด้วย อ่านง่าย ห้ามยึดเทมเพลตตายตัว ห้ามถามข้อใหม่ ห้ามพิมพ์ 🩺 ข้อ N หรือ placeholder ห้ามเสนอแนะนำยา ส่วน "💊 วิธีดูแลตนเองเบื้องต้น" และ "⚠️ ควรพบเภสัชกรหากมีอาการเหล่านี้" ต้องมีครบ และแบ่งเป็นข้อๆ หมายเลข 1. 2. 3. … (อย่างละ 3–5 ข้อ สั้นชัด ห้ามย่อหน้ายาว ห้ามรวมอาการด้วย "/") ให้ปิดท้ายว่า: ${cta}`;
+      : `[SYSTEM] ครบ 5 ข้อคัดกรองแล้ว — เขียนสรุปผลการประเมินอาการเองเป็นภาษาธรรมชาติ โดยต้องวิเคราะห์ร่วมกับโรคประจำตัวใน [CHRONIC_CONDITIONS]/[PROFILE] ด้วย อ่านง่าย ห้ามยึดเทมเพลตตายตัว ห้ามถามข้อใหม่ ห้ามพิมพ์ 🩺 ข้อ N หรือ placeholder ห้ามเสนอแนะนำยา ต้องมีครบ: "💊 คำแนะนำในการดูแลตนเองเบื้องต้น:" (ไม่เกิน 5 ข้อ), "ข้อควรระวัง:" (1–3 ข้อ), "⚠️ ควรพบเภสัชกรหากมีอาการเหล่านี้" (ไม่เกิน 5 ข้อ) — แบ่งเป็นข้อๆ หมายเลข 1. 2. 3. … สั้นชัด ห้ามย่อหน้ายาว ห้ามรวมอาการด้วย "/" ให้ปิดท้ายว่า: ${cta}`;
     return [
       profileLine,
       chronicBlock,

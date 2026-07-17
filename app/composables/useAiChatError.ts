@@ -15,7 +15,7 @@ export function getAiChatErrorMessage(err: unknown): string {
 
     if (fromServer && !fromServer.startsWith('[')) {
         if (/workflow|activate|npm run|n8n|5678|NUXT_/i.test(fromServer)) {
-            return 'ระบบ AI ยังไม่พร้อมค่ะ — รัน npm run dev แล้วเปิด n8n ที่ http://127.0.0.1:5678 กด Activate workflow (สีเขียว) หรือใส่ NUXT_AI_API_KEY ใน .env';
+            return 'ระบบ AI ยังไม่พร้อมค่ะ — รัน npm run dev แล้วเปิด n8n ที่ http://127.0.0.1:5678 เปิด workflow "TELEBOT-PHARMACY — 32 อาการ + Web Search" (สีเขียว)';
         }
         return fromServer;
     }
@@ -27,7 +27,7 @@ export function getAiChatErrorMessage(err: unknown): string {
     }
 
     if (statusCode === 502) {
-        return 'ระบบ AI ยังไม่พร้อมค่ะ — รัน npm run ai:start ให้ n8n + Ollama เปิดอยู่ หรือใส่ NUXT_AI_API_KEY ใน .env';
+        return 'ระบบ AI ยังไม่พร้อมค่ะ — รัน npm run dev ให้ n8n + Ollama เปิดอยู่ และเปิด workflow "TELEBOT-PHARMACY — 32 อาการ + Web Search"';
     }
 
     const detail = String(e?.data?.detail || e?.message || '');

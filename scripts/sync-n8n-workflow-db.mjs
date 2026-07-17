@@ -75,7 +75,7 @@ db.prepare(`
 
 db.prepare(`
   UPDATE workflow_entity SET active = 0
-  WHERE name LIKE '%TELEBOT-PHARMACY%' AND id != ?
+  WHERE id != ?
 `).run(workflowId);
 
 const row = db.prepare('SELECT name FROM workflow_entity WHERE id = ?').get(workflowId);

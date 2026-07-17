@@ -164,6 +164,28 @@ export function getConfirmedChatSlipMsgIds(slips) {
     return ids
 }
 
+/** message_id ของสลิปที่ไม่ต้องแสดงปุ่มยืนยันชำระเงินอีก */
+export function collectHiddenChatSlipMsgIds(slips, messages, extraIds = []) {
+    const hidden = getConfirmedChatSlipMsgIds(slips)
+    for (const rawId of extraIds) {
+        const id = Number(rawId) || 0
+        if (id > 0) hidden.add(id)
+    }
+
+    const list = Array.isArray(messages) ? messages : []
+    const paymentDone = list.some(
+        (msg) => parsePharmaPaymentSuccessMessage(msg?.message_text).isPaymentSuccess,
+    )
+    if (!paymentDone) return hidden
+
+    for (const msg of list) {
+        if (!isChatSlipImageMessage(msg)) continue
+        const id = Number(msg?.message_id || msg?.id || 0)
+        if (id > 0) hidden.add(id)
+    }
+    return hidden
+}
+
 export function isChatSlipImageMessage(msg) {
     return msg?.sender_role === 'user'
         && msg?.file_path

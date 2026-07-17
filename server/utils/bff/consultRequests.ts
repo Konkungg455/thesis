@@ -5,6 +5,7 @@ import { archiveAndClearChatBetween } from './consultArchives';
 import { isConsultNotifyWorthy } from './storeNotifications';
 import { ensureConsultTrackingRecord } from './consultTracking';
 import { syncServiceUsageForConsult } from './serviceUsage';
+import { resolveDisplaySymptom } from '../../../utils/fixedScreeningQuestions';
 
 let appointmentSchemaReady = false;
 
@@ -237,23 +238,40 @@ export async function enrichConsultBotMeta(
     }
 
     if (reqSession) {
-        const sq = await sql`
-            SELECT symptom_name, COUNT(*)::int AS cnt
+        const countRow = await sql`
+            SELECT COUNT(*)::int AS cnt
             FROM chat_history
             WHERE id_account = ${uId}
               AND session_id = ${reqSession}
               AND COALESCE(is_deleted, 0) = 0
-            GROUP BY symptom_name
-            ORDER BY COUNT(*) DESC
-            LIMIT 1
         `;
-        if (sq[0]) {
-            data.bot_message_count = Number(sq[0].cnt || 0);
-            data.symptom_name = String(sq[0].symptom_name || data.symptom_name || '');
-        } else {
-            data.bot_message_count = 0;
-            data.symptom_name = '';
+        data.bot_message_count = Number(countRow[0]?.cnt || 0);
+
+        const symptomRows = await sql`
+            SELECT symptom_name
+            FROM chat_history
+            WHERE id_account = ${uId}
+              AND session_id = ${reqSession}
+              AND COALESCE(is_deleted, 0) = 0
+              AND symptom_name IS NOT NULL
+              AND symptom_name <> ''
+            ORDER BY
+              CASE WHEN symptom_name = 'ทั่วไป' THEN 1 ELSE 0 END,
+              created_at ASC,
+              id ASC
+        `;
+        let picked = '';
+        for (const row of symptomRows) {
+            const resolved = resolveDisplaySymptom(String(row.symptom_name || ''));
+            if (resolved !== 'ทั่วไป') {
+                picked = resolved;
+                break;
+            }
         }
+        if (!picked && symptomRows[0]) {
+            picked = resolveDisplaySymptom(String(symptomRows[0].symptom_name || ''));
+        }
+        data.symptom_name = picked || resolveDisplaySymptom(String(data.symptom_name || ''));
     } else {
         const sq = await sql`
             SELECT session_id, symptom_name, COUNT(*)::int AS cnt, MAX(created_at) AS last_at
@@ -267,9 +285,11 @@ export async function enrichConsultBotMeta(
         if (sq[0]) {
             data.bot_session_id = String(sq[0].session_id || '');
             data.bot_message_count = Number(sq[0].cnt || 0);
-            data.symptom_name = String(sq[0].symptom_name || data.symptom_name || '');
+            data.symptom_name = resolveDisplaySymptom(String(sq[0].symptom_name || data.symptom_name || ''));
         }
     }
+
+    data.symptom_name = resolveDisplaySymptom(String(data.symptom_name || ''));
 }
 
 export async function handleCheckPharmaRequest(event: H3Event) {
@@ -533,7 +553,8 @@ export async function handleGetUserBotHistory(event: H3Event) {
             `;
             for (const r of mq) {
                 if (!symptomName && r.symptom_name) {
-                    symptomName = String(r.symptom_name);
+                    const resolved = resolveDisplaySymptom(String(r.symptom_name));
+                    if (resolved !== 'ทั่วไป') symptomName = resolved;
                 }
                 messages.push({
                     role: String(r.role || ''),
@@ -559,7 +580,7 @@ export async function handleGetUserBotHistory(event: H3Event) {
             patient_id: uId,
             patient_name: patientName,
             session_id: sessionId,
-            symptom_name: symptomName,
+            symptom_name: resolveDisplaySymptom(symptomName),
             message_count: messages.length,
             data: messages,
         };

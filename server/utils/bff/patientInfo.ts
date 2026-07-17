@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3';
+import { resolveDisplaySymptom } from '../../../utils/fixedScreeningQuestions';
 
 export async function resolveAccountPatientName(
     sql: ReturnType<typeof useDb>,
@@ -27,6 +28,24 @@ async function fetchSymptomForConsult(
     idAccount: number,
 ): Promise<string> {
     if (consultId <= 0 || idAccount <= 0) return '';
+
+    const linked = await sql`
+        SELECT ch.symptom_name
+        FROM consult_requests cr
+        INNER JOIN chat_history ch
+          ON ch.id_account = cr.id_account
+         AND ch.session_id = cr.bot_session_id
+        WHERE cr.id = ${consultId}
+          AND cr.id_account = ${idAccount}
+          AND ch.symptom_name IS NOT NULL
+          AND ch.symptom_name <> ''
+          AND COALESCE(ch.is_deleted, 0) = 0
+        ORDER BY ch.created_at ASC, ch.id ASC
+        LIMIT 1
+    `;
+    const linkedSymptom = String(linked[0]?.symptom_name || '').trim();
+    if (linkedSymptom) return resolveDisplaySymptom(linkedSymptom);
+
     const req = await sql`
         SELECT bot_session_id FROM consult_requests
         WHERE id = ${consultId} AND id_account = ${idAccount}
@@ -34,6 +53,7 @@ async function fetchSymptomForConsult(
     `;
     const sess = String(req[0]?.bot_session_id || '').trim();
     if (!sess) return '';
+
     const hist = await sql`
         SELECT symptom_name FROM chat_history
         WHERE id_account = ${idAccount}
@@ -44,7 +64,7 @@ async function fetchSymptomForConsult(
         ORDER BY created_at ASC, id ASC
         LIMIT 1
     `;
-    return String(hist[0]?.symptom_name || '').trim();
+    return resolveDisplaySymptom(String(hist[0]?.symptom_name || '').trim());
 }
 
 async function fetchLatestSymptom(sql: ReturnType<typeof useDb>, idAccount: number): Promise<string> {
@@ -54,10 +74,19 @@ async function fetchLatestSymptom(sql: ReturnType<typeof useDb>, idAccount: numb
           AND symptom_name IS NOT NULL
           AND symptom_name <> ''
           AND COALESCE(is_deleted, 0) = 0
-        ORDER BY created_at DESC, id DESC
-        LIMIT 1
+        ORDER BY
+          CASE WHEN symptom_name = 'ทั่วไป' THEN 1 ELSE 0 END,
+          created_at DESC,
+          id DESC
     `;
-    return String(rows[0]?.symptom_name || '').trim();
+    for (const row of rows) {
+        const resolved = resolveDisplaySymptom(String(row.symptom_name || ''));
+        if (resolved !== 'ทั่วไป') return resolved;
+    }
+    if (rows[0]) {
+        return resolveDisplaySymptom(String(rows[0].symptom_name || ''));
+    }
+    return 'ทั่วไป';
 }
 
 async function findInAccount(
@@ -80,7 +109,7 @@ async function findInAccount(
     }
     const imgFile = String(row.images_account || '').trim();
     const imageUrl = imgFile ? `images_account/${imgFile}` : 'images_account/default.png';
-    const symptom = consultId > 0
+    const rawSymptom = consultId > 0
         ? await fetchSymptomForConsult(sql, consultId, id)
         : await fetchLatestSymptom(sql, id);
 
@@ -90,7 +119,7 @@ async function findInAccount(
         firstname: first,
         lastname: last,
         image_url: imageUrl,
-        symptom_name: symptom || 'ทั่วไป',
+        symptom_name: resolveDisplaySymptom(rawSymptom),
     };
 }
 

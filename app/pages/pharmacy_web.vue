@@ -67,7 +67,8 @@ const sidebarPatientIds = ref([]);
 const patientSearchQuery = ref('');
 const MEDICINE_REQUEST_TEXT = 'ระบบ : ผู้ป่วยต้องการรับยา กรุณาออกใบปรึกษาให้ด้วย';
 
-import { parsePrescriptionMessage, normalizeChatDisplayText, parseDeliveryChoiceMessage, getConfirmedChatSlipMsgIds, isChatSlipImageMessage, parsePharmaPaymentSuccessMessage } from '~/utils/prescription';
+import { parsePrescriptionMessage, normalizeChatDisplayText, parseDeliveryChoiceMessage, getConfirmedChatSlipMsgIds, collectHiddenChatSlipMsgIds, isChatSlipImageMessage, parsePharmaPaymentSuccessMessage } from '~/utils/prescription';
+import { resolveDisplaySymptom } from '~/utils/fixedScreeningQuestions';
 import { useAdaptivePoll } from '~/composables/useChatApi';
 
 const openPrescriptionPdf = (prescriptionId) => {
@@ -83,7 +84,15 @@ const chatBubbleClass = (msg) => {
     return msg.sender_role === 'pharma' ? 'doctor' : 'patient';
 };
 
-const confirmedChatSlipMsgIds = ref(new Set());
+const billingSlipsForConfirm = ref([]);
+const locallyConfirmedSlipMsgIds = ref([]);
+
+const hiddenChatSlipMsgIds = computed(() => collectHiddenChatSlipMsgIds(
+    billingSlipsForConfirm.value,
+    chatMessages.value,
+    locallyConfirmedSlipMsgIds.value,
+));
+
 const confirmingChatSlipId = ref(0);
 
 const loadConfirmedChatSlips = async () => {
@@ -94,7 +103,9 @@ const loadConfirmedChatSlips = async () => {
             query: { id_pharma: myPharmaId.value, t: Date.now() },
         });
         if (data?.status === 'success') {
-            confirmedChatSlipMsgIds.value = getConfirmedChatSlipMsgIds(data.slips || []);
+            billingSlipsForConfirm.value = data.slips || [];
+            const confirmed = getConfirmedChatSlipMsgIds(billingSlipsForConfirm.value);
+            locallyConfirmedSlipMsgIds.value = locallyConfirmedSlipMsgIds.value.filter((id) => !confirmed.has(id));
         }
     } catch {
         // ignore polling errors
@@ -129,7 +140,7 @@ const consultInfoPoll = useAdaptivePoll(() => fetchActiveConsultInfo(), {
 const shouldShowPaymentConfirm = (msg) => {
     if (!isChatSlipImageMessage(msg)) return false;
     const mid = getMessageId(msg);
-    return mid > 0 && !confirmedChatSlipMsgIds.value.has(mid);
+    return mid > 0 && !hiddenChatSlipMsgIds.value.has(mid);
 };
 
 const confirmChatPayment = async (msg) => {
@@ -151,8 +162,11 @@ const confirmChatPayment = async (msg) => {
             credentials: 'include',
         });
         if (res?.status === 'success') {
-            confirmedChatSlipMsgIds.value = new Set([...confirmedChatSlipMsgIds.value, messageId]);
+            if (!locallyConfirmedSlipMsgIds.value.includes(messageId)) {
+                locallyConfirmedSlipMsgIds.value = [...locallyConfirmedSlipMsgIds.value, messageId];
+            }
             await loadConfirmedChatSlips();
+            await fetchMessages();
             alert(res.message || 'ยืนยันการชำระเงินแล้ว รอเจ้าของร้านตรวจสอบ');
         } else {
             alert(res?.message || 'ยืนยันการชำระเงินไม่สำเร็จ');
@@ -234,10 +248,7 @@ const sidebarPatientGroups = computed(() => {
     ];
 });
 
-const displayPatientSymptom = (id) => {
-    const raw = String(patientSymptomsMap.value[id] || '').trim();
-    return raw || 'ทั่วไป';
-};
+const displayPatientSymptom = (id) => resolveDisplaySymptom(patientSymptomsMap.value[id] || '');
 
 const getSidebarCacheKey = () => {
     const pharmaId = resolvePharmaIdForCache() || 'guest';
@@ -314,7 +325,7 @@ const setPatientImage = (id, imageUrl) => {
 const setPatientSymptom = (id, symptom) => {
     const cleanId = normalizePatientId(id);
     if (!cleanId) return;
-    patientSymptomsMap.value = { ...patientSymptomsMap.value, [cleanId]: (symptom || '').trim() };
+    patientSymptomsMap.value = { ...patientSymptomsMap.value, [cleanId]: resolveDisplaySymptom(symptom || '') };
 };
 
 // helper: รูปโปรไฟล์เต็ม URL (รองรับ ngrok/proxy)
@@ -333,15 +344,14 @@ const fetchPatientInfo = async (id, { consultId = 0, markLoaded = true } = {}) =
     const cid = Number(consultId) || Number(activeRequestId.value) || Number(route.query.consult_id) || 0;
     const isActive = Number(activePatientId.value) === cleanId;
     let url = `get-patient-info.php?id=${cleanId}&role=user`;
-    // ส่ง consult_id เฉพาะคนไข้ที่กำลังเปิดแชทอยู่ → ได้อาการของรอบรับเคสนั้น
-    if (isActive && cid > 0) url += `&consult_id=${cid}`;
+    if (cid > 0) url += `&consult_id=${cid}`;
     try {
         const res = await $fetch(apiUrl(url), { credentials: 'include' });
         if (res && res.status === 'success') {
             setPatientDisplayName(cleanId, res.data.patient_name);
             if (res.data.image_url) setPatientImage(cleanId, res.data.image_url);
             if (isActive || markLoaded) {
-                setPatientSymptom(cleanId, res.data.symptom_name || 'ทั่วไป');
+                setPatientSymptom(cleanId, res.data.symptom_name || '');
             }
         } else if (!patientDetailsMap.value[cleanId]) {
             setPatientDisplayName(cleanId, `ผู้ป่วยคนที่ ${cleanId}`);
@@ -382,11 +392,16 @@ const checkExternalBellTrigger = async () => {
         const id = normalizePatientId(bellTriggerId);
         if (id) {
             const bellName = localStorage.getItem('bell-incoming-patient-name');
+            const bellSymptom = localStorage.getItem('bell-incoming-patient-symptom');
             localStorage.removeItem('bell-incoming-patient-id');
             localStorage.removeItem('bell-incoming-patient-name');
+            localStorage.removeItem('bell-incoming-patient-symptom');
 
             if (bellName) {
                 setPatientDisplayName(id, bellName);
+            }
+            if (bellSymptom) {
+                setPatientSymptom(id, bellSymptom);
             }
 
             ensurePatientInSidebar(id);
@@ -399,9 +414,13 @@ const checkExternalBellTrigger = async () => {
             const nextQuery = { id };
             if (keepCid > 0) nextQuery.consult_id = keepCid;
             if (keepSrv) nextQuery.srv = keepSrv;
+            if (keepCid > 0) {
+                setPatientRoundMeta(id, { consultId: keepCid, serviceCode: keepSrv });
+                setPatientListGroup(id, 'tracking');
+            }
             await router.push({ query: nextQuery });
 
-            await fetchPatientInfo(id);
+            await fetchPatientInfo(id, { consultId: keepCid, markLoaded: true });
             fetchMessages();
         }
     }
@@ -423,7 +442,7 @@ const applyPatientRowFromApi = (p) => {
     });
     const roundCid = Number(p.consult_id || p.request_id || 0);
     fetchPatientInfo(pid, {
-        consultId: p.list_group === 'tracking' ? roundCid : 0,
+        consultId: roundCid,
         markLoaded: true,
     });
     return pid;
@@ -962,6 +981,24 @@ const fetchActiveConsultInfo = async () => {
             trackingStartedAt.value = data.tracking_base || null;
             consultTimeLeftText.value = 'สิ้นสุดการติดตามอาการแล้ว';
             showEndConsultFab.value = false;
+            const endedCid = Number(data.id) || Number(route.query.consult_id) || 0;
+            if (endedCid > 0) {
+                setPatientRoundMeta(activePatientId.value, {
+                    consultId: endedCid,
+                    serviceCode: resolveViewServiceCode(),
+                });
+                setPatientListGroup(activePatientId.value, 'tracking');
+            }
+            applyActivePatientBotMeta(data);
+            const endedSymptom = String(data.symptom_name || '').trim();
+            if (endedSymptom && endedSymptom !== 'ทั่วไป') {
+                setPatientSymptom(activePatientId.value, endedSymptom);
+            } else if (endedCid > 0) {
+                await fetchPatientInfo(activePatientId.value, {
+                    consultId: endedCid,
+                    markLoaded: true,
+                });
+            }
             return;
         }
         // จด request_id รอบปัจจุบัน (ไม่ทับเมื่อ URL ล็อกรอบ SRV จาก /tracking)
@@ -1534,7 +1571,7 @@ const selectPatient = (id) => {
     const roundCid = Number(meta.consult_id) || 0;
     router.push({ path: '/pharmacy_web', query: buildPatientRouteQuery(normalized) });
     fetchPatientInfo(normalized, {
-        consultId: patientListGroupMap.value[normalized] === 'tracking' ? roundCid : 0,
+        consultId: roundCid,
         markLoaded: true,
     });
     fetchActiveConsultInfo();
@@ -1575,8 +1612,16 @@ const initPharmacyFromRoute = async (newId) => {
         initialScrollDone.value = false;
 
         const pendingName = localStorage.getItem('bell-incoming-patient-name');
+        const pendingSymptom = localStorage.getItem('bell-incoming-patient-symptom');
         if (pendingName) {
             setPatientDisplayName(normalized, pendingName);
+        }
+        if (pendingSymptom) {
+            setPatientSymptom(normalized, pendingSymptom);
+        }
+        if (routeCid > 0) {
+            setPatientRoundMeta(normalized, { consultId: routeCid, serviceCode: routeSrv });
+            setPatientListGroup(normalized, 'tracking');
         }
         ensurePatientInSidebar(normalized);
         fetchPatientInfo(normalized, { consultId: routeCid, markLoaded: true });

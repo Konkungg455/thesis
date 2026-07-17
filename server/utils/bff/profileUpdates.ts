@@ -758,6 +758,41 @@ export async function handleReviewBillingSlip(event: H3Event) {
     return { status: 'success', message: 'อัปเดตสลิปแล้ว' };
 }
 
+export async function handleDeleteBillingSlip(event: H3Event) {
+    const body = await readBody(event).catch(() => ({}));
+    const auth = getAuthContext(event, body as Record<string, unknown>);
+    const id = parsePositiveInt((body as Record<string, unknown>).id);
+    const storeId = parsePositiveInt((body as Record<string, unknown>).store_id ?? auth.id_store_accounts);
+
+    if (id <= 0 || storeId <= 0) {
+        return { status: 'error', message: 'ข้อมูลไม่ครบ' };
+    }
+
+    const deleted = await dbQuery(async (sql) => {
+        const rows = await sql`
+            DELETE FROM pharmacy_billing_slips
+            WHERE id = ${id} AND id_store = ${storeId}
+            RETURNING id
+        `;
+        return rows[0] as { id: number } | undefined;
+    });
+
+    if (!deleted?.id) {
+        return { status: 'error', message: 'ไม่พบสลิปหรือลบไม่สำเร็จ' };
+    }
+
+    await dbQuery(async (sql) => {
+        await sql`
+            UPDATE store_transactions
+            SET tx_status = 'cancelled', updated_at = NOW()
+            WHERE tx_type = 'slip' AND source_id = ${id}
+        `;
+        return true;
+    });
+
+    return { status: 'success', message: 'ลบสลิปแล้ว' };
+}
+
 export async function handleUploadBillingSlip(event: H3Event) {
     const { fields, files } = await readMultipartRequest(event);
     const auth = getAuthContext(event, fields);

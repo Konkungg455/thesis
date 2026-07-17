@@ -28,6 +28,24 @@ const sessions = computed(() => (
     sessionsRes.value?.status === 'success' ? (sessionsRes.value.data || []) : []
 ));
 
+const {
+    PAGE_SIZE_OPTIONS,
+    pageSize,
+    currentPage,
+    totalPages,
+    pagedList,
+    pageStart,
+    pageEnd,
+    pageNumbers,
+    goToPage,
+    resetPage,
+} = useTablePagination(sessions);
+
+const onPageSizeChange = (v) => {
+    pageSize.value = v;
+    resetPage();
+};
+
 const loadSessions = async () => {
     errorMessage.value = '';
     try {
@@ -215,7 +233,7 @@ onMounted(async () => {
 
                     <ul v-else class="session-list">
                         <li
-                            v-for="(s, idx) in sessions"
+                            v-for="(s, idx) in pagedList"
                             :key="`s-${s.consult_id}-${idx}`"
                             class="session-item"
                             :class="{ active: selectedSession && selectedSession === s }"
@@ -270,6 +288,20 @@ onMounted(async () => {
                             </button>
                         </li>
                     </ul>
+
+                    <AdminPagination
+                        v-if="sessions.length > 0"
+                        :page-start="pageStart"
+                        :page-end="pageEnd"
+                        :total-items="sessions.length"
+                        :current-page="currentPage"
+                        :total-pages="totalPages"
+                        :page-numbers="pageNumbers"
+                        :page-size="pageSize"
+                        :sizes="PAGE_SIZE_OPTIONS"
+                        @go="goToPage"
+                        @size-change="onPageSizeChange"
+                    />
                 </aside>
 
                 <!-- กล่องข้อความ -->
@@ -415,6 +447,27 @@ onMounted(async () => {
     height: fit-content;
     max-height: 720px;
     overflow-y: auto;
+}
+
+.sessions-panel :deep(.admin-pagination) {
+    margin-top: 12px;
+    padding: 10px 12px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+}
+
+.sessions-panel :deep(.pagination-info),
+.sessions-panel :deep(.pagination-size),
+.sessions-panel :deep(.pagination-controls) {
+    justify-content: center;
+    text-align: center;
+}
+
+.sessions-panel :deep(.page-btn) {
+    min-width: 32px;
+    height: 32px;
+    font-size: 0.82rem;
 }
 
 .panel-title {

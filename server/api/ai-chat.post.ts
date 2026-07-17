@@ -1,5 +1,5 @@
 /**
- * Proxy AI — n8n+Ollama เป็นหลัก, fallback Groq ถ้า n8n ล้ม
+ * Proxy AI — ใช้เฉพาะ n8n workflow TELEBOT-PHARMACY — 32 อาการ + Web Search
  */
 import { repairScreeningFormat } from '../../utils/repairScreeningFormat';
 
@@ -119,16 +119,6 @@ export default defineEventHandler(async (event) => {
         }
     }
 
-    // n8n ล้ม → ใช้ Groq อัตโนมัติถ้ามี key (ไม่ต้องรอ activate workflow)
-    if (hasAiApiKey(config)) {
-        try {
-            console.warn('[api/ai-chat] n8n failed — fallback Groq');
-            return await callCloudAi(config, chatInput);
-        } catch (groqErr) {
-            console.error('[api/ai-chat] groq fallback failed:', groqErr);
-        }
-    }
-
     const e = lastErr as { statusCode?: number; message?: string };
     console.error('[api/ai-chat] n8n failed:', url, e?.message || lastErr);
 
@@ -138,12 +128,13 @@ export default defineEventHandler(async (event) => {
     throw createError({
         statusCode: 502,
         statusMessage: is404
-            ? 'AI ยังไม่พร้อม — เปิด http://127.0.0.1:5678 แล้ว Activate workflow (สีเขียว) หรือตั้ง NUXT_AI_API_KEY'
-            : 'AI ยังไม่พร้อม — รัน npm run dev ให้ n8n + Ollama เปิดอยู่ หรือตั้ง NUXT_AI_API_KEY (Groq)',
+            ? 'AI ยังไม่พร้อม — เปิด http://127.0.0.1:5678 แล้ว Activate workflow "TELEBOT-PHARMACY — 32 อาการ + Web Search" (สีเขียว)'
+            : 'AI ยังไม่พร้อม — รัน npm run dev ให้ n8n + Ollama เปิดอยู่',
         data: {
             detail: e?.message || String(lastErr),
             n8nUrl: url,
             mode: 'n8n',
+            workflow: 'TELEBOT-PHARMACY — 32 อาการ + Web Search',
         },
     });
 });

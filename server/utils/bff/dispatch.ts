@@ -11,6 +11,7 @@ import {
 } from './savePrescription';
 import { parsePositiveInt } from './sessionContext';
 import { handleTouchPresence } from './presence';
+import { handleDeleteBillingSlip } from './profileUpdates';
 
 function normalizePath(pathname: string): string {
     return pathname.split('?')[0].replace(/^\/+/, '');
@@ -212,6 +213,10 @@ export async function dispatchBff(event: H3Event, pathname: string) {
 
     if (pathLower === 'review-billing-slip.php' && method === 'POST') {
         return handleReviewBillingSlip(event);
+    }
+
+    if (pathLower === 'delete-billing-slip.php' && method === 'POST') {
+        return handleDeleteBillingSlip(event);
     }
 
     if (pathLower === 'upload-billing-slip.php' && method === 'POST') {

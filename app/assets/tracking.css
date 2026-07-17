@@ -186,6 +186,78 @@
     margin: 0;
 }
 
+/* ===== Search Toolbar ===== */
+.search-toolbar {
+    background: #fff;
+    border-radius: 18px;
+    padding: 16px 20px;
+    margin-bottom: 18px;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+    border: 1px solid #eef2f7;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.history-search-input {
+    position: relative;
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+}
+.history-search-input i.fa-magnifying-glass {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 0.95rem;
+}
+.history-search-input input {
+    width: 100%;
+    padding: 12px 44px;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 0.96rem;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+.history-search-input input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+.history-search-input .clear-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+.history-search-input .clear-btn:hover {
+    background: #fee2e2;
+    color: #dc2626;
+    transform: translateY(-50%) scale(1.08);
+}
+.search-info {
+    font-size: 0.88rem;
+    color: #64748b;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, #eff6ff 0%, #ecfdf5 100%);
+    border-radius: 12px;
+    border: 1px solid #e0e7ff;
+}
+.search-info strong { color: #1d4ed8; }
+
 /* ===== Buttons ===== */
 /* ============== BUTTON GROUP — desktop table (2×2 grid) ============== */
 .btn-group {

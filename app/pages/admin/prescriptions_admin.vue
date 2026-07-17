@@ -4,6 +4,7 @@
  */
 import { ref, computed, onMounted, watch } from 'vue'
 import { formatMedDetailsWithQty } from '@/utils/prescription'
+import { matchPrescriptionSearch, PRESCRIPTION_SEARCH_TOPICS, PRESCRIPTION_SEARCH_PLACEHOLDERS } from '@/utils/prescriptionSearch'
 
 definePageMeta({ middleware: 'admin-only' })
 
@@ -11,7 +12,12 @@ const formatMedSummary = (item) => formatMedDetailsWithQty(item?.med_details, it
 
 const historyData = ref([])
 const searchQuery = ref('')
+const searchTopic = ref('all')
 const isLoading = ref(false)
+
+const searchPlaceholder = computed(() =>
+  PRESCRIPTION_SEARCH_PLACEHOLDERS[searchTopic.value] || PRESCRIPTION_SEARCH_PLACEHOLDERS.all,
+)
 
 const handleFetch = async () => {
   isLoading.value = true
@@ -27,19 +33,16 @@ const handleFetch = async () => {
 }
 
 const filteredList = computed(() => {
-  const q = searchQuery.value.toLowerCase().trim()
+  const q = searchQuery.value.trim()
   if (!q) return historyData.value
-  return historyData.value.filter(item =>
-    item.patient_name?.toLowerCase().includes(q) ||
-    item.patient_full_name?.toLowerCase().includes(q) ||
-    item.hn_no?.toString().toLowerCase().includes(q) ||
-    item.pharmacist_name?.toLowerCase().includes(q) ||
-    item.doctor_name?.toLowerCase().includes(q) ||
-    item.pharmacist_username?.toLowerCase().includes(q) ||
-    item.med_details?.toLowerCase().includes(q) ||
-    item.med_qty?.toLowerCase().includes(q) ||
-    formatMedSummary(item).toLowerCase().includes(q)
-  )
+  const qLower = q.toLowerCase()
+  return historyData.value.filter((item) => {
+    if (matchPrescriptionSearch(item, q, searchTopic.value)) return true
+    if (searchTopic.value === 'all' || searchTopic.value === 'med') {
+      return formatMedSummary(item).toLowerCase().includes(qLower)
+    }
+    return false
+  })
 })
 
 const uniquePharmaCount = computed(() => {
@@ -64,7 +67,7 @@ const {
   resetPage,
 } = useTablePagination(filteredList)
 
-watch(searchQuery, () => resetPage())
+watch([searchQuery, searchTopic], () => resetPage())
 
 const viewPDF = (id) => {
   window.open(`/prescription-view?id=${id}`, '_blank')
@@ -110,16 +113,29 @@ onMounted(() => {
         </div>
 
         <!-- ===== Search ===== -->
-        <div class="presc-search-wrap">
-          <div class="presc-search">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" v-model="searchQuery"
-              placeholder="ค้นหาชื่อผู้ใช้บริการ / ชื่อเภสัชกร / ชื่อยา...">
-            <button v-if="searchQuery" class="presc-search-clear" @click="searchQuery = ''" title="ล้างคำค้น">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
+        <div class="mgmt-search-wrap">
+          <div class="mgmt-search-row">
+            <div class="mgmt-search">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" v-model="searchQuery" :placeholder="searchPlaceholder">
+              <button v-if="searchQuery" class="mgmt-search-clear" @click="searchQuery = ''" title="ล้างคำค้น">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div class="mgmt-search-topic">
+              <i class="fa-solid fa-filter" aria-hidden="true"></i>
+              <select v-model="searchTopic" aria-label="หัวข้อที่ต้องการค้นหา">
+                <option
+                  v-for="opt in PRESCRIPTION_SEARCH_TOPICS"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </option>
+              </select>
+            </div>
           </div>
-          <div v-if="searchQuery" class="presc-search-hint">
+          <div v-if="searchQuery" class="mgmt-search-hint">
             พบ <strong>{{ filteredList.length }}</strong> รายการจากคำค้น "{{ searchQuery }}"
           </div>
         </div>

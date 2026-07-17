@@ -1,0 +1,156 @@
+/* ช่องค้นหา + ตัวกรองหัวข้อ — ใช้ร่วม /history และ /tracking */
+.pharma-list-search-wrap {
+    background: #fff;
+    border-radius: 18px;
+    padding: 16px 20px;
+    margin-bottom: 18px;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+    border: 1px solid #eef2f7;
+}
+
+.pharma-list-search-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: stretch;
+}
+
+.pharma-list-search-input {
+    flex: 1 1 220px;
+    min-width: 0;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px 0 12px;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    box-sizing: border-box;
+}
+
+.pharma-list-search-input > i.fa-magnifying-glass {
+    position: static;
+    transform: none;
+    color: #94a3b8;
+    font-size: 0.95rem;
+    pointer-events: none;
+    justify-self: center;
+}
+
+.pharma-list-search-input input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 12px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: 0.96rem;
+    font-family: inherit;
+    color: #0f172a;
+    transition: color 0.2s;
+}
+
+.pharma-list-search-input input:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.pharma-list-search-input:focus-within {
+    border-color: #3b82f6;
+    background: #fff;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+.pharma-list-search-input input::placeholder {
+    color: #94a3b8;
+}
+
+.pharma-list-search-clear {
+    position: static;
+    transform: none;
+    width: 30px;
+    height: 30px;
+    border: 0;
+    border-radius: 50%;
+    background: #f1f5f9;
+    color: #475569;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: end;
+    transition: background 0.2s, color 0.2s;
+}
+
+.pharma-list-search-clear:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.pharma-list-search-topic {
+    flex: 0 1 240px;
+    min-width: 180px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #475569;
+    box-sizing: border-box;
+}
+
+.pharma-list-search-topic i {
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.pharma-list-search-topic select {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: transparent;
+    font-size: 0.92rem;
+    font-family: inherit;
+    color: #0f172a;
+    padding: 12px 0;
+    cursor: pointer;
+    outline: none;
+}
+
+.pharma-list-search-hint {
+    margin-top: 12px;
+    font-size: 0.88rem;
+    color: #64748b;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, #eff6ff 0%, #ecfdf5 100%);
+    border-radius: 12px;
+    border: 1px solid #e0e7ff;
+}
+
+.pharma-list-search-hint strong {
+    color: #1d4ed8;
+}
+
+@media (max-width: 640px) {
+    .pharma-list-search-wrap {
+        padding: 14px;
+    }
+
+    .pharma-list-search-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .pharma-list-search-input,
+    .pharma-list-search-topic {
+        flex: 1 1 100%;
+        width: 100%;
+        min-width: 0;
+    }
+}

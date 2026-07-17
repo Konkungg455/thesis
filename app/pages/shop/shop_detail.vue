@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { formatBillingSlipDisplayNote } from '~/utils/prescription'
 
 definePageMeta({ middleware: 'store-only' });
@@ -260,6 +260,140 @@ const reviewSlip = async (slip, action) => {
 const slipStatusLabel = { pending: 'รออนุมัติ', approved: 'อนุมัติแล้ว', rejected: 'ปฏิเสธ' }
 const slipStatusIcon = { pending: 'fa-hourglass-half', approved: 'fa-circle-check', rejected: 'fa-circle-xmark' }
 
+const txSearchQuery = ref('')
+const txSearchTopic = ref('all')
+const slipSearchQuery = ref('')
+const slipSearchTopic = ref('all')
+
+const TX_SEARCH_TOPICS = [
+    { value: 'all', label: 'ทั้งหมด' },
+    { value: 'patient', label: 'ลูกค้า' },
+    { value: 'pharma', label: 'เภสัชกร' },
+    { value: 'type', label: 'ประเภท' },
+    { value: 'amount', label: 'จำนวนเงิน' },
+]
+
+const SLIP_SEARCH_TOPICS = [
+    { value: 'all', label: 'ทั้งหมด' },
+    { value: 'pharma', label: 'เภสัชกร' },
+    { value: 'note', label: 'หมายเหตุ' },
+    { value: 'status', label: 'สถานะ' },
+    { value: 'amount', label: 'จำนวนเงิน' },
+]
+
+const TX_SEARCH_PLACEHOLDERS = {
+    all: 'ค้นหาลูกค้า / เภสัช / ประเภท / จำนวน...',
+    patient: 'ค้นหาชื่อลูกค้า...',
+    pharma: 'ค้นหาชื่อเภสัชกร...',
+    type: 'ค้นหาประเภท เช่น ใบสรุปรายการยา...',
+    amount: 'ค้นหาจำนวนเงิน...',
+}
+
+const SLIP_SEARCH_PLACEHOLDERS = {
+    all: 'ค้นหาเภสัช / หมายเหตุ / สถานะ / จำนวน...',
+    pharma: 'ค้นหาชื่อเภสัชกร...',
+    note: 'ค้นหาหมายเหตุ / เลขใบสรุป...',
+    status: 'ค้นหาสถานะ เช่น รออนุมัติ...',
+    amount: 'ค้นหาจำนวนเงิน...',
+}
+
+const normSearch = (value) => String(value || '').trim().toLowerCase()
+
+const matchTxItem = (item, query, topic) => {
+    if (!query) return true
+    const patient = String(item.patient_name || '').toLowerCase()
+    const pharma = String(item.pharmacist_name || '').toLowerCase()
+    const typeLabel = item.type === 'slip' ? 'โอนเข้าบัญชี' : 'ใบสรุปรายการยา'
+    const amount = String(item.amount ?? '')
+    const doc = String(item.doc_no || '').toLowerCase()
+    if (topic === 'patient') return patient.includes(query)
+    if (topic === 'pharma') return pharma.includes(query)
+    if (topic === 'type') return typeLabel.includes(query) || String(item.type || '').includes(query)
+    if (topic === 'amount') return amount.includes(query.replace(/[^\d.]/g, '')) || amount.includes(query)
+    return [patient, pharma, typeLabel, amount, doc, String(item.type || '')].some((v) => v.includes(query))
+}
+
+const matchSlipItem = (item, query, topic) => {
+    if (!query) return true
+    const pharma = String(item.pharmacist_name || '').toLowerCase()
+    const note = String(formatBillingSlipDisplayNote(item.note) || item.note || '').toLowerCase()
+    const status = String(slipStatusLabel[item.status] || item.status || '').toLowerCase()
+    const amount = String(item.amount ?? '')
+    if (topic === 'pharma') return pharma.includes(query)
+    if (topic === 'note') return note.includes(query)
+    if (topic === 'status') return status.includes(query)
+    if (topic === 'amount') return amount.includes(query.replace(/[^\d.]/g, '')) || amount.includes(query)
+    return [pharma, note, status, amount].some((v) => v.includes(query))
+}
+
+const filteredTransactions = computed(() => {
+    const query = normSearch(txSearchQuery.value)
+    const topic = txSearchTopic.value
+    return transactions.value.filter((item) => matchTxItem(item, query, topic))
+})
+
+const filteredSlips = computed(() => {
+    const query = normSearch(slipSearchQuery.value)
+    const topic = slipSearchTopic.value
+    return slips.value.filter((item) => matchSlipItem(item, query, topic))
+})
+
+const {
+    PAGE_SIZE_OPTIONS: TX_PAGE_SIZE_OPTIONS,
+    pageSize: txPageSize,
+    currentPage: txCurrentPage,
+    totalPages: txTotalPages,
+    pagedList: pagedTransactions,
+    pageStart: txPageStart,
+    pageEnd: txPageEnd,
+    pageNumbers: txPageNumbers,
+    goToPage: txGoToPage,
+    resetPage: txResetPage,
+} = useTablePagination(filteredTransactions)
+
+const {
+    PAGE_SIZE_OPTIONS: SLIP_PAGE_SIZE_OPTIONS,
+    pageSize: slipPageSize,
+    currentPage: slipCurrentPage,
+    totalPages: slipTotalPages,
+    pagedList: pagedSlips,
+    pageStart: slipPageStart,
+    pageEnd: slipPageEnd,
+    pageNumbers: slipPageNumbers,
+    goToPage: slipGoToPage,
+    resetPage: slipResetPage,
+} = useTablePagination(filteredSlips)
+
+watch([txSearchQuery, txSearchTopic], () => txResetPage())
+watch([slipSearchQuery, slipSearchTopic], () => slipResetPage())
+
+const onTxPageSizeChange = (v) => {
+    txPageSize.value = v
+    txResetPage()
+}
+
+const onSlipPageSizeChange = (v) => {
+    slipPageSize.value = v
+    slipResetPage()
+}
+
+const txTabCountLabel = computed(() => {
+    const total = transactions.value.length
+    const filtered = filteredTransactions.value.length
+    if (txSearchQuery.value.trim() && filtered !== total) return `${filtered}/${total}`
+    return String(total)
+})
+
+const slipTabCountLabel = computed(() => {
+    const total = slips.value.length
+    const filtered = filteredSlips.value.length
+    if (slipSearchQuery.value.trim() && filtered !== total) return `${filtered}/${total}`
+    return String(total)
+})
+
+const txSearchPlaceholder = computed(() => TX_SEARCH_PLACEHOLDERS[txSearchTopic.value] || TX_SEARCH_PLACEHOLDERS.all)
+const slipSearchPlaceholder = computed(() => SLIP_SEARCH_PLACEHOLDERS[slipSearchTopic.value] || SLIP_SEARCH_PLACEHOLDERS.all)
+
 const openEditSchedule = (s) => {
     editingSchedule.value = { ...s }
 }
@@ -507,13 +641,83 @@ onMounted(async () => {
           <div class="tx-tabs">
             <button class="tx-tab" :class="{ active: txTab === 'tx' }" @click="txTab = 'tx'">
               <i class="fa-solid fa-receipt"></i> ประวัติธุรกรรม
-              <span class="tx-tab-count">{{ transactions.length }}</span>
+              <span class="tx-tab-count">{{ txTabCountLabel }}</span>
             </button>
             <button class="tx-tab" :class="{ active: txTab === 'slip' }" @click="txTab = 'slip'">
               <i class="fa-solid fa-money-check-dollar"></i> สลิปรออนุมัติ
+              <span class="tx-tab-count">{{ slipTabCountLabel }}</span>
               <span v-if="slipsPending" class="tx-tab-badge">{{ slipsPending }}</span>
             </button>
             <button class="btn-refresh ml-auto" @click="loadStatement" title="โหลดใหม่"><i class="fa-solid fa-rotate" :class="{ spin: isLoadingStmt }"></i></button>
+          </div>
+
+          <!-- ค้นหา + กรองหัวข้อ -->
+          <div v-if="txTab === 'tx'" class="stmt-search-wrap">
+            <div class="stmt-search-row">
+              <div class="stmt-search-input">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input
+                  v-model="txSearchQuery"
+                  type="search"
+                  :placeholder="txSearchPlaceholder"
+                  aria-label="ค้นหาประวัติธุรกรรม"
+                />
+                <button
+                  v-if="txSearchQuery"
+                  type="button"
+                  class="stmt-search-clear"
+                  aria-label="ล้างคำค้น"
+                  @click="txSearchQuery = ''"
+                >
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              <label class="stmt-search-topic">
+                <i class="fa-solid fa-filter" aria-hidden="true"></i>
+                <select v-model="txSearchTopic" aria-label="หัวข้อที่ต้องการค้นหา">
+                  <option v-for="opt in TX_SEARCH_TOPICS" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
+                </select>
+              </label>
+            </div>
+            <div v-if="txSearchQuery.trim()" class="stmt-search-hint">
+              พบ <strong>{{ filteredTransactions.length }}</strong> จาก {{ transactions.length }} รายการ
+            </div>
+          </div>
+
+          <div v-if="txTab === 'slip'" class="stmt-search-wrap">
+            <div class="stmt-search-row">
+              <div class="stmt-search-input">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input
+                  v-model="slipSearchQuery"
+                  type="search"
+                  :placeholder="slipSearchPlaceholder"
+                  aria-label="ค้นหาสลิปการโอน"
+                />
+                <button
+                  v-if="slipSearchQuery"
+                  type="button"
+                  class="stmt-search-clear"
+                  aria-label="ล้างคำค้น"
+                  @click="slipSearchQuery = ''"
+                >
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              <label class="stmt-search-topic">
+                <i class="fa-solid fa-filter" aria-hidden="true"></i>
+                <select v-model="slipSearchTopic" aria-label="หัวข้อที่ต้องการค้นหา">
+                  <option v-for="opt in SLIP_SEARCH_TOPICS" :key="opt.value" :value="opt.value">
+                    {{ opt.label }}
+                  </option>
+                </select>
+              </label>
+            </div>
+            <div v-if="slipSearchQuery.trim()" class="stmt-search-hint">
+              พบ <strong>{{ filteredSlips.length }}</strong> จาก {{ slips.length }} รายการ
+            </div>
           </div>
 
           <!-- Tab: ประวัติธุรกรรม (ใบสรุปรายการยา + สลิปอนุมัติ รวมกัน) -->
@@ -521,6 +725,10 @@ onMounted(async () => {
             <div v-if="!transactions.length" class="empty-state-small">
               <i class="fa-solid fa-receipt"></i>
               <p>ยังไม่มีรายการธุรกรรม</p>
+            </div>
+            <div v-else-if="!filteredTransactions.length" class="empty-state-small">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <p>ไม่พบรายการที่ตรงกับคำค้น</p>
             </div>
             <div v-else class="data-table-wrap tx-table-wrap">
               <table class="data-table tx-table">
@@ -534,7 +742,7 @@ onMounted(async () => {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="t in transactions" :key="`${t.type}-${t.id}`" :class="{ 'row-slip': t.type === 'slip' }">
+                  <tr v-for="t in pagedTransactions" :key="`${t.type}-${t.id}`" :class="{ 'row-slip': t.type === 'slip' }">
                     <td class="td-type">
                       <div class="tx-type-cell">
                         <span class="tx-type-badge" :class="`type-${t.type}`">
@@ -558,6 +766,20 @@ onMounted(async () => {
                 </tbody>
               </table>
             </div>
+
+            <AdminPagination
+              v-if="filteredTransactions.length > 0"
+              :page-start="txPageStart"
+              :page-end="txPageEnd"
+              :total-items="filteredTransactions.length"
+              :current-page="txCurrentPage"
+              :total-pages="txTotalPages"
+              :page-numbers="txPageNumbers"
+              :page-size="txPageSize"
+              :sizes="TX_PAGE_SIZE_OPTIONS"
+              @go="txGoToPage"
+              @size-change="onTxPageSizeChange"
+            />
           </div>
 
           <!-- Tab: สลิปรออนุมัติ -->
@@ -578,7 +800,12 @@ onMounted(async () => {
               <p>ยังไม่มีสลิปการโอน</p>
             </div>
 
-            <div v-for="s in slips" :key="s.id" class="slip-item" :class="`st-${s.status}`">
+            <div v-else-if="!filteredSlips.length" class="empty-state-small">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <p>ไม่พบสลิปที่ตรงกับคำค้น</p>
+            </div>
+
+            <div v-for="s in pagedSlips" :key="s.id" class="slip-item" :class="`st-${s.status}`">
               <div class="slip-head">
                 <img :src="slipUrl(s.slip_image)" class="slip-thumb-store" @click="openSlipPreview(s.slip_image)" />
                 <div class="slip-info">
@@ -605,6 +832,20 @@ onMounted(async () => {
                 </template>
               </div>
             </div>
+
+            <AdminPagination
+              v-if="filteredSlips.length > 0"
+              :page-start="slipPageStart"
+              :page-end="slipPageEnd"
+              :total-items="filteredSlips.length"
+              :current-page="slipCurrentPage"
+              :total-pages="slipTotalPages"
+              :page-numbers="slipPageNumbers"
+              :page-size="slipPageSize"
+              :sizes="SLIP_PAGE_SIZE_OPTIONS"
+              @go="slipGoToPage"
+              @size-change="onSlipPageSizeChange"
+            />
           </div>
         </aside>
       </div>
@@ -1261,6 +1502,127 @@ onMounted(async () => {
 }
 .ml-auto { margin-left: auto; }
 
+.stmt-search-wrap {
+  margin-bottom: 12px;
+  padding: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+.stmt-search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+.stmt-search-input {
+  flex: 1 1 180px;
+  min-width: 0;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  box-sizing: border-box;
+}
+.stmt-search-input > i.fa-magnifying-glass {
+  position: static;
+  transform: none;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  pointer-events: none;
+  justify-self: center;
+}
+.stmt-search-input input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 9px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.85rem;
+  font-family: inherit;
+  color: #0f172a;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.stmt-search-input input[type="search"]::-webkit-search-decoration,
+.stmt-search-input input[type="search"]::-webkit-search-cancel-button {
+  appearance: none;
+  -webkit-appearance: none;
+  display: none;
+}
+.stmt-search-input input:focus {
+  outline: none;
+  box-shadow: none;
+}
+.stmt-search-input:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+.stmt-search-clear {
+  position: static;
+  transform: none;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: end;
+}
+.stmt-search-clear:hover { background: #fee2e2; color: #dc2626; }
+.stmt-search-topic {
+  flex: 0 1 140px;
+  min-width: 120px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  box-sizing: border-box;
+}
+.stmt-search-topic i { color: #64748b; font-size: 0.8rem; }
+.stmt-search-topic select {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: #0f172a;
+  padding: 9px 0;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.stmt-search-hint {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.stmt-search-hint strong { color: #1d4ed8; }
+
+.history-panel :deep(.admin-pagination) {
+  margin-top: 12px;
+  padding: 12px 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .slip-summary {
   background: #f8fafc;
   border-radius: 10px;
@@ -1736,6 +2098,16 @@ onMounted(async () => {
     max-width: 100%;
   }
   .tx-tabs .btn-refresh { flex-shrink: 0; margin-left: auto; }
+  .stmt-search-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .stmt-search-input,
+  .stmt-search-topic {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
   .transaction-item { padding: 10px; font-size: 0.8rem; }
   .meta-info { flex-wrap: wrap; }
 
@@ -1894,5 +2266,65 @@ onMounted(async () => {
 @media (hover: none) and (pointer: coarse) {
   .menu-btn:hover { transform: none; }
   .data-card:hover { transform: none; border-color: #e2e8f0; }
+}
+
+/* Dark mode — override scoped light styles + global input rule */
+:global(html.dark) .stmt-search-wrap {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(125, 211, 252, 0.22);
+}
+:global(html.dark) .stmt-search-input {
+  background: #0b1220;
+  border-color: rgba(125, 211, 252, 0.34);
+}
+:global(html.dark) .stmt-search-input input {
+  background: transparent !important;
+  border: 0 !important;
+  color: #f8fafc !important;
+  box-shadow: none !important;
+}
+:global(html.dark) .stmt-search-input input::placeholder {
+  color: #cbd5e1 !important;
+  opacity: 1;
+}
+:global(html.dark) .stmt-search-input:focus-within {
+  border-color: rgba(56, 189, 248, 0.5);
+  background: #0b1220;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+}
+:global(html.dark) .stmt-search-input > i.fa-magnifying-glass {
+  color: #cbd5e1;
+}
+:global(html.dark) .stmt-search-clear {
+  background: rgba(148, 163, 184, 0.18);
+  color: #e2e8f0;
+}
+:global(html.dark) .stmt-search-clear:hover {
+  background: rgba(248, 113, 113, 0.22);
+  color: #fca5a5;
+}
+:global(html.dark) .stmt-search-topic {
+  background: linear-gradient(135deg, #0b1437 0%, #1e3a8a 100%);
+  border-color: rgba(56, 189, 248, 0.28);
+  color: #f8fafc;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+:global(html.dark) .stmt-search-topic i {
+  color: rgba(255, 255, 255, 0.9);
+}
+:global(html.dark) .stmt-search-topic select {
+  background: transparent !important;
+  border: 0 !important;
+  color: #f8fafc !important;
+}
+:global(html.dark) .stmt-search-hint {
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: #cbd5e1;
+}
+:global(html.dark) .stmt-search-hint strong {
+  color: #7dd3fc;
 }
 </style>

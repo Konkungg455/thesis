@@ -4,15 +4,6 @@
  */
 
 import { REPLY_ADULT, isAdultContentInput, ADULT_KEYWORDS, ADULT_CONTENT_RE } from './chatAdultContentFilter.js';
-import {
-  hasSpamRepetition,
-  isGibberishInput,
-  REPLY_GIBBERISH_EN,
-  REPLY_GIBBERISH_TH,
-  SCREENING_VALID_RE,
-} from './gibberishFilter.js';
-
-export { hasSpamRepetition, isGibberishInput } from './gibberishFilter.js';
 
 export const REPLY = {
   th: {
@@ -20,7 +11,6 @@ export const REPLY = {
       'ขออภัยค่ะ กรุณาใช้ภาษาสุภาพในการสนทนากับ telebot นะคะ '
       + 'พิมพ์อธิบายอาการด้วยถ้อยคำสุภาพ แล้ว telebot จะช่วยคัดกรองให้ค่ะ',
     adult: REPLY_ADULT.th,
-    gibberish: REPLY_GIBBERISH_TH,
     redflag:
       '🚨 อาการที่คุณแจ้งมาอาจมีความเสี่ยงสูง เพื่อความปลอดภัยกรุณากด "ติดต่อเภสัชกรของเราทันที" '
       + 'หรือถ้ารู้สึกแย่ลงให้ไปโรงพยาบาลที่ใกล้ที่สุดค่ะ',
@@ -30,7 +20,6 @@ export const REPLY = {
       'Sorry, please use polite language with telebot. '
       + 'Describe your symptoms politely and telebot will continue the screening.',
     adult: REPLY_ADULT.en,
-    gibberish: REPLY_GIBBERISH_EN,
     redflag:
       '🚨 The symptoms you reported may be high-risk. For your safety, please tap "Contact our pharmacist now" '
       + 'or go to the nearest hospital if you feel worse.',
@@ -38,16 +27,6 @@ export const REPLY = {
 };
 
 const PROFANITY_RE = /(ควย|เหี้ย|สัส+|ระยำ|ชาติ\s*หมา|หน้าหี|จิ๋ม|เย็ด|ชิบหาย|เชี่ย|เชี้ย|แม่ง|อีห่า|ไอ้สัตว์|ไอ้เวร|พ่อมึง|แม่มึง|\bf+u+c+k|\bshit\b|\bbitch\b)/i;
-
-const JOKE_ANSWER_RE = /ปวด\s*(ขี้|ตด|อึ|ง่วง|เบื่อ|รัก|เงิน|สอบ|การบ้าน|เกม|มือถือ|wifi|เน็ต|ใจ)/i;
-
-const ALWAYS_IRRELEVANT = [
-  'ปวดขี้', 'ปวดตด', 'ปวดง่วง', 'ปวดเบื่อ', 'ปวดรัก', 'ปวดเงิน', 'ปวดสอบ',
-  'ปวดการบ้าน', 'ปวดเกม', 'ปวดมือถือ', 'ปวดwifi', 'ปวดเน็ต',
-  'อยากขี้', 'อยากอึ', 'เล่าเรื่องผี', 'มุกตลก', 'ทายใจ', 'เป่ายิ้งฉุบ',
-  'จีบได้ไหม', 'รักฉันไหม', 'มีแฟนหรือยัง', 'ทีเด็ดบอล', 'แทงบอล',
-  'หวย', 'เลขเด็ด', 'ดูดวง', 'แต่งกลอน', 'เขียนโค้ด',
-];
 
 const EMERGENCY_PHRASE_RE = /เลือดไหลไม่หยุด|หายใจไม่ออก|หายใจลำบาก|หอบ(?:เหนื่อย|มาก)|แน่นหน้าอก|เจ็บหน้าอก|หมดสติ|หน้ามืด|ชัก|แขนขาอ่อนแรง|พูดไม่ชัด|ปากเบี้ยว|อาเจียนพุ่ง|ตามัวเฉียบพลัน|ผื่นทั่วตัว|แพ้รุนแรง|ไข้\s*4[0-9]|งูกัด|สุนัขกัด/i;
 
@@ -81,17 +60,6 @@ export function isProfanityInput(text) {
   return PROFANITY_RE.test(t);
 }
 
-
-export function isJokeAnswerInput(text) {
-  const t = String(text || '').trim();
-  if (!t) return false;
-  const lower = t.toLowerCase();
-  if (ALWAYS_IRRELEVANT.some((k) => lower.includes(k.toLowerCase()))) return true;
-  if (JOKE_ANSWER_RE.test(t)) return true;
-  if (/^(กินข้าว|ทานข้าว|ร้านอาหาร|แนะนำร้าน|ขอเพลง|ดูหนัง|เล่นเกม|หวย|ดูดวง|จีบได้ไหม|รักฉันไหม)/i.test(t)) return true;
-  return false;
-}
-
 export function isRedFlagInput(text) {
   const t = String(text || '').trim();
   if (!t) return false;
@@ -116,12 +84,6 @@ export function classifyN8nInput(chatInput) {
   }
   if (isProfanityInput(userText)) {
     return { blocked: true, filterKind: 'profanity', message: msg.profanity, userText };
-  }
-  if (isGibberishInput(userText)) {
-    return { blocked: true, filterKind: 'gibberish', message: msg.gibberish, userText };
-  }
-  if (isJokeAnswerInput(userText)) {
-    return { blocked: true, filterKind: 'gibberish', message: msg.gibberish, userText };
   }
 
   return { blocked: false, filterKind: 'normal', message: '', userText };
@@ -151,74 +113,11 @@ return [{
 export function buildN8nBlockedReplyCode() {
   return `return [{
   json: {
-    output: $json.blockMessage || 'ขออภัยค่ะ กรุณาพิมพ์คำตอบเรื่องอาการให้ชัดเจนอีกครั้งนะคะ',
+    output: $json.blockMessage || '',
     blocked: true,
-    filterKind: $json.filterKind || 'gibberish',
+    filterKind: $json.filterKind || 'blocked',
   },
 }];`;
-}
-
-function buildN8nGibberishBlock() {
-  const validPattern = SCREENING_VALID_RE.source.replace(/\\/g, '\\\\');
-  return `
-function hasSpamRepetition(raw, compact) {
-  if (/ๆ{2,}/.test(raw)) return true;
-  if (new RegExp('(.)\\\\1{3,}', 'u').test(compact)) return true;
-  if (/^(555+|666+|ฮา+|haha+|hehe+|lol+|wow+|omg+|เทพ+|เจ๋+|โคตร+|แจ่ม+|cool+|nice+|okok+|yesyes+)[ๆ]*$/iu.test(compact)) return true;
-  if (/^[ก-ฮ]{1,4}ๆ+$/u.test(compact)) return true;
-  return false;
-}
-function countGraphemes(text) {
-  const s = String(text || '');
-  if (!s) return 0;
-  return [...s].length;
-}
-const SHORT_VALID_ANSWER_RE = /^(ไม่|มี|ใช่|no|ok|yes)$/i;
-function isTooShortAnswer(text) {
-  const compact = String(text || '').trim().replace(/\\s+/g, '');
-  if (!compact) return true;
-  const validRe = /${validPattern}/i;
-  if (SHORT_VALID_ANSWER_RE.test(compact) || validRe.test(compact)) return false;
-  const gLen = countGraphemes(compact);
-  if (gLen <= 2) return true;
-  return false;
-}
-function isThaiKeyboardMash(compact) {
-  if (compact.length < 6) return false;
-  const validRe = /${validPattern}/i;
-  if (validRe.test(compact)) return false;
-  const vowels = (compact.match(/[าิีึืุูเแโใไ]/g) || []).length;
-  const vowelRatio = vowels / compact.length;
-  if (/(.{2,4})\\1{2,}/u.test(compact)) return true;
-  const consonantRuns = compact.match(/[ก-ฮ]{4,}/gu) || [];
-  if (consonantRuns.some((run) => run.length >= 4)) return true;
-  if (compact.length >= 8 && vowelRatio < 0.28) return true;
-  if (compact.length >= 12 && vowels <= 2) return true;
-  if (compact.length >= 10 && !/\\s/.test(compact) && !validRe.test(compact) && vowelRatio < 0.32) return true;
-  return false;
-}
-function isGibberishInput(text) {
-  const raw = String(text || '').trim();
-  if (!raw) return true;
-  if (isTooShortAnswer(raw)) return true;
-  if (/^[\\?\\.\\!\\,\\s]+$/.test(raw)) return true;
-  if (/^[\\d\\s]+$/.test(raw) && /\\d/.test(raw)) return true;
-  if (/^[\\s\\.\\,\\!\\?\\-\\+\\=\\*\\#\\@\\%\\^\\&\\(\\)\\[\\]\\{\\}\\|\\\\\\:\\;\\"\\'\\<\\>\\/\\~\\\`_]+$/.test(raw)) return true;
-  const compact = raw.replace(/\\s+/g, '');
-  if (hasSpamRepetition(raw, compact)) return true;
-  if (/[ก-๙]/.test(raw)) return isThaiKeyboardMash(compact);
-  if (/^[a-zA-Z\\s]+$/.test(raw) && compact.length >= 6) {
-    const vowels = (raw.match(/[aeiouAEIOU]/g) || []).length;
-    const ratio = vowels / compact.length;
-    if (/^(ok|okay|yes|no|none|pain|hurt|mild|moderate|severe|today|yesterday|help|rest|food|sleep|stress|unknown|unsure|maybe|headache|fever|cough|nausea|dizzy|better|worse)$/i.test(compact)) return false;
-    if (!/\\s/.test(raw) && compact.length >= 6 && ratio < 0.38) return true;
-    if (vowels === 0) return true;
-    if (compact.length >= 10 && ratio <= 0.28) return true;
-    if (/^([b-df-hj-np-tv-xz]{2,6})\\1+$/i.test(compact)) return true;
-    if (!/\\s/.test(raw) && compact.length >= 8 && /^[a-z]+$/i.test(compact) && ratio < 0.42) return true;
-  }
-  return false;
-}`.trim();
 }
 
 function buildN8nFilterHelpers() {
@@ -245,17 +144,6 @@ function isProfanityInput(text) {
   const t = String(text || '').trim();
   if (!t) return false;
   return /(ควย|เหี้ย|สัส+|ระยำ|ชาติ\\s*หมา|หน้าหี|จิ๋ม|เย็ด|ชิบหาย|เชี่ย|เชี้ย|แม่ง|อีห่า|ไอ้สัตว์|ไอ้เวร|พ่อมึง|แม่มึง|\\bf+u+c+k|\\bshit\\b|\\bbitch\\b)/i.test(t);
-}
-${buildN8nGibberishBlock()}
-function isJokeAnswerInput(text) {
-  const t = String(text || '').trim();
-  if (!t) return false;
-  const lower = t.toLowerCase();
-  const always = ${JSON.stringify(ALWAYS_IRRELEVANT)};
-  if (always.some((k) => lower.includes(k.toLowerCase()))) return true;
-  if (/ปวด\\s*(ขี้|ตด|อึ|ง่วง|เบื่อ|รัก|เงิน|สอบ|การบ้าน|เกม|มือถือ|wifi|เน็ต|ใจ)/i.test(t)) return true;
-  if (/^(กินข้าว|ทานข้าว|ร้านอาหาร|แนะนำร้าน|ขอเพลง|ดูหนัง|เล่นเกม|หวย|ดูดวง|จีบได้ไหม|รักฉันไหม)/i.test(t)) return true;
-  return false;
 }
 function isRedFlagInput(text) {
   const t = String(text || '').trim();
@@ -285,8 +173,6 @@ function classifyN8nInput(chatInput) {
   if (isRedFlagInput(userText)) return { blocked: true, filterKind: 'redflag', message: msg.redflag, userText };
   if (isAdultContentInput(userText)) return { blocked: true, filterKind: 'adult', message: msg.adult, userText };
   if (isProfanityInput(userText)) return { blocked: true, filterKind: 'profanity', message: msg.profanity, userText };
-  if (isGibberishInput(userText)) return { blocked: true, filterKind: 'gibberish', message: msg.gibberish, userText };
-  if (isJokeAnswerInput(userText)) return { blocked: true, filterKind: 'gibberish', message: msg.gibberish, userText };
   return { blocked: false, filterKind: 'normal', message: '', userText };
 }
 `.trim();

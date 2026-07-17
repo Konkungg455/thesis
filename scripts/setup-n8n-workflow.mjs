@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { N8N_WEBHOOK_ID, N8N_WORKFLOW_ID } from './n8n-config.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(scriptDir, '..');
@@ -13,7 +14,8 @@ const workflowFile = existsSync(join(projectRoot, 'n8n_workflow_32_symptoms.json
   ? join(projectRoot, 'n8n_workflow_32_symptoms.json')
   : join(projectRoot, 'n8n_workflow_telebot_chat.json');
 const credsFile = join(projectRoot, 'n8n_credentials_ollama.json');
-const webhookId = '1f5ea30f-2ff0-4d32-b211-eccb342ee0df';
+const webhookId = N8N_WEBHOOK_ID;
+const workflowId = N8N_WORKFLOW_ID;
 const n8nVersion = '1.91.2';
 const quiet = process.argv.includes('--quiet');
 
@@ -132,7 +134,7 @@ const nodeTools = loadNodeTools();
 
 if (existsSync(credsFile)) invokeN8nCli(nodeTools, ['import:credentials', `-i=${credsFile}`]);
 if (existsSync(workflowFile)) invokeN8nCli(nodeTools, ['import:workflow', `-i=${workflowFile}`]);
-invokeN8nCli(nodeTools, ['update:workflow', '--all', '--active=true']);
+invokeN8nCli(nodeTools, ['update:workflow', `--id=${workflowId}`, '--active=true']);
 
 // CLI import may not update the webhook-bound published graph — patch sqlite directly
 spawnSync(process.execPath, [join(scriptDir, 'sync-n8n-workflow-db.mjs')], {

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { matchPrescriptionSearch, PRESCRIPTION_SEARCH_TOPICS, PRESCRIPTION_SEARCH_PLACEHOLDERS } from '@/utils/prescriptionSearch'
 
 definePageMeta({
     middleware: 'pharmacist-only'
@@ -23,6 +24,8 @@ const isLoading = ref(false)
 const isAuthorized = ref(false)
 const sidebarOpen = ref(false)
 const searchQuery = ref('')
+const searchTopic = ref('all')
+const searchPlaceholder = computed(() => PRESCRIPTION_SEARCH_PLACEHOLDERS[searchTopic.value] || PRESCRIPTION_SEARCH_PLACEHOLDERS.all)
 
 const toggleSidebar = () => { sidebarOpen.value = !sidebarOpen.value }
 const closeSidebar = () => { sidebarOpen.value = false }
@@ -101,19 +104,9 @@ const formatPhone = (raw) => {
 }
 
 const filteredHistory = computed(() => {
-    const q = searchQuery.value.toLowerCase().trim()
+    const q = searchQuery.value.trim()
     if (!q) return historyData.value
-    return historyData.value.filter(item =>
-        item.patient_name?.toLowerCase().includes(q) ||
-        item.patient_full_name?.toLowerCase().includes(q) ||
-        item.hn_no?.toString().toLowerCase().includes(q) ||
-        item.customer_code?.toLowerCase().includes(q) ||
-        item.med_details?.toLowerCase().includes(q) ||
-        item.doctor_name?.toLowerCase().includes(q) ||
-        item.pharmacist_name?.toLowerCase().includes(q) ||
-        item.clinic_name?.toLowerCase().includes(q) ||
-        item.clinic_website?.toLowerCase().includes(q)
-    )
+    return historyData.value.filter((item) => matchPrescriptionSearch(item, q, searchTopic.value))
 })
 
 const {
@@ -129,7 +122,12 @@ const {
     resetPage,
 } = useTablePagination(filteredHistory)
 
-watch(searchQuery, () => resetPage())
+watch([searchQuery, searchTopic], () => resetPage())
+
+const onPageSizeChange = (v) => {
+    pageSize.value = v
+    resetPage()
+}
 </script>
 
 <template>
@@ -178,23 +176,48 @@ watch(searchQuery, () => resetPage())
                     </div>
                     <div class="hero-stats">
                         <div class="stat-box">
-                            <div class="stat-num">{{ historyData.length }}</div>
-                            <div class="stat-label">ใบสรุปรายการยาทั้งหมด</div>
+                            <div class="stat-num">{{ searchQuery.trim() ? filteredHistory.length : historyData.length }}</div>
+                            <div class="stat-label">{{ searchQuery.trim() ? 'รายการที่ตรงกับคำค้น' : 'ใบสรุปรายการยาทั้งหมด' }}</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Search Bar -->
-                <div class="search-toolbar">
-                    <div class="history-search-input">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input v-model="searchQuery" placeholder="ค้นหาผู้ใช้บริการ / HN / ยา / แพทย์ / ร้าน..." />
-                        <button v-if="searchQuery" class="clear-btn" @click="searchQuery = ''" aria-label="ล้างค้นหา">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
+                <!-- Search + Filter -->
+                <div class="pharma-list-search-wrap">
+                    <div class="pharma-list-search-row">
+                        <div class="pharma-list-search-input">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input
+                                v-model="searchQuery"
+                                type="search"
+                                :placeholder="searchPlaceholder"
+                                aria-label="ค้นหารายการ"
+                            />
+                            <button
+                                v-if="searchQuery"
+                                type="button"
+                                class="pharma-list-search-clear"
+                                @click="searchQuery = ''"
+                                aria-label="ล้างคำค้น"
+                            >
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <label class="pharma-list-search-topic">
+                            <i class="fa-solid fa-filter" aria-hidden="true"></i>
+                            <select v-model="searchTopic" aria-label="หัวข้อที่ต้องการค้นหา">
+                                <option
+                                    v-for="opt in PRESCRIPTION_SEARCH_TOPICS"
+                                    :key="opt.value"
+                                    :value="opt.value"
+                                >
+                                    {{ opt.label }}
+                                </option>
+                            </select>
+                        </label>
                     </div>
-                    <div v-if="searchQuery" class="search-info">
-                        พบ <strong>{{ filteredHistory.length }}</strong> รายการที่ตรงกับคำค้น
+                    <div v-if="searchQuery.trim()" class="pharma-list-search-hint">
+                        พบ <strong>{{ filteredHistory.length }}</strong> รายการจากคำค้น "{{ searchQuery.trim() }}"
                     </div>
                 </div>
 
@@ -362,7 +385,7 @@ watch(searchQuery, () => resetPage())
                     :page-size="pageSize"
                     :sizes="PAGE_SIZE_OPTIONS"
                     @go="goToPage"
-                    @size-change="(v) => pageSize = v"
+                    @size-change="onPageSizeChange"
                 />
             </section>
         </div>
@@ -438,3 +461,5 @@ watch(searchQuery, () => resetPage())
     }
 }
 </style>
+
+<style src="@/assets/pharma-list-search.css"></style>

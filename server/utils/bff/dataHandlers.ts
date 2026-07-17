@@ -14,6 +14,7 @@ import {
 import { resolveRequestOrigin } from '../../utils/requestOrigin';
 import { ensureBffSchema } from './ensureSchema';
 import { syncStoreTransactionFromSlip } from './storeTransactions';
+import { resolveDisplaySymptom } from '../../../utils/fixedScreeningQuestions';
 
 const consolidateCooldown = new Map<number, number>();
 const CONSOLIDATE_COOLDOWN_MS = 60_000;
@@ -269,6 +270,8 @@ export async function handleGetStores(event: H3Event) {
 
 export async function handleGetPrescriptions(event: H3Event) {
     const auth = getAuthContext(event);
+    const query = getQuery(event);
+    const forTracking = String(query.for_tracking || '') === '1';
 
     if (!auth.isAdmin && !auth.id_account && !auth.id_pharma && !auth.id_store_accounts) {
         return { status: 'error', message: 'กรุณาเข้าสู่ระบบก่อนดูข้อมูลใบสรุปรายการยา', data: [] };
@@ -330,27 +333,50 @@ export async function handleGetPrescriptions(event: H3Event) {
                 ORDER BY p.created_at DESC
             `;
         } else if (auth.id_pharma) {
-            prescriptions = await sql`
-                SELECT p.*,
-                       a.phone_number AS account_phone, a.firstname AS account_firstname,
-                       a.lastname AS account_lastname, a.email_account AS account_email,
-                       a.images_account AS account_image,
-                       addr.house_no AS addr_house_no, addr.road AS addr_moo,
-                       addr.sub_district AS addr_sub_district, addr.district AS addr_district,
-                       addr.province AS addr_province, addr.zipcode AS addr_zipcode,
-                       ph.firstname_pharma AS p_firstname_pharma,
-                       ph.lastname_pharma AS p_lastname_pharma,
-                       ph.username_pharma AS p_username_pharma,
-                       ph.store_name AS p_store_name,
-                       (SELECT su.service_code FROM service_usage su
-                        WHERE su.id_consult_request = p.id_consult_request LIMIT 1) AS linked_service_code
-                FROM prescriptions p
-                LEFT JOIN account a ON a.id_account = p.id_account
-                LEFT JOIN account_address addr ON addr.id_account = p.id_account
-                LEFT JOIN pharmacist_account ph ON ph.id_pharma = p.id_pharma
-                WHERE p.id_pharma = ${auth.id_pharma}
-                ORDER BY p.created_at DESC
-            `;
+            prescriptions = forTracking
+                ? await sql`
+                    SELECT p.*,
+                           a.phone_number AS account_phone, a.firstname AS account_firstname,
+                           a.lastname AS account_lastname, a.email_account AS account_email,
+                           a.images_account AS account_image,
+                           addr.house_no AS addr_house_no, addr.road AS addr_moo,
+                           addr.sub_district AS addr_sub_district, addr.district AS addr_district,
+                           addr.province AS addr_province, addr.zipcode AS addr_zipcode,
+                           ph.firstname_pharma AS p_firstname_pharma,
+                           ph.lastname_pharma AS p_lastname_pharma,
+                           ph.username_pharma AS p_username_pharma,
+                           ph.store_name AS p_store_name,
+                           (SELECT su.service_code FROM service_usage su
+                            WHERE su.id_consult_request = p.id_consult_request LIMIT 1) AS linked_service_code
+                    FROM prescriptions p
+                    LEFT JOIN account a ON a.id_account = p.id_account
+                    LEFT JOIN account_address addr ON addr.id_account = p.id_account
+                    LEFT JOIN pharmacist_account ph ON ph.id_pharma = p.id_pharma
+                    WHERE p.id_pharma = ${auth.id_pharma}
+                      AND p.tracking_hidden_at IS NULL
+                    ORDER BY p.created_at DESC
+                `
+                : await sql`
+                    SELECT p.*,
+                           a.phone_number AS account_phone, a.firstname AS account_firstname,
+                           a.lastname AS account_lastname, a.email_account AS account_email,
+                           a.images_account AS account_image,
+                           addr.house_no AS addr_house_no, addr.road AS addr_moo,
+                           addr.sub_district AS addr_sub_district, addr.district AS addr_district,
+                           addr.province AS addr_province, addr.zipcode AS addr_zipcode,
+                           ph.firstname_pharma AS p_firstname_pharma,
+                           ph.lastname_pharma AS p_lastname_pharma,
+                           ph.username_pharma AS p_username_pharma,
+                           ph.store_name AS p_store_name,
+                           (SELECT su.service_code FROM service_usage su
+                            WHERE su.id_consult_request = p.id_consult_request LIMIT 1) AS linked_service_code
+                    FROM prescriptions p
+                    LEFT JOIN account a ON a.id_account = p.id_account
+                    LEFT JOIN account_address addr ON addr.id_account = p.id_account
+                    LEFT JOIN pharmacist_account ph ON ph.id_pharma = p.id_pharma
+                    WHERE p.id_pharma = ${auth.id_pharma}
+                    ORDER BY p.created_at DESC
+                `;
         } else {
             prescriptions = await sql`
             SELECT p.*,
@@ -1616,12 +1642,14 @@ async function attachPrescriptionSymptoms(
               AND ch.symptom_name IS NOT NULL
               AND ch.symptom_name <> ''
               AND COALESCE(ch.is_deleted, 0) = 0
-            ORDER BY cr.id, ch.created_at ASC, ch.id ASC
+            ORDER BY cr.id,
+              CASE WHEN ch.symptom_name = 'ทั่วไป' THEN 1 ELSE 0 END,
+              ch.created_at ASC, ch.id ASC
         `;
 
         const symptomMap = new Map<number, string>();
         for (const row of symptomRows) {
-            symptomMap.set(Number(row.consult_id), String(row.symptom_name || '').trim());
+            symptomMap.set(Number(row.consult_id), resolveDisplaySymptom(String(row.symptom_name || '').trim()));
         }
 
         return prescriptions.map((row) => {
@@ -1677,7 +1705,7 @@ function mapPrescriptionRow(r: Record<string, unknown>) {
         pharmacist_username: String(r.p_username_pharma || '').trim(),
         store_name: String(r.p_store_name || '').trim(),
         work_place: String(r.p_store_name || '').trim(),
-        symptom_name: String(r.linked_symptom_name || '').trim() || 'ทั่วไป',
+        symptom_name: resolveDisplaySymptom(String(r.linked_symptom_name || '').trim()),
         service_code: serviceCode,
         patient_phone: String(r.account_phone || '').trim(),
         patient_name: displayPatientName,

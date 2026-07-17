@@ -610,10 +610,12 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         if (kind === 'gibberish') {
             const last = chatMessages.value[chatMessages.value.length - 1];
             if (last?.role === 'user') last.skipProgress = true;
-            await addMessage('assistant', buildGibberishScreeningReply(chatMessages.value, symptomName.value, chatLocale.value, {
+            const retryText = buildGibberishScreeningReply(chatMessages.value, symptomName.value, chatLocale.value, {
                 gender: resolveUserGender(userProfile.value),
                 profile: userProfile.value,
-            }));
+            });
+            if (!retryText.trim()) return;
+            await addMessage('assistant', retryText);
             return;
         }
 
@@ -936,8 +938,8 @@ watch(() => queryParam('session_id'), (newSid, oldSid) => {
                                             <div class="q-input-hint">✍️ {{ chatLocale === 'en' ? 'Type your answer in the box below.' : 'พิมพ์คำตอบเองในช่องด้านล่างได้เลย' }}</div>
                                         </div>
                                         <div v-else-if="part.type === 'ack'" class="ack-line">{{ part.text }}</div>
-                                        <div v-else-if="part.type === 'section_title'" class="summary-section-title" :class="{ 'is-warn': part.variant === 'warn', 'is-care': part.variant === 'care' }">{{ part.text }}</div>
-                                        <div v-else-if="part.type === 'list_item'" class="summary-list-item" :class="{ 'is-warn': part.variant === 'warn', 'is-care': part.variant === 'care' }">
+                                        <div v-else-if="part.type === 'section_title'" class="summary-section-title" :class="{ 'is-warn': part.variant === 'warn', 'is-care': part.variant === 'care', 'is-precaution': part.variant === 'precaution' }">{{ part.text }}</div>
+                                        <div v-else-if="part.type === 'list_item'" class="summary-list-item" :class="{ 'is-warn': part.variant === 'warn', 'is-care': part.variant === 'care', 'is-precaution': part.variant === 'precaution' }">
                                             <span class="summary-list-num">{{ part.number ? part.number + '.' : '•' }}</span>
                                             <span class="summary-list-text">{{ part.text }}</span>
                                         </div>
