@@ -263,7 +263,7 @@ const openSidebar = () => { isSidebarOpen.value = true; };
 const closeSidebar = () => { isSidebarOpen.value = false; };
 
 // ใช้กฎร่วม (32 อาการบัตรทอง / red flag / off-topic) จาก composable
-const { classifyInput, parseAiMessage, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, isActiveFixedScreening, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, rewritePharmacyConsultCta, finalizeSummaryText, resolveUserGender, adaptScreeningPartsForGender, getReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
+const { classifyInput, parseAiMessage, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, isActiveFixedScreening, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, rewritePharmacyConsultCta, finalizeSummaryText, resolveUserGender, adaptScreeningPartsForGender, getReply, buildGibberishScreeningReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
 const { isEnglish } = useAppLocale();
 const chatLocale = computed(() => (isEnglish.value ? 'en' : 'th'));
 const customerLabel = computed(() => (chatLocale.value === 'en' ? 'customer' : 'ลูกค้า'));
@@ -610,7 +610,10 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
         if (kind === 'gibberish') {
             const last = chatMessages.value[chatMessages.value.length - 1];
             if (last?.role === 'user') last.skipProgress = true;
-            await addMessage('assistant', getReply('gibberish', chatLocale.value));
+            await addMessage('assistant', buildGibberishScreeningReply(chatMessages.value, symptomName.value, chatLocale.value, {
+                gender: resolveUserGender(userProfile.value),
+                profile: userProfile.value,
+            }));
             return;
         }
 

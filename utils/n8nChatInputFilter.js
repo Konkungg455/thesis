@@ -168,6 +168,21 @@ function hasSpamRepetition(raw, compact) {
   if (/^[ก-ฮ]{1,4}ๆ+$/u.test(compact)) return true;
   return false;
 }
+function countGraphemes(text) {
+  const s = String(text || '');
+  if (!s) return 0;
+  return [...s].length;
+}
+const SHORT_VALID_ANSWER_RE = /^(ไม่|มี|ใช่|no|ok|yes)$/i;
+function isTooShortAnswer(text) {
+  const compact = String(text || '').trim().replace(/\\s+/g, '');
+  if (!compact) return true;
+  const validRe = /${validPattern}/i;
+  if (SHORT_VALID_ANSWER_RE.test(compact) || validRe.test(compact)) return false;
+  const gLen = countGraphemes(compact);
+  if (gLen <= 2) return true;
+  return false;
+}
 function isThaiKeyboardMash(compact) {
   if (compact.length < 6) return false;
   const validRe = /${validPattern}/i;
@@ -185,7 +200,8 @@ function isThaiKeyboardMash(compact) {
 function isGibberishInput(text) {
   const raw = String(text || '').trim();
   if (!raw) return true;
-  if (raw.length <= 1 || /^[\\?\\.\\!\\,\\s]+$/.test(raw)) return true;
+  if (isTooShortAnswer(raw)) return true;
+  if (/^[\\?\\.\\!\\,\\s]+$/.test(raw)) return true;
   if (/^[\\d\\s]+$/.test(raw) && /\\d/.test(raw)) return true;
   if (/^[\\s\\.\\,\\!\\?\\-\\+\\=\\*\\#\\@\\%\\^\\&\\(\\)\\[\\]\\{\\}\\|\\\\\\:\\;\\"\\'\\<\\>\\/\\~\\\`_]+$/.test(raw)) return true;
   const compact = raw.replace(/\\s+/g, '');

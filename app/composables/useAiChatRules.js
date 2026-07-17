@@ -474,6 +474,26 @@ export function useAiChatRules() {
     return map[kind] || '';
   };
 
+  /** ตอบเมื่อพิมพ์มั่ว/สั้นเกินไป — ถามข้อเดิมซ้ำ ไม่ข้ามไปข้อถัดไป */
+  const buildGibberishScreeningReply = (messages, symptomName = '', locale = 'th', opts = {}) => {
+    const base = getReply('gibberish', locale);
+    if (!isActiveFixedScreening(messages)) return base;
+    const lastQ = getLastScreeningQuestionText(messages);
+    if (lastQ) return `${base}\n\n${lastQ}`;
+    const key = normalizeSymptomKey(symptomName);
+    const progress = getChatProgress(messages);
+    const qNum = progress.highestAsked || progress.answeredUpTo + 1 || 1;
+    if (key && qNum <= SCREENING_TOTAL) {
+      const gender = opts.gender || resolveUserGender(opts.profile || null);
+      const qText = formatFixedScreeningQuestion(key, qNum, {
+        gender,
+        locale: resolveChatLocale(locale),
+      });
+      if (qText) return `${base}\n\n${qText}`;
+    }
+    return base;
+  };
+
   /**
    * แปลงข้อความ AI เป็น array ของ part เพื่อ render ใน UI
    *
@@ -1105,6 +1125,7 @@ export function useAiChatRules() {
     buildOffSymptomReply,
     getLastScreeningQuestionText,
     buildInvalidAnswerReply,
+    buildGibberishScreeningReply,
     checkScreeningAnswer,
     REPLY_REDFLAG,
     REPLY_IRRELEVANT,

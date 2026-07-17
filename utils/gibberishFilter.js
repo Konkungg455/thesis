@@ -15,6 +15,34 @@ export const SCREENING_VALID_RE = new RegExp(
 
 const ENGLISH_VALID_RE = /^(ok|okay|yes|no|none|pain|hurt|mild|moderate|severe|today|yesterday|help|rest|food|sleep|stress|unknown|unsure|maybe|headache|fever|cough|nausea|dizzy|better|worse)$/i;
 
+/** นับตัวอักษรจริง (emoji / ไทย) — ไม่ใช้ .length ของ JS */
+export function countGraphemes(text) {
+  const s = String(text || '');
+  if (!s) return 0;
+  if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+    try {
+      const seg = new Intl.Segmenter('th', { granularity: 'grapheme' });
+      return [...seg.segment(s)].length;
+    } catch {
+      /* fallback */
+    }
+  }
+  return [...s].length;
+}
+
+/** คำตอบสั้น 1–2 ตัวที่ยอมรับได้ระหว่างซักประวัติ */
+const SHORT_VALID_ANSWER_RE = /^(ไม่|มี|ใช่|no|ok|yes)$/i;
+
+/** ตอบแค่ตัวอักษรเดียว / สั้นเกินไป — ห้ามนับเป็นคำตอบข้อถัดไป */
+export function isTooShortAnswer(text) {
+  const compact = String(text || '').trim().replace(/\s+/g, '');
+  if (!compact) return true;
+  if (SHORT_VALID_ANSWER_RE.test(compact) || SCREENING_VALID_RE.test(compact)) return false;
+  const gLen = countGraphemes(compact);
+  if (gLen <= 2) return true;
+  return false;
+}
+
 /** ตัวอักษร/ๆ ซ้ำๆ เช่n เทพๆๆๆ, 55555 */
 export function hasSpamRepetition(raw, compact) {
   if (/ๆ{2,}/.test(raw)) return true;
@@ -58,7 +86,8 @@ function isThaiKeyboardMash(compact) {
 export function isGibberishInput(text) {
   const raw = String(text || '').trim();
   if (!raw) return true;
-  if (raw.length <= 1 || /^[\?\.\!\,\s]+$/.test(raw)) return true;
+  if (isTooShortAnswer(raw)) return true;
+  if (/^[\?\.\!\,\s]+$/.test(raw)) return true;
   if (/^[\d\s]+$/.test(raw) && /\d/.test(raw)) return true;
   if (/^[\s\.\,\!\?\-\+\=\*\#\@\%\^\&\(\)\[\]\{\}\|\\\:\;\"\'\<\>\/\~\`_]+$/.test(raw)) return true;
 

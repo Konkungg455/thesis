@@ -224,7 +224,7 @@ const fetchUserProfile = async () => {
 };
 
 /* ================= Computed (หัวข้อเปลี่ยนตาม Query) ================= */
-const { classifyInput, parseAiMessage, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, isActiveFixedScreening, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, rewritePharmacyConsultCta, finalizeSummaryText, resolveUserGender, adaptScreeningPartsForGender, getReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
+const { classifyInput, parseAiMessage, buildAssistantMeta, normalizeMessageText, stripOffTopicLeak, buildScreeningHint, getFixedScreeningReply, isActiveFixedScreening, coerceSummaryOrPass, buildSummaryChatInput, getChatProgress, rewritePharmacyConsultCta, finalizeSummaryText, resolveUserGender, adaptScreeningPartsForGender, getReply, buildGibberishScreeningReply, resolveChatLocale, symptomDisplayName } = useAiChatRules();
 
 const displayTitle = computed(() => {
     const category = route.query.category;
@@ -361,7 +361,10 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
             const last = chatMessages.value[chatMessages.value.length - 1];
             if (last?.role === 'user') last.skipProgress = true;
             await new Promise(r => setTimeout(r, 400));
-            await pushAssistant(getReply('gibberish', chatLocale.value));
+            await pushAssistant(buildGibberishScreeningReply(chatMessages.value, route.query.category, chatLocale.value, {
+                gender: resolveUserGender(userProfile.value),
+                profile: userProfile.value,
+            }));
             return;
         }
 
