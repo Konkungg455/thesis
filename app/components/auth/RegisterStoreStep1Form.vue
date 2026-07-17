@@ -179,7 +179,7 @@ const submit = async () => {
                     <input v-model="form.personal_email" type="email" required />
                 </div>
                 <div class="auth-field full">
-                    <label>ใบอนุญาตร้านยา</label>
+                    <label>ใบอนุญาตร้านยา <span class="req">*</span></label>
                     <label class="auth-upload-box">
                         <i class="fa-solid fa-cloud-arrow-up"></i> {{ licenseLabel }}
                         <input type="file" accept="image/*,.pdf" @change="onFileChange" />

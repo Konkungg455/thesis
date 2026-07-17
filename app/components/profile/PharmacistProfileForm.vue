@@ -189,9 +189,9 @@ const removeSchedule = (index) => {
 };
 
 const fillAllWorkDays = () => {
-    const ref = schedules.value[0] || { start: '08:00', end: '17:00' };
-    const start = ref.start || '08:00';
-    const end = ref.end || '17:00';
+    const firstRow = schedules.value[0] || { start: '08:00', end: '17:00' };
+    const start = firstRow.start || '08:00';
+    const end = firstRow.end || '17:00';
     schedules.value = DAYS.map((day) => ({ day, start, end }));
 };
 

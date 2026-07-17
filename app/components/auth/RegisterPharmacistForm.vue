@@ -1,4 +1,5 @@
 <script setup>
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
 import { blockInvalidAgeKeys, clampAgeInputValue, validateAgeMessage } from '~/utils/age';
 import {
@@ -110,9 +111,9 @@ const removeWorkRow = (i) => {
 };
 
 const fillAllWorkDays = () => {
-    const ref = workRows.value[0] || { start: '08:00', end: '17:00' };
-    const start = ref.start || '08:00';
-    const end = ref.end || '17:00';
+    const firstRow = workRows.value[0] || { start: '08:00', end: '17:00' };
+    const start = firstRow.start || '08:00';
+    const end = firstRow.end || '17:00';
     workRows.value = DAY_ORDER.map((day) => ({ day, start, end }));
 };
 
