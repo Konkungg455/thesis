@@ -4,6 +4,15 @@
  */
 
 import { REPLY_ADULT, isAdultContentInput, ADULT_KEYWORDS, ADULT_CONTENT_RE } from './chatAdultContentFilter.js';
+import {
+  hasSpamRepetition,
+  isGibberishInput,
+  REPLY_GIBBERISH_EN,
+  REPLY_GIBBERISH_TH,
+  SCREENING_VALID_RE,
+} from './gibberishFilter.js';
+
+export { hasSpamRepetition, isGibberishInput } from './gibberishFilter.js';
 
 export const REPLY = {
   th: {
@@ -11,8 +20,7 @@ export const REPLY = {
       'ขออภัยค่ะ กรุณาใช้ภาษาสุภาพในการสนทนากับ telebot นะคะ '
       + 'พิมพ์อธิบายอาการด้วยถ้อยคำสุภาพ แล้ว telebot จะช่วยคัดกรองให้ค่ะ',
     adult: REPLY_ADULT.th,
-    gibberish:
-      'ขออภัยค่ะ คำตอบนี้ไม่เกี่ยวกับอาการที่กำลังซักอยู่ กรุณาพิมพ์คำตอบเรื่องอาการให้ชัดเจนอีกครั้งนะคะ',
+    gibberish: REPLY_GIBBERISH_TH,
     redflag:
       '🚨 อาการที่คุณแจ้งมาอาจมีความเสี่ยงสูง เพื่อความปลอดภัยกรุณากด "ติดต่อเภสัชกรของเราทันที" '
       + 'หรือถ้ารู้สึกแย่ลงให้ไปโรงพยาบาลที่ใกล้ที่สุดค่ะ',
@@ -22,8 +30,7 @@ export const REPLY = {
       'Sorry, please use polite language with telebot. '
       + 'Describe your symptoms politely and telebot will continue the screening.',
     adult: REPLY_ADULT.en,
-    gibberish:
-      'Sorry, that reply is not about the symptom being screened. Please answer about your symptom clearly.',
+    gibberish: REPLY_GIBBERISH_EN,
     redflag:
       '🚨 The symptoms you reported may be high-risk. For your safety, please tap "Contact our pharmacist now" '
       + 'or go to the nearest hospital if you feel worse.',
@@ -74,47 +81,6 @@ export function isProfanityInput(text) {
   return PROFANITY_RE.test(t);
 }
 
-/** ตัวอักษร/ๆ ซ้ำๆ เช่n เทพๆๆๆ, 55555, ggggg — ไม่ใช้ LLM */
-export function hasSpamRepetition(raw, compact) {
-  if (/ๆ{2,}/.test(raw)) return true;
-  if (new RegExp('(.)\\1{3,}', 'u').test(compact)) return true;
-  if (/^(555+|666+|ฮา+|haha+|hehe+|lol+|wow+|omg+|เทพ+|เจ๋+|โคตร+|แจ่ม+|cool+|nice+|okok+|yesyes+)[ๆ]*$/iu.test(compact)) {
-    return true;
-  }
-  if (/^[ก-ฮ]{1,4}ๆ+$/u.test(compact)) return true;
-  return false;
-}
-
-export function isGibberishInput(text) {
-  const raw = String(text || '').trim();
-  if (!raw) return true;
-  if (raw.length <= 1 || /^[\?\.\!\,\s]+$/.test(raw)) return true;
-  if (/^[\d\s]+$/.test(raw) && /\d/.test(raw)) return true;
-  if (/^[\s\.\,\!\?\-\+\=\*\#\@\%\^\&\(\)\[\]\{\}\|\\\:\;\"\'\<\>\/\~\`_]+$/.test(raw)) return true;
-
-  const compact = raw.replace(/\s+/g, '');
-  if (hasSpamRepetition(raw, compact)) return true;
-  if (/[ก-๙]/.test(raw)) {
-    const vowelCount = (raw.match(/[าิีึืุูเแโใไ]/g) || []).length;
-    if (compact.length <= 40) return false;
-    if (compact.length >= 6 && vowelCount === 0) return true;
-    return false;
-  }
-
-  if (/^[a-zA-Z\s]+$/.test(raw) && compact.length >= 6) {
-    const vowels = (raw.match(/[aeiouAEIOU]/g) || []).length;
-    const ratio = vowels / compact.length;
-    if (/^(ok|okay|yes|no|none|pain|hurt|mild|moderate|severe|today|yesterday|help|rest|food|sleep|stress|unknown|unsure|maybe|headache|fever|cough|nausea|dizzy|better|worse)$/i.test(compact)) {
-      return false;
-    }
-    if (!/\s/.test(raw) && compact.length >= 7 && ratio < 0.38) return true;
-    if (vowels === 0) return true;
-    if (compact.length >= 12 && ratio <= 0.25) return true;
-    if (/^([b-df-hj-np-tv-xz]{2,6})\1+$/i.test(compact)) return true;
-  }
-
-  return false;
-}
 
 export function isJokeAnswerInput(text) {
   const t = String(text || '').trim();
@@ -192,6 +158,53 @@ export function buildN8nBlockedReplyCode() {
 }];`;
 }
 
+function buildN8nGibberishBlock() {
+  const validPattern = SCREENING_VALID_RE.source.replace(/\\/g, '\\\\');
+  return `
+function hasSpamRepetition(raw, compact) {
+  if (/ๆ{2,}/.test(raw)) return true;
+  if (new RegExp('(.)\\\\1{3,}', 'u').test(compact)) return true;
+  if (/^(555+|666+|ฮา+|haha+|hehe+|lol+|wow+|omg+|เทพ+|เจ๋+|โคตร+|แจ่ม+|cool+|nice+|okok+|yesyes+)[ๆ]*$/iu.test(compact)) return true;
+  if (/^[ก-ฮ]{1,4}ๆ+$/u.test(compact)) return true;
+  return false;
+}
+function isThaiKeyboardMash(compact) {
+  if (compact.length < 6) return false;
+  const validRe = /${validPattern}/i;
+  if (validRe.test(compact)) return false;
+  const vowels = (compact.match(/[าิีึืุูเแโใไ]/g) || []).length;
+  const vowelRatio = vowels / compact.length;
+  if (/(.{2,4})\\1{2,}/u.test(compact)) return true;
+  const consonantRuns = compact.match(/[ก-ฮ]{4,}/gu) || [];
+  if (consonantRuns.some((run) => run.length >= 4)) return true;
+  if (compact.length >= 8 && vowelRatio < 0.28) return true;
+  if (compact.length >= 12 && vowels <= 2) return true;
+  if (compact.length >= 10 && !/\\s/.test(compact) && !validRe.test(compact) && vowelRatio < 0.32) return true;
+  return false;
+}
+function isGibberishInput(text) {
+  const raw = String(text || '').trim();
+  if (!raw) return true;
+  if (raw.length <= 1 || /^[\\?\\.\\!\\,\\s]+$/.test(raw)) return true;
+  if (/^[\\d\\s]+$/.test(raw) && /\\d/.test(raw)) return true;
+  if (/^[\\s\\.\\,\\!\\?\\-\\+\\=\\*\\#\\@\\%\\^\\&\\(\\)\\[\\]\\{\\}\\|\\\\\\:\\;\\"\\'\\<\\>\\/\\~\\\`_]+$/.test(raw)) return true;
+  const compact = raw.replace(/\\s+/g, '');
+  if (hasSpamRepetition(raw, compact)) return true;
+  if (/[ก-๙]/.test(raw)) return isThaiKeyboardMash(compact);
+  if (/^[a-zA-Z\\s]+$/.test(raw) && compact.length >= 6) {
+    const vowels = (raw.match(/[aeiouAEIOU]/g) || []).length;
+    const ratio = vowels / compact.length;
+    if (/^(ok|okay|yes|no|none|pain|hurt|mild|moderate|severe|today|yesterday|help|rest|food|sleep|stress|unknown|unsure|maybe|headache|fever|cough|nausea|dizzy|better|worse)$/i.test(compact)) return false;
+    if (!/\\s/.test(raw) && compact.length >= 6 && ratio < 0.38) return true;
+    if (vowels === 0) return true;
+    if (compact.length >= 10 && ratio <= 0.28) return true;
+    if (/^([b-df-hj-np-tv-xz]{2,6})\\1+$/i.test(compact)) return true;
+    if (!/\\s/.test(raw) && compact.length >= 8 && /^[a-z]+$/i.test(compact) && ratio < 0.42) return true;
+  }
+  return false;
+}`.trim();
+}
+
 function buildN8nFilterHelpers() {
   return `
 function resolveLocale(chatInput) {
@@ -217,38 +230,7 @@ function isProfanityInput(text) {
   if (!t) return false;
   return /(ควย|เหี้ย|สัส+|ระยำ|ชาติ\\s*หมา|หน้าหี|จิ๋ม|เย็ด|ชิบหาย|เชี่ย|เชี้ย|แม่ง|อีห่า|ไอ้สัตว์|ไอ้เวร|พ่อมึง|แม่มึง|\\bf+u+c+k|\\bshit\\b|\\bbitch\\b)/i.test(t);
 }
-function hasSpamRepetition(raw, compact) {
-  if (/ๆ{2,}/.test(raw)) return true;
-  if (new RegExp('(.)\\\\1{3,}', 'u').test(compact)) return true;
-  if (/^(555+|666+|ฮา+|haha+|hehe+|lol+|wow+|omg+|เทพ+|เจ๋+|โคตร+|แจ่ม+|cool+|nice+|okok+|yesyes+)[ๆ]*$/iu.test(compact)) return true;
-  if (/^[ก-ฮ]{1,4}ๆ+$/u.test(compact)) return true;
-  return false;
-}
-function isGibberishInput(text) {
-  const raw = String(text || '').trim();
-  if (!raw) return true;
-  if (raw.length <= 1 || /^[\\?\\.\\!\\,\\s]+$/.test(raw)) return true;
-  if (/^[\\d\\s]+$/.test(raw) && /\\d/.test(raw)) return true;
-  if (/^[\\s\\.\\,\\!\\?\\-\\+\\=\\*\\#\\@\\%\\^\\&\\(\\)\\[\\]\\{\\}\\|\\\\\\:\\;\\"\\'\\<\\>\\/\\~\\\`_]+$/.test(raw)) return true;
-  const compact = raw.replace(/\\s+/g, '');
-  if (hasSpamRepetition(raw, compact)) return true;
-  if (/[ก-๙]/.test(raw)) {
-    const vowelCount = (raw.match(/[าิีึืุูเแโใไ]/g) || []).length;
-    if (compact.length <= 40) return false;
-    if (compact.length >= 6 && vowelCount === 0) return true;
-    return false;
-  }
-  if (/^[a-zA-Z\\s]+$/.test(raw) && compact.length >= 6) {
-    const vowels = (raw.match(/[aeiouAEIOU]/g) || []).length;
-    const ratio = vowels / compact.length;
-    if (/^(ok|okay|yes|no|none|pain|hurt|mild|moderate|severe|today|yesterday|help|rest|food|sleep|stress|unknown|unsure|maybe|headache|fever|cough|nausea|dizzy|better|worse)$/i.test(compact)) return false;
-    if (!/\\s/.test(raw) && compact.length >= 7 && ratio < 0.38) return true;
-    if (vowels === 0) return true;
-    if (compact.length >= 12 && ratio <= 0.25) return true;
-    if (/^([b-df-hj-np-tv-xz]{2,6})\\1+$/i.test(compact)) return true;
-  }
-  return false;
-}
+${buildN8nGibberishBlock()}
 function isJokeAnswerInput(text) {
   const t = String(text || '').trim();
   if (!t) return false;

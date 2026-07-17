@@ -1,4 +1,5 @@
 import { isAdultContentInput } from '../../utils/chatAdultContentFilter';
+import { isGibberishInput } from '../../utils/gibberishFilter.js';
 
 type ValidateInput = {
     symptom: string;
@@ -15,47 +16,6 @@ type ValidateResult = {
 };
 
 const PROFANITY_RE = /(ควย|เหี้ย|สัส+|ระยำ|ชาติ\s*หมา|หน้าหี|จิ๋ม|เย็ด|ชิบหาย|เชี่ย|เชี้ย|แม่ง|อีห่า|ไอ้สัตว์|ไอ้เวร|พ่อมึง|แม่มึง|\bf+u+c+k|\bshit\b|\bbitch\b)/i;
-
-function hasSpamRepetition(raw: string, compact: string): boolean {
-    if (/ๆ{2,}/.test(raw)) return true;
-    if (new RegExp('(.)\\1{3,}', 'u').test(compact)) return true;
-    if (/^(555+|666+|ฮา+|haha+|hehe+|lol+|wow+|omg+|เทพ+|เจ๋+|โคตร+|แจ่ม+|cool+|nice+|okok+|yesyes+)[ๆ]*$/iu.test(compact)) {
-        return true;
-    }
-    if (/^[ก-ฮ]{1,4}ๆ+$/u.test(compact)) return true;
-    return false;
-}
-
-function isGibberishInput(text: string): boolean {
-    const t = String(text || '').trim();
-    if (!t) return true;
-    if (t.length <= 1 || /^[\?\.\!\,\s]+$/.test(t)) return true;
-    if (/^[\d\s]+$/.test(t) && /\d/.test(t)) return true;
-    if (/^[\s\.\,\!\?\-\+\=\*\#\@\%\^\&\(\)\[\]\{\}\|\\\:\;\"\'\<\>\/\~\`_]+$/.test(t)) return true;
-
-    const compact = t.replace(/\s+/g, '');
-    if (hasSpamRepetition(t, compact)) return true;
-    if (/[ก-๙]/.test(t)) {
-        const vowelCount = (t.match(/[าิีึืุูเแโใไ]/g) || []).length;
-        if (compact.length <= 40) return false;
-        if (compact.length >= 6 && vowelCount === 0) return true;
-        return false;
-    }
-
-    if (/^[a-zA-Z\s]+$/.test(t) && compact.length >= 6) {
-        const vowels = (t.match(/[aeiouAEIOU]/g) || []).length;
-        const ratio = vowels / compact.length;
-        if (/^(ok|okay|yes|no|none|pain|hurt|mild|moderate|severe|today|yesterday|help|rest|food|sleep|stress|unknown|unsure|maybe|headache|fever|cough|nausea|dizzy|better|worse)$/i.test(compact)) {
-            return false;
-        }
-        if (!/\s/.test(t) && compact.length >= 7 && ratio < 0.38) return true;
-        if (vowels === 0) return true;
-        if (compact.length >= 12 && ratio <= 0.25) return true;
-        if (/^([b-df-hj-np-tv-xz]{2,6})\1+$/i.test(compact)) return true;
-    }
-
-    return false;
-}
 
 function isJokeAnswerInput(text: string): boolean {
     const t = String(text || '').trim();

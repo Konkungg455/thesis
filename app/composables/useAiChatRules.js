@@ -11,6 +11,12 @@
 import { repairScreeningFormat } from '../../utils/repairScreeningFormat';
 import { isAdultContentInput, REPLY_ADULT } from '../../utils/chatAdultContentFilter';
 import {
+  hasSpamRepetition,
+  isGibberishInput,
+  REPLY_GIBBERISH_EN,
+  REPLY_GIBBERISH_TH,
+} from '../../utils/gibberishFilter.js';
+import {
   formatFixedScreeningQuestion,
   isHallucinatedScreeningText,
   normalizeSymptomKey,
@@ -136,47 +142,8 @@ export function useAiChatRules() {
     return PROFANITY_RE.test(t);
   };
 
-  /** พิมพ์มั่ว / ตัวเลขล้วน / สัญลักษณ์ล้วน / ตัวอักษรซ้ำ เช่n เทพๆๆๆ — ไม่นับเป็นคำตอบ */
-  const hasSpamRepetition = (raw, compact) => {
-    if (/ๆ{2,}/.test(raw)) return true;
-    if (new RegExp('(.)\\1{3,}', 'u').test(compact)) return true;
-    if (/^(555+|666+|ฮา+|haha+|hehe+|lol+|wow+|omg+|เทพ+|เจ๋+|โคตร+|แจ่ม+|cool+|nice+|okok+|yesyes+)[ๆ]*$/iu.test(compact)) {
-      return true;
-    }
-    if (/^[ก-ฮ]{1,4}ๆ+$/u.test(compact)) return true;
-    return false;
-  };
-
-  const isGibberishInput = (text) => {
-    const t = String(text || '').trim();
-    if (!t) return true;
-    if (t.length <= 1 || /^[\?\.\!\,\s]+$/.test(t)) return true;
-    if (/^[\d\s]+$/.test(t) && /\d/.test(t)) return true;
-    if (/^[\s\.\,\!\?\-\+\=\*\#\@\%\^\&\(\)\[\]\{\}\|\\\:\;\"\'\<\>\/\~\`_]+$/.test(t)) return true;
-
-    const compact = t.replace(/\s+/g, '');
-    if (hasSpamRepetition(t, compact)) return true;
-    if (/[ก-๙]/.test(t)) {
-      const vowelCount = (t.match(/[าิีึืุูเแโใไ]/g) || []).length;
-      if (compact.length <= 40) return false;
-      if (compact.length >= 6 && vowelCount === 0) return true;
-      return false;
-    }
-
-    if (/^[a-zA-Z\s]+$/.test(t) && compact.length >= 6) {
-      const vowels = (t.match(/[aeiouAEIOU]/g) || []).length;
-      const ratio = vowels / compact.length;
-      if (/^(ok|okay|yes|no|none|pain|hurt|mild|moderate|severe|today|yesterday|help|rest|food|sleep|stress|unknown|unsure|maybe|headache|fever|cough|nausea|dizzy|better|worse)$/i.test(compact)) {
-        return false;
-      }
-      if (!/\s/.test(t) && compact.length >= 7 && ratio < 0.38) return true;
-      if (vowels === 0) return true;
-      if (compact.length >= 12 && ratio <= 0.25) return true;
-      if (/^([b-df-hj-np-tv-xz]{2,6})\1+$/i.test(compact)) return true;
-    }
-
-    return false;
-  };
+  /** @deprecated alias — ใช้ isGibberishInput จาก utils/gibberishFilter.js */
+  const isGibberishInputLocal = isGibberishInput;
 
   /** มุก/คำตอบแกล้ง — เช่n ปวดขี้, ปวดเงิน (ไม่ใช่คำตอบซักประวัติจริง) */
   const JOKE_ANSWER_RE = /ปวด\s*(ขี้|ตด|อึ|ง่วง|เบื่อ|รัก|เงิน|สอบ|การบ้าน|เกม|มือถือ|wifi|เน็ต|ใจ)/i;
@@ -440,7 +407,7 @@ export function useAiChatRules() {
     if (isRedFlagInput(text)) return 'redflag';
     if (isAdultContentInput(text)) return 'adult';
     if (isProfanityInput(text)) return 'profanity';
-    if (isGibberishInput(text)) return 'gibberish';
+    if (isGibberishInputLocal(text)) return 'gibberish';
     if (isJokeAnswerInput(text)) return 'gibberish';
     if (containsAny(text, THANKS)) return 'thanks';
     return 'normal';
@@ -473,10 +440,8 @@ export function useAiChatRules() {
   const REPLY_ADULT_TH = REPLY_ADULT.th;
   const REPLY_ADULT_EN = REPLY_ADULT.en;
 
-  const REPLY_GIBBERISH =
-    'ขออภัยค่ะ คำตอบนี้ไม่เกี่ยวกับอาการที่กำลังซักอยู่ กรุณาพิมพ์คำตอบเรื่องอาการให้ชัดเจนอีกครั้งนะคะ';
-  const REPLY_GIBBERISH_EN =
-    'Sorry, that reply is not about the symptom being screened. Please answer about your symptom clearly.';
+  const REPLY_GIBBERISH = REPLY_GIBBERISH_TH;
+  const REPLY_GIBBERISH_EN_LOCAL = REPLY_GIBBERISH_EN;
 
   const buildOffSymptomReply = (symptomName, locale = 'th') => {
     const loc = resolveChatLocale(locale);
@@ -503,7 +468,7 @@ export function useAiChatRules() {
       adult: loc === 'en' ? REPLY_ADULT_EN : REPLY_ADULT_TH,
       irrelevant: loc === 'en' ? REPLY_IRRELEVANT_EN : REPLY_IRRELEVANT,
       profanity: loc === 'en' ? REPLY_PROFANITY_EN : REPLY_PROFANITY,
-      gibberish: loc === 'en' ? REPLY_GIBBERISH_EN : REPLY_GIBBERISH,
+      gibberish: loc === 'en' ? REPLY_GIBBERISH_EN_LOCAL : REPLY_GIBBERISH,
       thanks: loc === 'en' ? REPLY_THANKS_EN : REPLY_THANKS,
     };
     return map[kind] || '';
