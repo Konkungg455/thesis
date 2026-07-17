@@ -187,4 +187,25 @@ html:not(.dark) body #__nuxt .admin-layout .view-container {
     background: #ffffff;
     background-color: #ffffff;
 }
+
+/* Gutter กันเนื้อหาชิดขอบจอ (MacBook / จอแคบ) — unscoped ให้ชนะ scoped import */
+body #__nuxt .admin-layout .view-container {
+    padding-left: max(20px, env(safe-area-inset-left, 0px), clamp(20px, 3.2vw, 48px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px), clamp(20px, 3.2vw, 48px));
+    box-sizing: border-box;
+}
+
+@media (min-width: 1025px) and (max-width: 1512px) {
+    body #__nuxt .admin-layout .view-container {
+        padding-left: max(28px, env(safe-area-inset-left, 0px));
+        padding-right: max(28px, env(safe-area-inset-right, 0px));
+    }
+}
+
+@media (max-width: 900px) {
+    body #__nuxt .admin-layout .view-container {
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
+    }
+}
 </style>

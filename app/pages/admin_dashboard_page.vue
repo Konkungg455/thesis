@@ -272,10 +272,24 @@ const resolvePharmaDisplayName = (item, profiles) => {
 const resolveStoreName = (item, profiles) => {
   const direct = String(item.store_name || item.work_place || '').trim()
   if (direct) return direct
+  if (!profiles.length) return ''
   const id = item.id_pharma
-  if (!id || !profiles.length) return ''
-  const profile = profiles.find(p => String(p.id_pharma || p.id) === String(id))
+  const username = String(item.pharmacist_username || '').trim()
+  const profile = profiles.find(p =>
+    (id && String(p.id_pharma || p.id) === String(id)) ||
+    (username && p.username && String(p.username) === username)
+  )
   return String(profile?.store_name || profile?.work_place || '').trim()
+}
+
+const RANK_VIEW_OPTIONS = [
+  { value: 'pharma', label: 'เภสัชกรที่บันทึกใบสรุปรายการยามากที่สุด', short: 'เภสัชกร', icon: 'fa-user-doctor' },
+  { value: 'store', label: 'ร้านยาที่ออกใบสรุปรายการยามากที่สุด', short: 'ร้านยา', icon: 'fa-store' },
+]
+
+const setRankView = (view) => {
+  if (view !== 'pharma' && view !== 'store') return
+  rankView.value = view
 }
 
 // 🚩 [Overview] อันดับเภสัชกรที่บันทึกใบสรุปรายการยามากที่สุด (Top 5) — ตามช่วงเวลาที่เลือก
@@ -542,20 +556,16 @@ onBeforeUnmount(() => {
             <div class="top-list-tools">
               <div class="rank-view-toggle" role="group" aria-label="สลับมุมมองอันดับ">
                 <button
+                  v-for="opt in RANK_VIEW_OPTIONS"
+                  :key="opt.value"
                   type="button"
                   class="rank-view-btn"
-                  :class="{ active: rankView === 'pharma' }"
-                  @click="rankView = 'pharma'"
+                  :class="{ active: rankView === opt.value }"
+                  :title="opt.label"
+                  :aria-pressed="rankView === opt.value"
+                  @click="setRankView(opt.value)"
                 >
-                  <i class="fa-solid fa-user-doctor"></i> เภสัชกร
-                </button>
-                <button
-                  type="button"
-                  class="rank-view-btn"
-                  :class="{ active: rankView === 'store' }"
-                  @click="rankView = 'store'"
-                >
-                  <i class="fa-solid fa-store"></i> ร้านยาเภสัช
+                  <i class="fa-solid" :class="opt.icon"></i> {{ opt.short }}
                 </button>
               </div>
               <span class="top-list-badge">Top 5</span>
@@ -567,12 +577,16 @@ onBeforeUnmount(() => {
           </div>
           <div v-else-if="activeRankList.length === 0" class="empty-state-mini">
             <i class="fa-regular fa-clipboard"></i>
-            <span>ยังไม่มีข้อมูลการบันทึกใบสรุปรายการยาในช่วงเวลาที่เลือก</span>
+            <span>
+              {{ rankView === 'store'
+                ? 'ยังไม่มีข้อมูลร้านยาที่ออกใบสรุปรายการยาในช่วงเวลาที่เลือก'
+                : 'ยังไม่มีข้อมูลการบันทึกใบสรุปรายการยาในช่วงเวลาที่เลือก' }}
+            </span>
           </div>
-          <div v-else class="pharma-rank-container">
+          <div v-else class="pharma-rank-container" :key="rankView">
             <div
               v-for="(entry, idx) in activeRankList"
-              :key="entry.key"
+              :key="`${rankView}-${entry.key}`"
               class="rank-row"
               :class="{
                 'rank-row-gold': idx === 0,

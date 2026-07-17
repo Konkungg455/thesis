@@ -285,4 +285,9 @@ onMounted(() => {
     font-style: italic;
     font-weight: 500;
 }
+/* ตารางยาว — scroll ในกรอบ ไม่ดันชิดขอบจอ */
+.presc-table-card {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 </style>

@@ -2627,13 +2627,14 @@ html.dark body #__nuxt .partner-layout .modal-avatar img {
 
 html.dark body #__nuxt .shop-presc-page,
 html.dark body #__nuxt .shop-presc-main {
-  background: #0f172a !important;
+  background: #0f1729 !important;
   color: #f8fafc !important;
 }
 
 html.dark body #__nuxt .shop-presc-filter,
 html.dark body #__nuxt .shop-presc-table-wrap,
-html.dark body #__nuxt .shop-presc-page .state-block {
+html.dark body #__nuxt .shop-presc-page .state-block,
+html.dark body #__nuxt .shop-presc-page .presc-card {
   background: #111827 !important;
   border-color: rgba(125, 211, 252, 0.24) !important;
   color: #f8fafc !important;
@@ -2652,10 +2653,17 @@ html.dark body #__nuxt .shop-presc-page .filter-search input::placeholder {
 }
 
 html.dark body #__nuxt .shop-presc-page .filter-select label,
-html.dark body #__nuxt .shop-presc-page .date-cell,
+html.dark body #__nuxt .shop-presc-page .date-time,
 html.dark body #__nuxt .shop-presc-page .hn-line,
-html.dark body #__nuxt .shop-presc-page .td-no {
+html.dark body #__nuxt .shop-presc-page .card-label,
+html.dark body #__nuxt .shop-presc-page .filter-hint {
   color: #cbd5e1 !important;
+}
+
+html.dark body #__nuxt .shop-presc-page .date-main,
+html.dark body #__nuxt .shop-presc-page .patient-cell strong,
+html.dark body #__nuxt .shop-presc-page .filter-hint strong {
+  color: #f8fafc !important;
 }
 
 html.dark body #__nuxt .shop-presc-table,
@@ -2669,9 +2677,13 @@ html.dark body #__nuxt .shop-presc-table td {
 }
 
 html.dark body #__nuxt .shop-presc-table thead th {
-  background: #1e293b !important;
+  background: linear-gradient(135deg, #0b1220 0%, #1e293b 100%) !important;
   color: #f8fafc !important;
   border-color: rgba(148, 163, 184, 0.24) !important;
+}
+
+html.dark body #__nuxt .shop-presc-table tbody tr:nth-child(even) {
+  background: #0f172a !important;
 }
 
 html.dark body #__nuxt .shop-presc-table tbody tr:hover {
@@ -2682,19 +2694,35 @@ html.dark body #__nuxt .shop-presc-table tbody td strong {
   color: #f8fafc !important;
 }
 
-html.dark body #__nuxt .shop-presc-page .pharma-chip {
+html.dark body #__nuxt .shop-presc-page .row-index {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+}
+
+html.dark body #__nuxt .shop-presc-page .pharma-chip,
+html.dark body #__nuxt .shop-presc-page .med-chip {
   background: rgba(56, 189, 248, 0.14) !important;
   border: 1px solid rgba(125, 211, 252, 0.34) !important;
   color: #e0f2fe !important;
 }
 
 html.dark body #__nuxt .shop-presc-page .med-cell,
-html.dark body #__nuxt .shop-presc-page .med-cell i {
+html.dark body #__nuxt .shop-presc-page .med-cell i,
+html.dark body #__nuxt .shop-presc-page .med-chip i {
   color: #e0f2fe !important;
 }
 
 html.dark body #__nuxt .shop-presc-page .amount-cell {
   color: #86efac !important;
+}
+
+html.dark body #__nuxt .shop-presc-page .presc-card-head {
+  background: linear-gradient(135deg, #0b1220, #111827) !important;
+  border-bottom-color: rgba(125, 211, 252, 0.2) !important;
+}
+
+html.dark body #__nuxt .shop-presc-page .presc-card-row--amount {
+  border-top-color: rgba(148, 163, 184, 0.28) !important;
 }
 
 html.dark body #__nuxt .shop-presc-page .clear-btn {
@@ -4351,12 +4379,22 @@ html.dark body #__nuxt .admin-layout .overview-view .chart-period-select option 
 
 /* Final override: admin overview contrast */
 html.dark body #__nuxt .admin-layout .overview-view .chart-card,
-html.dark body #__nuxt .admin-layout .overview-view .top-list-card {
-  background: #111827 !important;
-  background-color: #111827 !important;
-  border: 1px solid rgba(125, 211, 252, 0.26) !important;
-  color: #f8fafc !important;
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32) !important;
+html.dark body #__nuxt .admin-layout .overview-view .rank-view-toggle {
+  background: #0f172a !important;
+  border-color: rgba(125, 211, 252, 0.28) !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-view-btn {
+  color: #94a3b8 !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-view-btn:hover {
+  color: #e0f2fe !important;
+}
+
+html.dark body #__nuxt .admin-layout .overview-view .rank-view-btn.active {
+  background: linear-gradient(135deg, #4318FF 0%, #6B46FF 100%) !important;
+  color: #ffffff !important;
 }
 
 html.dark body #__nuxt .admin-layout .overview-view .chart-header h3,

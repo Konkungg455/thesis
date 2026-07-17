@@ -29,7 +29,13 @@
 
 .view-container {
     flex: 1;
+    min-width: 0;
     background: #ffffff;
+    /* gutter กันเนื้อหาชิดขอบจอ (โดยเฉพาะ MacBook / จอแคบหลังหัก sidebar) */
+    padding: 28px clamp(20px, 3.2vw, 48px) 40px;
+    padding-left: max(20px, env(safe-area-inset-left, 0px), clamp(20px, 3.2vw, 48px));
+    padding-right: max(20px, env(safe-area-inset-right, 0px), clamp(20px, 3.2vw, 48px));
+    box-sizing: border-box;
 }
 
 /* 3. Sidebar — ขนาดเหมือนของเภสัช (260px + light blue gradient) ยืดถึง footer */
@@ -190,7 +196,19 @@
 
 .search-section {
     flex: 1;
-    padding: 40px;
+    /* padding หลักอยู่ที่ .view-container แล้ว — เหลือแค่ช่องว่างแนวตั้ง */
+    padding: 4px 0 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.management-view {
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    box-sizing: border-box;
 }
 
 .search-bar {
@@ -653,8 +671,11 @@ textarea.input-readonly {
         padding: 12px 14px;
         font-size: 0.9rem;
     }
+    .view-container {
+        padding: 20px 20px 32px;
+    }
     .search-section {
-        padding: 24px;
+        padding: 0 0 16px;
     }
     .user-detail-card {
         max-width: 92% !important;
@@ -665,8 +686,8 @@ textarea.input-readonly {
     }
 }
 
-/* ===================== RESPONSIVE: Narrow desktop / tablet landscape (1025–1280px) ===================== */
-@media (min-width: 1025px) and (max-width: 1280px) {
+/* ===================== RESPONSIVE: MacBook / narrow laptop (1025–1512px) ===================== */
+@media (min-width: 1025px) and (max-width: 1512px) {
     .sidebar {
         width: 230px;
     }
@@ -678,8 +699,17 @@ textarea.input-readonly {
         padding: 12px 14px;
         font-size: 0.9rem;
     }
-    .search-section {
-        padding: 24px;
+    /* เพิ่ม gutter ให้ไม่ชิดขอบจอหลังหัก sidebar */
+    .view-container {
+        padding: 24px 32px 36px;
+        padding-left: max(28px, env(safe-area-inset-left, 0px));
+        padding-right: max(28px, env(safe-area-inset-right, 0px));
+    }
+    .search-section,
+    .management-view {
+        max-width: 100%;
+        padding-left: 0;
+        padding-right: 0;
     }
     /* กันตารางแอดมินล้นจนปุ่ม action ขวาสุดถูกตัด */
     .content-area,
@@ -750,9 +780,15 @@ textarea.input-readonly {
     /* เนื้อหาหลัก: เต็มความกว้าง (mobile-topbar เป็น sticky จึงไม่ต้อง padding-top เพิ่ม) */
     .view-container {
         padding: 16px;
+        padding-left: max(16px, env(safe-area-inset-left, 0px));
+        padding-right: max(16px, env(safe-area-inset-right, 0px));
     }
     .search-section {
-        padding: 0;
+        padding: 0 0 12px;
+        max-width: none;
+    }
+    .management-view {
+        max-width: none;
     }
 
     /* Footer divider — ปิดเอฟเฟกต์แถบสีฝั่งซ้าย (250px) บนมือถือ */
