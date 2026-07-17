@@ -188,13 +188,6 @@ const removeSchedule = (index) => {
     schedules.value.splice(index, 1);
 };
 
-const fillAllWorkDays = () => {
-    const firstRow = schedules.value[0] || { start: '08:00', end: '17:00' };
-    const start = firstRow.start || '08:00';
-    const end = firstRow.end || '17:00';
-    schedules.value = DAYS.map((day) => ({ day, start, end }));
-};
-
 const openLicense = () => {
     if (licenseUrl.value) {
         window.open(licenseUrl.value, '_blank');
@@ -400,13 +393,7 @@ onMounted(loadProfile);
                     </div>
 
                     <div class="profile-field full">
-                        <div class="profile-schedule-label-row">
-                            <label>ตารางเวลาปฏิบัติงาน <span class="req">*</span></label>
-                            <button type="button" class="profile-schedule-fill-all" @click="fillAllWorkDays">
-                                <i class="fa-regular fa-calendar-plus" aria-hidden="true"></i>
-                                เพิ่มทุกวัน
-                            </button>
-                        </div>
+                        <label>ตารางเวลาปฏิบัติงาน <span class="req">*</span></label>
                         <div class="profile-schedule-list">
                             <div
                                 v-for="(row, index) in schedules"

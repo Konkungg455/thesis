@@ -1,6 +1,6 @@
-/** เบอร์โทรไทย — 9 หลัก */
-export const PHONE_MIN_LENGTH = 9;
-export const PHONE_MAX_LENGTH = 9;
+/** เบอร์โทรไทย — 10 หลัก */
+export const PHONE_MIN_LENGTH = 10;
+export const PHONE_MAX_LENGTH = 10;
 
 export function normalizePhoneDigits(value: unknown): string {
     return String(value ?? '').replace(/\D+/g, '');

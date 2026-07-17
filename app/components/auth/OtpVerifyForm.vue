@@ -20,7 +20,7 @@ const role = AUTH_ROLES[props.roleKey];
 const REGISTRATION_STORAGE_KEYS = {
     user: ['user_register_step1', 'user_register_step2_address', 'user_register_otp_pending'],
     store: ['store_register_step1', 'store_register_step1_draft', 'store_register_step2', 'store_register_step2_schedule'],
-    pharmacist: [],
+    pharmacist: ['pharmacist_register_draft', 'pharmacist_register_pending'],
     admin: []
 };
 

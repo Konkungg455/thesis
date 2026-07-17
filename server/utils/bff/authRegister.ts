@@ -241,6 +241,10 @@ function otpSuccessResponse(
     };
 }
 
+function isStoredLicenseFilename(name: string): boolean {
+    return /^license_\d+_[a-f0-9]+\.(jpg|jpeg|png|webp|pdf)$/i.test(String(name || '').trim());
+}
+
 export async function handleRegisterPharmacist(event: H3Event) {
     const { fields, arrays, files } = await readMultipartRequest(event);
     const username = String(fields.username_pharma || '').trim();
@@ -259,7 +263,19 @@ export async function handleRegisterPharmacist(event: H3Event) {
     if (!username || !email || !firstname || !lastname || !gender || !phone) {
         return { status: 'error', message: 'กรุณากรอกข้อมูลให้ครบถ้วน' };
     }
-    if (!files.license_image?.data?.length) {
+    const storedLicense = String(fields.license_image_stored || '').trim();
+    let licenseImage = '';
+    if (files.license_image?.data?.length) {
+        try {
+            const uploaded = await uploadLicenseImage(files.license_image, 'license');
+            if (!uploaded) return { status: 'error', message: 'อัปโหลดใบประกอบวิชาชีพไม่สำเร็จ' };
+            licenseImage = uploaded;
+        } catch (err: unknown) {
+            return { status: 'error', message: err instanceof Error ? err.message : 'อัปโหลดไฟล์ไม่สำเร็จ' };
+        }
+    } else if (isStoredLicenseFilename(storedLicense)) {
+        licenseImage = storedLicense;
+    } else {
         return { status: 'error', message: 'กรุณาแนบใบประกอบวิชาชีพ' };
     }
     if (pass1.length < 8) return { status: 'error', message: 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร' };
@@ -267,15 +283,6 @@ export async function handleRegisterPharmacist(event: H3Event) {
 
     const slotErr = await ensureRegistrationSlot(preparePharmacistRegistration, email, username);
     if (slotErr) return slotErr;
-
-    let licenseImage: string;
-    try {
-        const uploaded = await uploadLicenseImage(files.license_image, 'license');
-        if (!uploaded) return { status: 'error', message: 'อัปโหลดใบประกอบวิชาชีพไม่สำเร็จ' };
-        licenseImage = uploaded;
-    } catch (err: unknown) {
-        return { status: 'error', message: err instanceof Error ? err.message : 'อัปโหลดไฟล์ไม่สำเร็จ' };
-    }
 
     const workDays = getArrayField(fields, arrays, 'work_day');
     const workStarts = getArrayField(fields, arrays, 'work_start');
@@ -315,7 +322,10 @@ export async function handleRegisterPharmacist(event: H3Event) {
     });
 
     const mailed = await sendRegisterOtp(email, otp, 'pharmacist', firstname);
-    return otpSuccessResponse(email, 'pharmacist', mailed, otp);
+    return {
+        ...otpSuccessResponse(email, 'pharmacist', mailed, otp),
+        license_image: licenseImage,
+    };
 }
 
 export async function handleRegisterAdmin(event: H3Event) {

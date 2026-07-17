@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { AUTH_ROLES } from '~/composables/useAuthConfig';
 import { blockInvalidAgeKeys, clampAgeInputValue, validateAgeMessage } from '~/utils/age';
 import {
@@ -19,6 +19,9 @@ const isLoading = ref(false);
 const errorMessage = ref('');
 const licenseFile = ref(null);
 const licenseLabel = ref('เลือกไฟล์ใบวิชาชีพ');
+
+const PHARMA_DRAFT_KEY = 'pharmacist_register_draft';
+const PHARMA_PENDING_KEY = 'pharmacist_register_pending';
 
 const form = ref({
     username_pharma: '',
@@ -89,32 +92,75 @@ const onStorePickerDocClick = (event) => {
     }
 };
 
+const readStoredDraft = () => {
+    if (!import.meta.client) return null;
+    try {
+        const raw = sessionStorage.getItem(PHARMA_PENDING_KEY) || sessionStorage.getItem(PHARMA_DRAFT_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+};
+
+const persistDraft = () => {
+    if (!import.meta.client) return;
+    try {
+        const pending = readStoredDraft();
+        sessionStorage.setItem(PHARMA_DRAFT_KEY, JSON.stringify({
+            ...form.value,
+            workRows: workRows.value,
+            license_label: licenseLabel.value,
+            license_image: pending?.license_image || '',
+        }));
+    } catch { /* ignore */ }
+};
+
+const restoreDraft = () => {
+    const saved = readStoredDraft();
+    if (!saved) return;
+    Object.keys(form.value).forEach((k) => {
+        if (saved[k] !== undefined) form.value[k] = saved[k];
+    });
+    if (Array.isArray(saved.workRows) && saved.workRows.length) {
+        workRows.value = saved.workRows;
+    }
+    if (saved.license_label) licenseLabel.value = saved.license_label;
+};
+
 onMounted(() => {
+    restoreDraft();
     loadStores();
     document.addEventListener('click', onStorePickerDocClick);
 });
+
+watch(form, persistDraft, { deep: true });
+watch(workRows, persistDraft, { deep: true });
+watch(licenseLabel, persistDraft);
 
 onBeforeUnmount(() => {
     document.removeEventListener('click', onStorePickerDocClick);
 });
 
 const addWorkRow = () => {
+    if (workRows.value.some((r) => r.day === 'Everyday')) return;
     // ขึ้นวันถัดไปต่อจากแถวล่าสุด และใช้เวลาเดียวกับแถวล่าสุด
     const last = workRows.value[workRows.value.length - 1]
         || { day: DAY_ORDER[0], start: '08:00', end: '17:00' };
     const idx = DAY_ORDER.indexOf(last.day);
-    const nextDay = DAY_ORDER[(idx + 1) % DAY_ORDER.length];
+    const nextDay = idx >= 0 ? DAY_ORDER[(idx + 1) % DAY_ORDER.length] : DAY_ORDER[0];
     workRows.value.push({ day: nextDay, start: last.start || '08:00', end: last.end || '17:00' });
 };
 const removeWorkRow = (i) => {
-    if (workRows.value.length > 1) workRows.value.splice(i, 1);
+    if (i > 0 && workRows.value.length > 1) workRows.value.splice(i, 1);
 };
 
-const fillAllWorkDays = () => {
-    const firstRow = workRows.value[0] || { start: '08:00', end: '17:00' };
-    const start = firstRow.start || '08:00';
-    const end = firstRow.end || '17:00';
-    workRows.value = DAY_ORDER.map((day) => ({ day, start, end }));
+const onWorkDayChange = (row) => {
+    if (row.day !== 'Everyday') return;
+    workRows.value = [{
+        day: 'Everyday',
+        start: row.start || '08:00',
+        end: row.end || '17:00',
+    }];
 };
 
 const onFileChange = (e) => {
@@ -144,8 +190,11 @@ const submit = async () => {
         return;
     }
     if (!licenseFile.value) {
-        errorMessage.value = 'กรุณาแนบใบประกอบวิชาชีพ';
-        return;
+        const storedLicense = readStoredDraft()?.license_image || '';
+        if (!storedLicense) {
+            errorMessage.value = 'กรุณาแนบใบประกอบวิชาชีพ';
+            return;
+        }
     }
     isLoading.value = true;
     try {
@@ -158,7 +207,12 @@ const submit = async () => {
                 body.append('work_end[]', row.end);
             }
         });
-        body.append('license_image', licenseFile.value);
+        if (licenseFile.value) {
+            body.append('license_image', licenseFile.value);
+        } else {
+            const storedLicense = readStoredDraft()?.license_image || '';
+            if (storedLicense) body.append('license_image_stored', storedLicense);
+        }
 
         const data = await $fetch(`${apiBase.value}/vue-register-pharmacist.php`, {
             method: 'POST',
@@ -167,6 +221,16 @@ const submit = async () => {
         });
         if (data.status === 'success') {
             stashRegistrationOtpFallback('pharmacist', form.value.email, data);
+            if (import.meta.client) {
+                const payload = {
+                    ...form.value,
+                    workRows: workRows.value,
+                    license_label: licenseLabel.value,
+                    license_image: data.license_image || readStoredDraft()?.license_image || '',
+                };
+                sessionStorage.setItem(PHARMA_PENDING_KEY, JSON.stringify(payload));
+                sessionStorage.setItem(PHARMA_DRAFT_KEY, JSON.stringify(payload));
+            }
             await router.push(data.redirect || `/auth/verify-otp?type=pharmacist&email=${encodeURIComponent(form.value.email)}`);
         } else {
             errorMessage.value = data.message || 'สมัครไม่สำเร็จ';
@@ -275,16 +339,11 @@ const submit = async () => {
                     </ul>
                 </div>
                 <div class="auth-field full">
-                    <div class="auth-work-label-row">
-                        <label>เวลาทำงาน <span class="req">*</span></label>
-                        <button type="button" class="auth-work-fill-all" @click="fillAllWorkDays">
-                            <i class="fa-regular fa-calendar-plus" aria-hidden="true"></i>
-                            เพิ่มทุกวัน
-                        </button>
-                    </div>
+                    <label>เวลาทำงาน <span class="req">*</span></label>
                     <div v-for="(row, i) in workRows" :key="i" class="auth-work-row">
-                        <select v-model="row.day" :required="i === 0 || !!row.start || !!row.end">
+                        <select v-model="row.day" :required="i === 0 || !!row.start || !!row.end" @change="onWorkDayChange(row)">
                             <option value="" disabled hidden>เลือกวัน</option>
+                            <option value="Everyday">ทุกวัน</option>
                             <option value="Monday">จันทร์</option>
                             <option value="Tuesday">อังคาร</option>
                             <option value="Wednesday">พุธ</option>
@@ -296,8 +355,18 @@ const submit = async () => {
                         <input v-model="row.start" type="time" :required="i === 0 || !!row.day || !!row.end" />
                         <span>ถึง</span>
                         <input v-model="row.end" type="time" :required="i === 0 || !!row.day || !!row.start" />
-                        <button v-if="i === workRows.length - 1" type="button" class="auth-btn-small auth-btn-add" @click="addWorkRow">+</button>
-                        <button v-else type="button" class="auth-btn-small auth-btn-remove" @click="removeWorkRow(i)">×</button>
+                        <button
+                            v-if="i === workRows.length - 1 && row.day !== 'Everyday'"
+                            type="button"
+                            class="auth-btn-small auth-btn-add"
+                            @click="addWorkRow"
+                        >+</button>
+                        <button
+                            v-else-if="i > 0"
+                            type="button"
+                            class="auth-btn-small auth-btn-remove"
+                            @click="removeWorkRow(i)"
+                        >×</button>
                     </div>
                 </div>
                 <div class="auth-field full">
@@ -408,39 +477,5 @@ const submit = async () => {
 .store-picker-list button.active {
     background: #eff6ff;
     color: #00469c;
-}
-
-.auth-work-label-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 8px;
-}
-
-.auth-work-label-row label {
-    margin-bottom: 0;
-}
-
-.auth-work-fill-all {
-    border: 1px solid #bfdbfe;
-    background: #eff6ff;
-    color: #00469c;
-    border-radius: 999px;
-    padding: 6px 12px;
-    font: inherit;
-    font-size: 0.88rem;
-    font-weight: 600;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-    transition: background 0.2s, border-color 0.2s;
-}
-
-.auth-work-fill-all:hover {
-    background: #dbeafe;
-    border-color: #93c5fd;
 }
 </style>

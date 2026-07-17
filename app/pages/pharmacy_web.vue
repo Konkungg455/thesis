@@ -220,16 +220,16 @@ const sidebarPatientGroups = computed(() => {
     }
     return [
         {
-            key: 'tracking',
-            title: 'คนไข้ติดตามอาการ 3 วัน',
-            icon: 'fa-clipboard-list',
-            patients: tracking,
-        },
-        {
             key: 'consult',
             title: 'เภสัชไข้ที่ต้องพูดคุย',
             icon: 'fa-user-doctor',
             patients: consult,
+        },
+        {
+            key: 'tracking',
+            title: 'คนไข้ติดตามอาการ 3 วัน',
+            icon: 'fa-clipboard-list',
+            patients: tracking,
         },
     ];
 });
