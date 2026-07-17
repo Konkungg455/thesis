@@ -37,7 +37,7 @@ function runVercel(args, input) {
     const result = spawnSync('npx', ['vercel', ...args], {
         cwd: root,
         encoding: 'utf8',
-        shell: false,
+        shell: process.platform === 'win32',
         input: input ?? undefined,
         stdio: ['pipe', 'pipe', 'pipe'],
     });
