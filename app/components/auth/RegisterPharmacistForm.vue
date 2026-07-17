@@ -312,7 +312,7 @@ const submit = async () => {
                     <input v-model="form.email" type="email" required />
                 </div>
                 <div ref="storePickerRef" class="auth-field full store-picker-field">
-                    <label>ร้านยาที่ทำงานอยู่</label>
+                    <label>ร้านยาที่ทำงานอยู่ <span class="req">*</span></label>
                     <button
                         type="button"
                         class="store-picker-trigger"
