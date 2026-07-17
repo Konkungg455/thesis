@@ -140,7 +140,8 @@ const consultInfoPoll = useAdaptivePoll(() => fetchActiveConsultInfo(), {
 const shouldShowPaymentConfirm = (msg) => {
     if (!isChatSlipImageMessage(msg)) return false;
     const mid = getMessageId(msg);
-    return mid > 0 && !hiddenChatSlipMsgIds.value.has(mid);
+    const hidden = hiddenChatSlipMsgIds.value;
+    return mid > 0 && !(hidden && typeof hidden.has === 'function' && hidden.has(mid));
 };
 
 const confirmChatPayment = async (msg) => {

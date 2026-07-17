@@ -130,7 +130,7 @@ export function findPendingDeliveryRx(messages) {
     return hasSlipAfterRx ? pending : null
 }
 
-const CHAT_SLIP_MSG_MARKER = /\[CHAT_SLIP:msg=(\d+)\]/
+const CHAT_SLIP_MSG_MARKER = /\[CHAT_SLIP:msg=(\d+)\]/g
 const BILLING_CTX_MARKER = /\[BILLING_CTX:patient=\d+;rx=(\d+)\]/
 
 /** แสดงหมายเหตุสลิปบัญชี — ซ่อน marker ระบบ และใช้ข้อความอ่านง่าย */
@@ -154,20 +154,24 @@ export function formatBillingSlipDisplayNote(note) {
 /** ดึง message_id ของสลิปในแชทที่เภสัชยืนยันแล้ว */
 export function getConfirmedChatSlipMsgIds(slips) {
     const ids = new Set()
-    for (const slip of slips || []) {
-        const raw = String(slip?.note || '')
-        for (const match of raw.matchAll(CHAT_SLIP_MSG_MARKER)) {
-            const id = Number(match[1]) || 0
-            if (id > 0) ids.add(id)
+    try {
+        for (const slip of slips || []) {
+            const raw = String(slip?.note || '')
+            for (const match of raw.matchAll(CHAT_SLIP_MSG_MARKER)) {
+                const id = Number(match[1]) || 0
+                if (id > 0) ids.add(id)
+            }
         }
+    } catch {
+        // ignore malformed notes
     }
     return ids
 }
 
 /** message_id ของสลิปที่ไม่ต้องแสดงปุ่มยืนยันชำระเงินอีก */
 export function collectHiddenChatSlipMsgIds(slips, messages, extraIds = []) {
-    const hidden = getConfirmedChatSlipMsgIds(slips)
-    for (const rawId of extraIds) {
+    const hidden = getConfirmedChatSlipMsgIds(slips) || new Set()
+    for (const rawId of extraIds || []) {
         const id = Number(rawId) || 0
         if (id > 0) hidden.add(id)
     }
