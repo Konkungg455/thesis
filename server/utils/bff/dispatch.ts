@@ -732,11 +732,13 @@ async function handleGetPharmacists(event: H3Event) {
                d.latitude, d.longitude,
                d.house_no, d.road, d.sub_district, d.district, d.province
         FROM pharmacist_account p
-        LEFT JOIN phamacy_store_accounts a ON a.id_store_accounts = p.id_store
+        INNER JOIN phamacy_store_accounts a ON a.id_store_accounts = p.id_store
               AND a.status = 1
+              AND COALESCE(a.is_deleted, 0) = 0
               AND (a.admin_status IS NULL OR a.admin_status = 'approved')
         LEFT JOIN phamacy_store_details d ON d.id_store_accounts = p.id_store
         WHERE p.status_verify = 1
+          AND COALESCE(p.id_store, 0) > 0
     `);
 
     if (rows === null) {
