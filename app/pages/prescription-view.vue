@@ -127,12 +127,6 @@ const closeWindow = () => {
     window.close();
 };
 
-const openEmailPreview = () => {
-    const id = route.query.id;
-    if (!id) return;
-    window.open(`/prescription-email-preview?id=${id}`, '_blank', 'noopener,noreferrer');
-};
-
 </script>
 
 <template>
@@ -147,7 +141,6 @@ const openEmailPreview = () => {
     <div v-if="data" class="print-page">
         <!-- แถบเครื่องมือพิมพ์/ปิด (เห็นบนหน้าจอเท่านั้น) -->
         <div class="print-toolbar no-print">
-            <button class="tb-btn tb-email" @click="openEmailPreview">📧 ดูตัวอย่างอีเมล</button>
             <button class="tb-btn tb-print" @click="reprint">🖨️ พิมพ์อีกครั้ง</button>
             <button class="tb-btn tb-close" @click="closeWindow">✖ ปิดหน้าต่าง</button>
         </div>
