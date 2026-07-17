@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3';
+import { normalizePhoneDigits, validatePhoneMessage } from '../../../shared/utils/phone';
 
 function escapeHtml(value: string): string {
     return String(value || '')
@@ -51,13 +52,17 @@ export async function handleSendContact(event: H3Event) {
 
     const body = await readBody(event).catch(() => ({}));
     const name = String(body?.name || '').trim().slice(0, 255);
-    const phone = String(body?.phone || '').trim().slice(0, 64);
+    const phone = normalizePhoneDigits(String(body?.phone || ''));
     const email = String(body?.email || '').trim().slice(0, 255);
     const subject = String(body?.subject || '').trim().slice(0, 128);
     const message = String(body?.message || '').trim().slice(0, 5000);
 
     if (!name || !phone || !email || !subject) {
         return { status: 'error', message: 'กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน' };
+    }
+    const phoneErr = validatePhoneMessage(phone);
+    if (phoneErr) {
+        return { status: 'error', message: phoneErr };
     }
     if (!isValidEmail(email)) {
         return { status: 'error', message: 'รูปแบบอีเมลไม่ถูกต้อง' };

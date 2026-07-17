@@ -13,7 +13,17 @@
             </div>
             <div class="input-group">
               <label>เบอร์โทรศัพท์ <span class="required">*</span></label>
-              <input v-model="form.phone" type="tel" placeholder="กรอกเบอร์โทรศัพท์ของคุณ" required />
+              <input
+                v-model="form.phone"
+                type="tel"
+                inputmode="numeric"
+                autocomplete="tel"
+                placeholder="กรอกเบอร์โทรศัพท์ของคุณ"
+                :maxlength="PHONE_MAX_LENGTH"
+                required
+                @input="onPhoneInput"
+                @keydown="blockInvalidPhoneKeys"
+              />
             </div>
           </div>
 
@@ -69,6 +79,12 @@
 
 <script setup>
 import { ref } from 'vue'
+import {
+  PHONE_MAX_LENGTH,
+  blockInvalidPhoneKeys,
+  clampPhoneInputValue,
+  validatePhoneMessage,
+} from '@/utils/phone'
 
 const isSending = ref(false)
 const form = ref({
@@ -79,7 +95,18 @@ const form = ref({
   message: ''
 })
 
+const onPhoneInput = () => {
+  form.value.phone = clampPhoneInputValue(form.value.phone)
+}
+
 const handleSubmit = async () => {
+  onPhoneInput()
+  const phoneErr = validatePhoneMessage(form.value.phone)
+  if (phoneErr) {
+    alert(phoneErr)
+    return
+  }
+
   isSending.value = true
   try {
     const response = await $fetch(`${useNuxtApp().$getApiBase()}/send-contact.php`, {
