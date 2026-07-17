@@ -396,19 +396,37 @@ const savePrescription = async ({ redirectAfterSave = true, silent = false } = {
 
 /**
  * saveAndPrint
- *  - บันทึกใบสรุปรายการยาเงียบๆ → ได้ inserted_id
- *  - เปิดหน้า /prescription-view?id=<inserted_id> ใน tab ใหม่ (auto-print)
+ *  - เปิดแท็บว่างทันที (กัน browser บล็อก popup หลัง await)
+ *  - บันทึกใบสรุปรายการยา → ได้ inserted_id
+ *  - นำแท็บนั้นไป /prescription-view?id=... (auto-print)
  *  - เด้งกลับหน้า pharmacy_web พร้อม flag consult_done=1
  */
 const saveAndPrint = async () => {
+  // ต้องเปิดก่อน await — ไม่งั้น popup blocker จะบล็อก
+  const printWin = import.meta.client
+    ? window.open('about:blank', '_blank')
+    : null
+
   const { ok, insertedId, emailSent, emailTo, emailError } = await savePrescription({
     redirectAfterSave: false,
     silent: true
   })
-  if (!ok || !insertedId) return
+  if (!ok || !insertedId) {
+    try { printWin?.close() } catch { /* ignore */ }
+    return
+  }
 
+  const viewUrl = `/prescription-view?id=${insertedId}`
   if (import.meta.client) {
-    window.open(`/prescription-view?id=${insertedId}`, '_blank', 'noopener,noreferrer')
+    if (printWin && !printWin.closed) {
+      try {
+        printWin.location.href = viewUrl
+      } catch {
+        printWin.location.replace(viewUrl)
+      }
+    } else {
+      window.open(viewUrl, '_blank', 'noopener,noreferrer')
+    }
     if (emailSent) {
       alert(`📧 ส่งใบสรุปรายการยา (PDF) ทางอีเมลให้ลูกค้าแล้ว (${emailTo})`)
     } else if (emailError) {

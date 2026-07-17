@@ -12,6 +12,7 @@ const route = useRoute();
 const { apiUrl } = useApiBase();
 const data = ref(null);
 const isLoading = ref(true);
+const loadError = ref('');
 const autoPrint = computed(() => route.query.print !== '0');
 
 /** มือถือไม่ auto-print — iOS เปิด print sheet แล้วมักทำให้ปุ่มบนหน้ากดไม่ได้ */
@@ -86,6 +87,7 @@ onMounted(async () => {
     const id = route.query.id;
     if (!id) {
         isLoading.value = false;
+        loadError.value = 'ไม่พบรหัสใบสรุปรายการยา';
         return;
     }
 
@@ -102,9 +104,12 @@ onMounted(async () => {
                 await new Promise((r) => setTimeout(r, 500));
                 window.print();
             }
+        } else {
+            loadError.value = res.message || 'โหลดใบสรุปรายการยาไม่สำเร็จ';
         }
     } catch (err) {
         console.error("Fetch detail error:", err);
+        loadError.value = 'เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ กรุณาลองใหม่';
     } finally {
         isLoading.value = false;
     }
@@ -136,7 +141,7 @@ const openEmailPreview = () => {
     </div>
 
     <div v-else-if="!data" class="empty-state no-print">
-        <p>❌ ไม่พบข้อมูลใบสรุปรายการยา (id ไม่ถูกต้องหรือถูกลบ)</p>
+        <p>❌ {{ loadError || 'ไม่พบข้อมูลใบสรุปรายการยา (id ไม่ถูกต้องหรือถูกลบ)' }}</p>
     </div>
 
     <div v-if="data" class="print-page">

@@ -201,21 +201,11 @@ export async function handleSavePrescription(event: H3Event) {
             }
         }
 
-        const emailRes = idAccount > 0
-            ? await sendPrescriptionEmailInternal(sql, insertedId)
-            : {
-                ok: false,
-                message: '',
-                sent_to: '',
-                payment_qr_attached: false,
-                payment_bank_included: false,
-            };
-
+        // ส่งอีเมลนอก dbQuery — PDF/SMTP ช้าแล้ว timeout ทำให้ client คิดว่าบันทึกไม่สำเร็จ
         return {
             insertedId,
             billNo,
             notifySent,
-            emailRes,
         };
     });
 
@@ -226,17 +216,40 @@ export async function handleSavePrescription(event: H3Event) {
         return { status: 'error', message: result.error };
     }
 
+    let emailRes: Awaited<ReturnType<typeof sendPrescriptionEmailInternal>> = {
+        ok: false,
+        message: '',
+        sent_to: '',
+        payment_qr_attached: false,
+        payment_bank_included: false,
+    };
+    if (Number(data.id_account || 0) > 0 && result.insertedId > 0) {
+        try {
+            const emailed = await dbQuery(
+                async (sql) => sendPrescriptionEmailInternal(sql, result.insertedId),
+                { timeoutMs: 90_000 },
+            );
+            if (emailed) emailRes = emailed;
+            else emailRes = { ...emailRes, message: 'ส่งอีเมลไม่สำเร็จ (timeout หรือเชื่อมต่อ DB ไม่ได้)' };
+        } catch (e) {
+            emailRes = {
+                ...emailRes,
+                message: `ส่งอีเมลไม่สำเร็จ: ${e instanceof Error ? e.message : String(e)}`,
+            };
+        }
+    }
+
     return {
         status: 'success',
         message: 'บันทึกข้อมูลเรียบร้อยแล้ว',
         inserted_id: result.insertedId,
         bill_no: result.billNo,
         notified_patient: result.notifySent,
-        email_sent: result.emailRes.ok,
-        email_to: result.emailRes.sent_to,
-        email_error: result.emailRes.ok ? '' : result.emailRes.message,
-        payment_qr_attached: result.emailRes.payment_qr_attached,
-        payment_bank_included: result.emailRes.payment_bank_included,
+        email_sent: emailRes.ok,
+        email_to: emailRes.sent_to,
+        email_error: emailRes.ok ? '' : emailRes.message,
+        payment_qr_attached: emailRes.payment_qr_attached,
+        payment_bank_included: emailRes.payment_bank_included,
     };
 }
 

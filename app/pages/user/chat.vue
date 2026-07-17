@@ -1700,9 +1700,12 @@ const closePreview = () => {
                                     <div class="text rx-delivery-notice">
                                         {{ RX_DELIVERY_NOTICE }}
                                     </div>
-                                    <div
+                                    <a
                                         class="prescription-card"
-                                        @click="openPrescriptionPdf(parsePrescriptionMessage(msg.message_text).prescriptionId)"
+                                        :href="`/prescription-view?id=${parsePrescriptionMessage(msg.message_text).prescriptionId}&print=0`"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        @click.stop
                                     >
                                         <div class="rx-icon"><i class="fa-solid fa-file-prescription"></i></div>
                                         <div class="rx-body">
@@ -1712,7 +1715,7 @@ const closePreview = () => {
                                         <div class="rx-action">
                                             <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                         </div>
-                                    </div>
+                                    </a>
                                     <div v-if="parsePrescriptionMessage(msg.message_text).footerText" class="text rx-payment-note">
                                         {{ parsePrescriptionMessage(msg.message_text).footerText }}
                                     </div>
@@ -2955,6 +2958,7 @@ const closePreview = () => {
     cursor: pointer;
     transition: transform 0.18s ease, box-shadow 0.2s ease;
     color: #065f46;
+    text-decoration: none;
 }
 .prescription-card:hover {
     transform: translateY(-2px);
