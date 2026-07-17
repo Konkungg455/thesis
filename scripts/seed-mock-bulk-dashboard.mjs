@@ -115,27 +115,29 @@ function buildWorkTime(days, start, end) {
     return days.map((day) => `${day} (${start}-${end})`).join(', ');
 }
 
-const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-
-const EVERYDAY_OPEN = '07:30';
-const EVERYDAY_CLOSE = '16:30';
-const EVERYDAY_COUNT = 5;
+const FULLTIME_OPEN = '09:00';
+const FULLTIME_CLOSE = '18:00';
+const FULLTIME_COUNT = 5;
 
 function buildMockPharmaWorkTime(index) {
-    if (index < EVERYDAY_COUNT) {
-        return `Everyday (${EVERYDAY_OPEN}-${EVERYDAY_CLOSE})`;
+    if (index < FULLTIME_COUNT) {
+        return `Everyday (${FULLTIME_OPEN}-${FULLTIME_CLOSE})`;
     }
     const patterns = [
-        { days: WEEKDAYS, start: '08:00', end: '17:00' },
-        { days: [...WEEKDAYS, 'Saturday'], start: '08:30', end: '18:00' },
-        { days: WEEKDAYS, start: '09:00', end: '18:00' },
-        { days: ['Monday', 'Wednesday', 'Friday'], start: '08:00', end: '16:00' },
-        { days: WEEKDAYS, start: '10:00', end: '19:00' },
-        { days: ['Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'], start: '08:00', end: '17:30' },
-        { days: WEEKDAYS, start: '08:30', end: '17:30' },
-        { days: [...WEEKDAYS, 'Sunday'], start: '09:00', end: '15:00' },
+        { days: ['Monday'], start: '09:00', end: '18:00' },
+        { days: ['Wednesday'], start: '08:30', end: '17:00' },
+        { days: ['Friday'], start: '10:00', end: '16:00' },
+        { days: ['Saturday'], start: '09:00', end: '15:00' },
+        { days: ['Tuesday', 'Thursday'], start: '09:00', end: '18:00' },
+        { days: ['Monday', 'Wednesday'], start: '08:00', end: '17:00' },
+        { days: ['Wednesday', 'Friday'], start: '09:00', end: '18:00' },
+        { days: ['Tuesday', 'Saturday'], start: '08:30', end: '17:30' },
+        { days: ['Monday', 'Wednesday', 'Friday'], start: '09:00', end: '18:00' },
+        { days: ['Tuesday', 'Thursday', 'Saturday'], start: '08:30', end: '17:30' },
+        { days: ['Monday', 'Tuesday'], start: '09:00', end: '18:00' },
+        { days: ['Thursday', 'Friday', 'Sunday'], start: '09:00', end: '17:00' },
     ];
-    const pattern = patterns[(index - EVERYDAY_COUNT) % patterns.length];
+    const pattern = patterns[(index - FULLTIME_COUNT) % patterns.length];
     return buildWorkTime(pattern.days, pattern.start, pattern.end);
 }
 
