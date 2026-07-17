@@ -26,6 +26,20 @@
 
 ---
 
+## Import .env แล้วขึ้น "No environment variables were created"
+
+| สาเหตุ | วิธีแก้ |
+|--------|---------|
+| **ตัวแปรชื่อเดิมมีอยู่แล้ว** ใน Vercel | ไป Settings → Environment Variables → ลบตัวเก่าหรือกด Edit แล้ว import ใหม่ |
+| **ไม่ได้ติ๊ก Environment** | ติ๊ก **Production + Preview + Development** ก่อน Import |
+| ไฟล์มีแต่ comment / รูปแบบผิด | รัน `npm run vercel:prepare-import` แล้วอัปโหลด **`.env.vercel-import`** |
+| ใช้ `NUXT_AI_MODE=n8n` บน Vercel | เปลี่ยเป็น **`NUXT_AI_MODE=cloud`** (ไม่มี n8n บน serverless) |
+| **`NUXT_PUBLIC_SITE_ORIGIN`** | **ไม่จำเป็น** — ระบบใช้ domain จาก request อัตโนมัติ. ข้อความนี้ที่ตัวนี้ = **มีค่าเดิมอยู่แล้ว** หรือ **ข้ามได้** (ไม่ใช่ error) |
+
+หลัง import สำเร็จ → **Redeploy** แล้วเช็ค `/api/deploy/health`
+
+---
+
 ## Environment Variables (Vercel → Settings → Environment Variables)
 
 ใส่ครบทุกตัว แล้ว **Redeploy**

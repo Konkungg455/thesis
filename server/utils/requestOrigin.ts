@@ -25,6 +25,7 @@ export function resolveRequestOrigin(event?: H3Event): string {
         process.env.NUXT_PUBLIC_SITE_ORIGIN,
         process.env.NUXT_PUBLIC_APP_ORIGIN,
         process.env.SITE_ORIGIN,
+        process.env.VERCEL_URL ? `https://${String(process.env.VERCEL_URL).replace(/^https?:\/\//, '')}` : '',
         config.public.siteOrigin,
         config.siteOrigin,
     ]
