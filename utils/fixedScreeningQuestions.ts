@@ -10,6 +10,7 @@ import {
   MENSTRUAL_Q1_FOR_MALE_EN,
   MENSTRUAL_Q1_FOR_UNKNOWN_EN,
   PHARMACY_CONSULT_CTA_EN,
+  SUMMARY_MEDICAL_DISCLAIMER_EN,
   SEE_PHARMACIST_SECTION_TITLE_EN,
   SEE_PHARMACIST_WARNING_ITEMS_EN,
   SYMPTOM_LABEL_EN,
@@ -602,8 +603,16 @@ export function resolveNextFixedQuestionNum(progress: {
 export const PHARMACY_CONSULT_CTA =
   'หากต้องการคำแนะนำเพิ่มเติม กรุณาติดต่อเภสัชกรผ่านเว็บ TELEBOT-PHARMACY โดยกดปุ่ม "ปรึกษาเภสัชกร" ด้านบน';
 
+/** คำเตือนมาตรฐานท้ายสรุป — ต้องมีทุกครั้ง (ห้ามเปลี่ยนข้อความ) */
+export const SUMMARY_MEDICAL_DISCLAIMER =
+  '⚠️ข้อมูลนี้เป็นเพียงคำแนะนำเบื้องต้น ไม่สามารถใช้แทนการวินิจฉัยจากแพทย์ได้ หากอาการไม่ดีขึ้น กรุณาพบแพทย์ทันทีค่ะ';
+
 export function pharmacyConsultCta(locale: ChatLocale = 'th'): string {
   return locale === 'en' ? PHARMACY_CONSULT_CTA_EN : PHARMACY_CONSULT_CTA;
+}
+
+export function summaryMedicalDisclaimer(locale: ChatLocale = 'th'): string {
+  return locale === 'en' ? SUMMARY_MEDICAL_DISCLAIMER_EN : SUMMARY_MEDICAL_DISCLAIMER;
 }
 
 /** แทนประโยคชวนแนะนำยา / CTA เก่า ให้เป็นประโยคมาตรฐาน */
@@ -744,10 +753,19 @@ function isPharmacyCtaLine(line: string): boolean {
     || /For more advice,\s*please contact a pharmacist on\s*TELEBOT-PHARMACY/i.test(t);
 }
 
+function isMedicalDisclaimerLine(line: string): boolean {
+  const t = String(line || '').trim();
+  return /ข้อมูลนี้เป็นเพียงคำแนะนำเบื้องต้น/i.test(t)
+    || /ไม่สามารถใช้แทนการวินิจฉัยจากแพทย์/i.test(t)
+    || /this information is for preliminary guidance only/i.test(t)
+    || /cannot replace a doctor'?s diagnosis/i.test(t);
+}
+
 function isSummaryFooterLine(line: string): boolean {
   const t = String(line || '').trim();
   if (!t || /^-{2,}\s*$/.test(t)) return true;
   if (/^\*\s*$/.test(t)) return true;
+  if (isMedicalDisclaimerLine(t)) return true;
   if (/^\*หมายเหตุ|^หมายเหตุ\s*[:：]/i.test(t)) return true;
   if (/^คำเตือน\s*[:：]/i.test(t)) return true;
   if (/^⚠️\s*คำแนะนำเพิ่มเติม\s*[:：]/i.test(t) && !isPharmacyCtaLine(t)) return true;
@@ -758,6 +776,45 @@ function isSummaryFooterLine(line: string): boolean {
   if (/^ไม่สามารถใช้แทนคำแนะนำ|^cannot (?:replace|substitute) (?:medical )?(?:advice|diagnosis|treatment)/i.test(t)) return true;
   if (/^โปรดไปพบแพทย์ทันที|^please (?:see|consult) a (?:doctor|physician) immediately/i.test(t)) return true;
   return false;
+}
+
+/**
+ * บังคับมีคำเตือนมาตรฐานท้ายสรุปทุกครั้ง
+ * — แทนข้อความคล้ายกัน / แทรกก่อน CTA ถ้ายังไม่มี
+ */
+export function ensureMedicalDisclaimer(text: string, locale: ChatLocale = 'th'): string {
+  let out = String(text || '').trim();
+  if (!out) return out;
+  const disclaimer = summaryMedicalDisclaimer(locale);
+  const lines = out.split(/\r?\n/);
+  const kept = lines.filter((line) => !isMedicalDisclaimerLine(line));
+  out = kept.join('\n').trim();
+
+  const cta = pharmacyConsultCta(locale);
+  const thCta = PHARMACY_CONSULT_CTA;
+  const enCta = PHARMACY_CONSULT_CTA_EN;
+  const ctaIdx = out.indexOf(cta);
+  const thCtaIdx = out.indexOf(thCta);
+  const enCtaIdx = out.indexOf(enCta);
+  const insertAt = ctaIdx >= 0
+    ? ctaIdx
+    : (thCtaIdx >= 0 ? thCtaIdx : (enCtaIdx >= 0 ? enCtaIdx : -1));
+
+  if (insertAt >= 0) {
+    // แทรกก่อน CTA (และก่อนหัวข้อ 👨‍⚕️ ถ้ามี)
+    let cut = insertAt;
+    const before = out.slice(0, cut);
+    const headerMatch = before.match(/(?:\n|^)(?:👨‍⚕️[^\n]*|ปรึกษาเภสัชกรของเรา|Consult (?:our )?pharmacist[^\n]*)\s*$/i);
+    if (headerMatch) {
+      cut = before.length - headerMatch[0].length;
+      if (cut < 0) cut = 0;
+    }
+    const head = out.slice(0, cut).trimEnd();
+    const tail = out.slice(cut).trimStart();
+    return `${head}\n\n${disclaimer}\n\n${tail}`.trim();
+  }
+
+  return `${out}\n\n${disclaimer}`.trim();
 }
 
 function isPrecautionTitleLine(line: string): boolean {
@@ -910,11 +967,14 @@ export function normalizeSummaryLayout(text: string, locale: ChatLocale = 'th'):
   return blocks.join('\n\n').trim();
 }
 
-/** ปรับข้อความสรุปให้ครบ: CTA + ส่วนควรพบเภสัชกร + ลำดับมาตรฐาน */
+/** ปรับข้อความสรุปให้ครบ: CTA + ส่วนควรพบเภสัชกร + คำเตือนมาตรฐาน + ลำดับมาตรฐาน */
 export function finalizeSummaryText(text: string, locale: ChatLocale = 'th'): string {
   return normalizeSummaryLayout(
-    ensureSeePharmacistSection(
-      ensurePharmacyConsultCta(rewritePharmacyConsultCta(String(text || ''), locale), locale),
+    ensureMedicalDisclaimer(
+      ensureSeePharmacistSection(
+        ensurePharmacyConsultCta(rewritePharmacyConsultCta(String(text || ''), locale), locale),
+        locale,
+      ),
       locale,
     ),
     locale,
@@ -969,6 +1029,8 @@ export function buildFallbackSummary(
       '',
       formatSeePharmacistSection('en'),
       '',
+      SUMMARY_MEDICAL_DISCLAIMER_EN,
+      '',
       '👨‍⚕️ Consult our pharmacist',
       PHARMACY_CONSULT_CTA_EN,
     ].join('\n');
@@ -993,6 +1055,8 @@ export function buildFallbackSummary(
       : '3. หากอาการรุนแรงขึ้น ให้พบเภสัชกรหรือแพทย์',
     '',
     formatSeePharmacistSection('th'),
+    '',
+    SUMMARY_MEDICAL_DISCLAIMER,
     '',
     '👨‍⚕️ ปรึกษาเภสัชกรของเรา',
     PHARMACY_CONSULT_CTA,

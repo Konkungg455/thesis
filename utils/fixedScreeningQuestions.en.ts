@@ -381,6 +381,10 @@ export const DEFAULT_BANK_EN: FixedQuestionEn[] = [
 export const PHARMACY_CONSULT_CTA_EN =
   'For more advice, please contact a pharmacist on TELEBOT-PHARMACY by tapping the "Consult pharmacist" button above';
 
+/** Fixed medical disclaimer — must appear in every summary */
+export const SUMMARY_MEDICAL_DISCLAIMER_EN =
+  '⚠️ This information is for preliminary guidance only and cannot replace a doctor\'s diagnosis. If symptoms do not improve, please see a doctor immediately.';
+
 export const SEE_PHARMACIST_SECTION_TITLE_EN = '⚠️ See a pharmacist if you have these symptoms';
 
 export const SEE_PHARMACIST_WARNING_ITEMS_EN = [

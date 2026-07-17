@@ -730,6 +730,8 @@ export function useAiChatRules() {
         || /^หากคุณมีข้อสงสัย/i.test(noEmoji)
         || /^\*หมายเหตุ|^หมายเหตุ\s*[:：]/i.test(noEmoji)
         || /^ข้อมูลนี้มีวัตถุประสงค์/i.test(noEmoji)
+        || /ข้อมูลนี้เป็นเพียงคำแนะนำเบื้องต้น/i.test(noEmoji)
+        || /this information is for preliminary guidance only/i.test(noEmoji)
         || /^คำเตือน\s*[:：]/i.test(noEmoji)
         || /^หากอาการยังคง|^หากอาการรุนแรง/i.test(noEmoji)
         || /^ไม่สามารถใช้แทนคำแนะนำ/i.test(noEmoji)
@@ -1044,14 +1046,17 @@ export function useAiChatRules() {
       ? `[LOCKED_TOPIC] symptom: ${symptomName} (${symptomDisplayName(symptomName, loc)})`
       : '';
     const cta = pharmacyConsultCta(loc);
+    const disclaimer = loc === 'en'
+      ? '⚠️ This information is for preliminary guidance only and cannot replace a doctor\'s diagnosis. If symptoms do not improve, please see a doctor immediately.'
+      : '⚠️ข้อมูลนี้เป็นเพียงคำแนะนำเบื้องต้น ไม่สามารถใช้แทนการวินิจฉัยจากแพทย์ได้ หากอาการไม่ดีขึ้น กรุณาพบแพทย์ทันทีค่ะ';
     const diseaseRaw = opts.personalDisease ?? '';
     const disease = normalizePersonalDisease(diseaseRaw);
     const chronicBlock = loc === 'en'
       ? `[CHRONIC_CONDITIONS] ${disease || 'none'}\n[CHRONIC_RULE] You MUST factor chronic conditions into the summary, self-care tips, and pharmacist warning. If none, state "none". Do not prescribe medicines.`
       : `[CHRONIC_CONDITIONS] ${disease || 'ไม่มี'}\n[CHRONIC_RULE] ต้องนำโรคประจำตัวมาประกอบการสรุป แนะนำการดูแลตนเอง และข้อควรพบเภสัชกรเสมอ ถ้าไม่มีให้ระบุว่า "ไม่มี" ห้ามแนะนำยา`;
     const systemLine = loc === 'en'
-      ? `[SYSTEM] Screening is complete — write the assessment summary in clear natural English using the screening answers AND chronic conditions. Do not ask a new question. Do not print 🩺 Question N or placeholders. Do not recommend medicines. Mention relevant chronic conditions in the summary. Include both "💊 Basic self-care tips" and "⚠️ See a pharmacist if you have these symptoms" as numbered lists 1. 2. 3. … (3–5 items each, short, no long paragraphs, do not join with "/"). End exactly with: ${cta}`
-      : `[SYSTEM] ครบ 5 ข้อคัดกรองแล้ว — เขียนสรุปผลการประเมินอาการเองเป็นภาษาธรรมชาติ โดยต้องวิเคราะห์ร่วมกับโรคประจำตัวใน [CHRONIC_CONDITIONS]/[PROFILE] ด้วย อ่านง่าย ห้ามยึดเทมเพลตตายตัว ห้ามถามข้อใหม่ ห้ามพิมพ์ 🩺 ข้อ N หรือ placeholder ห้ามเสนอแนะนำยา ต้องมีครบ: "💊 คำแนะนำในการดูแลตนเองเบื้องต้น:" (ไม่เกิน 5 ข้อ), "ข้อควรระวัง:" (1–3 ข้อ), "⚠️ ควรพบเภสัชกรหากมีอาการเหล่านี้" (ไม่เกิน 5 ข้อ) — แบ่งเป็นข้อๆ หมายเลข 1. 2. 3. … สั้นชัด ห้ามย่อหน้ายาว ห้ามรวมอาการด้วย "/" ให้ปิดท้ายว่า: ${cta}`;
+      ? `[SYSTEM] Screening is complete — write the assessment summary in clear natural English using the screening answers AND chronic conditions. Do not ask a new question. Do not print 🩺 Question N or placeholders. Do not recommend medicines. Mention relevant chronic conditions in the summary. Include both "💊 Basic self-care tips" and "⚠️ See a pharmacist if you have these symptoms" as numbered lists 1. 2. 3. … (3–5 items each, short, no long paragraphs, do not join with "/"). Before the pharmacist CTA, include this exact disclaimer: ${disclaimer} End exactly with: ${cta}`
+      : `[SYSTEM] ครบ 5 ข้อคัดกรองแล้ว — เขียนสรุปผลการประเมินอาการเองเป็นภาษาธรรมชาติ โดยต้องวิเคราะห์ร่วมกับโรคประจำตัวใน [CHRONIC_CONDITIONS]/[PROFILE] ด้วย อ่านง่าย ห้ามยึดเทมเพลตตายตัว ห้ามถามข้อใหม่ ห้ามพิมพ์ 🩺 ข้อ N หรือ placeholder ห้ามเสนอแนะนำยา ต้องมีครบ: "💊 คำแนะนำในการดูแลตนเองเบื้องต้น:" (ไม่เกิน 5 ข้อ), "ข้อควรระวัง:" (1–3 ข้อ), "⚠️ ควรพบเภสัชกรหากมีอาการเหล่านี้" (ไม่เกิน 5 ข้อ) — แบ่งเป็นข้อๆ หมายเลข 1. 2. 3. … สั้นชัด ห้ามย่อหน้ายาว ห้ามรวมอาการด้วย "/" และต้องมีคำเตือนนี้เป๊ะๆ ก่อนปิดท้าย: ${disclaimer} ให้ปิดท้ายว่า: ${cta}`;
     return [
       profileLine,
       chronicBlock,
