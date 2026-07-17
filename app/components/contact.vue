@@ -58,7 +58,9 @@
         </div>
         <div class="info-card small">
           <h3>อีเมล :</h3>
-          <p>TELEBOTPHARCY@gmail.com</p>
+          <p class="contact-email">
+            <a href="mailto:telebotpharcy@gmail.com">telebotpharcy@gmail.com</a>
+          </p>
         </div>
       </aside>
     </div>

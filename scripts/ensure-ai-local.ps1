@@ -66,15 +66,23 @@ function Prefetch-N8nPackage([hashtable]$NodeTools) {
 
 function Start-N8nBackground {
     param([hashtable]$NodeTools)
-    $n8nNpx = $NodeTools.NpxCmd
     Set-N8nProcessEnv -NodeTools $NodeTools
     $n8nArgs = @("--yes", "n8n@$N8nVersion", "start")
-    if ($n8nNpx -match '\.cmd$') {
+    $nodeExe = if ($NodeTools.NodeExe -and (Test-Path $NodeTools.NodeExe)) { $NodeTools.NodeExe } else { "node" }
+    $npxCli = if ($NodeTools.NodeDir) {
+        Join-Path $NodeTools.NodeDir "node_modules\npm\bin\npx-cli.js"
+    } else { $null }
+    if ($npxCli -and (Test-Path $npxCli)) {
+        # Run npx-cli.js with portable node.exe (avoids system Node 23+ on Windows)
+        Start-Process -FilePath $nodeExe -ArgumentList (@($npxCli) + $n8nArgs) `
+            -WorkingDirectory $ProjectRoot -WindowStyle Minimized | Out-Null
+    } elseif ($NodeTools.NpxCmd -match '\.cmd$') {
         $comspec = if ($env:ComSpec) { $env:ComSpec } else { "$env:SystemRoot\System32\cmd.exe" }
-        Start-Process -FilePath $comspec -ArgumentList (@("/c", $n8nNpx) + $n8nArgs) `
+        Start-Process -FilePath $comspec -ArgumentList (@("/c", "`"$($NodeTools.NpxCmd)`"") + $n8nArgs) `
             -WorkingDirectory $ProjectRoot -WindowStyle Minimized | Out-Null
     } else {
-        Start-Process -FilePath $n8nNpx -ArgumentList $n8nArgs `
+        $npx = if ($NodeTools.NpxCmd) { $NodeTools.NpxCmd } else { "npx" }
+        Start-Process -FilePath $npx -ArgumentList $n8nArgs `
             -WorkingDirectory $ProjectRoot -WindowStyle Minimized | Out-Null
     }
 }
@@ -125,7 +133,7 @@ if (Test-PortOpen 5678) {
     $nodeTools = & (Join-Path $PSScriptRoot "ensure-node22-for-n8n.ps1")
     Prefetch-N8nPackage -NodeTools $nodeTools
     Start-N8nBackground -NodeTools $nodeTools
-    $waitSec = if ($Quiet) { 120 } else { 90 }
+    $waitSec = if ($Quiet) { 180 } else { 120 }
     $deadline = (Get-Date).AddSeconds($waitSec)
     while (-not (Test-PortOpen 5678) -and (Get-Date) -lt $deadline) {
         Start-Sleep -Seconds 3

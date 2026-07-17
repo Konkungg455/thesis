@@ -646,7 +646,7 @@ onMounted(async () => {
           </div>
           <div class="pharma-field full">
             <label>ตารางเวลาปฏิบัติงาน</label>
-            <div class="pharma-value">{{ selectedPharma.work_time || '-' }}</div>
+            <WorkTimeScheduleDisplay :work-time="selectedPharma.work_time" empty-text="-" />
           </div>
           <div class="pharma-field full">
             <label>ใบประกอบวิชาชีพเภสัชกรรม</label>

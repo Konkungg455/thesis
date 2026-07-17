@@ -72,6 +72,35 @@ export async function ensureBffSchema() {
             CREATE INDEX IF NOT EXISTS idx_store_transactions_store_tx_at
             ON store_transactions (id_store, tx_at DESC)
         `);
+
+        await sql`
+            CREATE TABLE IF NOT EXISTS contact_messages (
+                id SERIAL PRIMARY KEY,
+                full_name VARCHAR(255) NOT NULL,
+                phone VARCHAR(64) NOT NULL,
+                email VARCHAR(255) NOT NULL,
+                subject VARCHAR(128) NOT NULL,
+                message TEXT NOT NULL DEFAULT '',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        `;
+        await sql.unsafe(`
+            CREATE INDEX IF NOT EXISTS idx_contact_messages_created_at
+            ON contact_messages (created_at DESC)
+        `);
+
+        await sql`
+            CREATE TABLE IF NOT EXISTS user_presence (
+                role VARCHAR(20) NOT NULL,
+                entity_id INT NOT NULL,
+                last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                PRIMARY KEY (role, entity_id)
+            )
+        `;
+        await sql.unsafe(`
+            CREATE INDEX IF NOT EXISTS idx_user_presence_last_seen
+            ON user_presence (last_seen_at DESC)
+        `);
     }).catch(() => {
         schemaReady = false;
     });

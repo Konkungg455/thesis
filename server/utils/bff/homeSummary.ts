@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3';
+import { joinThaiAddressParts } from '#shared/utils/formatThaiAddress';
 
 type PharmacistPayload = {
     status: string;
@@ -148,9 +149,7 @@ async function fetchPharmacistsPayload(event?: H3Event): Promise<PharmacistPaylo
 
     const pharmacists = rows.map((row) => {
         const address = hasGps
-            ? [row.house_no, row.road, row.sub_district, row.district, row.province]
-                .filter(Boolean)
-                .join(' ')
+            ? joinThaiAddressParts(row.house_no, row.road, row.sub_district, row.district, row.province)
             : '';
         let distance_km: number | null = null;
         const storeLat = row.latitude != null ? Number(row.latitude) : null;

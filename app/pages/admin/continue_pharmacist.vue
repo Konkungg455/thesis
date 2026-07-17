@@ -299,7 +299,7 @@ onMounted(() => {
                 </div>
                 <div class="form-group full-width">
                   <label>ตารางเวลาปฏิบัติงาน *</label>
-                  <div class="work-time-box">{{ selectedData.work_time || 'ไม่ได้ระบุตารางเวลา' }}</div>
+                  <WorkTimeScheduleDisplay :work-time="selectedData.work_time" />
                 </div>
                 <div class="form-group full-width">
                   <label>ใบประกอบวิชาชีพเภสัชกรรม</label>

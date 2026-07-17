@@ -242,8 +242,10 @@ export function buildAdminNewRegistrationEmailHtml(options: {
 }): { subject: string; html: string; text: string } {
     const role: MailRole = options.role;
     const theme = ROLE_THEMES[role];
-    const label = options.role === 'pharmacist' ? 'เภสัชกร' : 'เจ้าของร้านยา';
-    const subject = `[แอดมิน] มี${label}ใหม่สมัคร — ${options.name}`;
+    const isPharmacist = options.role === 'pharmacist';
+    const label = isPharmacist ? 'เภสัชกร' : 'เจ้าของร้านยา';
+    const headline = isPharmacist ? 'มีเภสัชกรใหม่สมัคร' : 'มีเจ้าของร้านยาใหม่สมัคร';
+    const subject = `[Telebot Pharmacy] ${headline} — ${options.name}`;
 
     const rows = [
         ['ชื่อ-นามสกุล', options.name],
@@ -261,10 +263,10 @@ export function buildAdminNewRegistrationEmailHtml(options: {
         </tr>`).join('');
 
     const bodyHtml = `
-        <p style="margin:0 0 8px;font-size:16px;color:#0f172a;">เรียน ผู้ดูแลระบบ</p>
+        <p style="margin:0 0 8px;font-size:16px;color:#0f172a;">เรียน Super Admin</p>
         <p style="margin:0 0 22px;color:#475569;line-height:1.75;font-size:14px;">
-          มี<strong style="color:${theme.accent};">${label}</strong>สมัครใช้งานใหม่และยืนยัน OTP เรียบร้อยแล้ว
-          กรุณาเข้าไปตรวจสอบและดำเนินการอนุมัติในระบบแอดมิน
+          <strong style="color:${theme.accent};">${headline}</strong>
+          และยืนยัน OTP เรียบร้อยแล้ว กรุณาเข้าไปตรวจสอบและดำเนินการอนุมัติในระบบแอดมิน
         </p>
         <table role="presentation" style="width:100%;border:1px solid #e2e8f0;border-radius:12px;border-collapse:separate;border-spacing:0;margin-bottom:22px;">
           ${tableRows}
@@ -277,13 +279,13 @@ export function buildAdminNewRegistrationEmailHtml(options: {
 
     const html = emailShell({
         role: 'admin',
-        title: `มี${label}ใหม่รออนุมัติ`,
-        subtitle: `${theme.badge} · แจ้งเตือนแอดมิน`,
+        title: headline,
+        subtitle: `${theme.badge} · แจ้งเตือน Super Admin`,
         bodyHtml,
     });
 
     const text = [
-        `Telebot Pharmacy — มี${label}ใหม่สมัคร`,
+        `Telebot Pharmacy — ${headline}`,
         ...rows.map(([k, v]) => `${k}: ${v}`),
         `เปิดแอดมิน: ${options.adminUrl}`,
     ].join('\n');
@@ -301,17 +303,21 @@ export function buildRegistrationReviewEmailHtml(options: {
     const role: MailRole = options.role;
     const theme = ROLE_THEMES[role];
     const approved = options.result === 'approved';
+    const isPharmacist = options.role === 'pharmacist';
+    const roleLabel = isPharmacist ? 'เภสัชกร' : 'เจ้าของร้านยา';
     const accent = approved ? '#10b981' : '#ef4444';
     const accentDark = approved ? '#059669' : '#dc2626';
-    const title = approved ? 'บัญชีได้รับการอนุมัติแล้ว' : 'คำขอสมัครไม่ได้รับการอนุมัติ';
+    const title = approved ? 'คุณได้รับการอนุมัติแล้ว' : 'คำขอสมัครไม่ได้รับการอนุมัติ';
     const subject = approved
-        ? `ยินดีด้วย! บัญชี${theme.label}ของคุณได้รับการอนุมัติแล้ว`
-        : `แจ้งผลการพิจารณาบัญชี${theme.label}`;
+        ? `[Telebot Pharmacy] คุณได้รับการอนุมัติแล้ว — บัญชี${roleLabel}`
+        : `[Telebot Pharmacy] แจ้งผลการพิจารณาบัญชี${roleLabel}`;
 
     const greeting = `สวัสดีค่ะ/ครับ คุณ${rxEsc(options.recipientName)}`;
     const mainLine = approved
-        ? `บัญชี<strong style="color:${theme.accent};">${theme.label}</strong>ของคุณได้รับการอนุมัติจากผู้ดูแลระบบแล้ว สามารถเข้าสู่ระบบและเริ่มใช้งานได้ทันที`
-        : `ขออภัย คำขอสมัครบัญชี<strong style="color:${theme.accent};">${theme.label}</strong>ของคุณไม่ได้รับการอนุมัติในขณะนี้`;
+        ? `<strong style="color:${accentDark};font-size:16px;">คุณได้รับการอนุมัติแล้ว</strong><br><br>
+          บัญชี<strong style="color:${theme.accent};">${roleLabel}</strong>ของคุณได้รับการอนุมัติจากผู้ดูแลระบบแล้ว
+          สามารถเข้าสู่ระบบและเริ่มใช้งานได้ทันที`
+        : `ขออภัย คำขอสมัครบัญชี<strong style="color:${theme.accent};">${roleLabel}</strong>ของคุณไม่ได้รับการอนุมัติในขณะนี้`;
 
     const noteBlock = options.note
         ? `<div style="background:#f8fafc;border-left:4px solid ${accent};padding:14px 16px;border-radius:0 10px 10px 0;font-size:13px;color:#334155;line-height:1.65;margin:0 0 22px;">
@@ -342,7 +348,7 @@ export function buildRegistrationReviewEmailHtml(options: {
 
     const text = [
         `Telebot Pharmacy — ${title}`,
-        approved ? 'คุณสามารถเข้าสู่ระบบได้แล้ว' : 'คำขอสมัครไม่ได้รับการอนุมัติ',
+        approved ? 'คุณได้รับการอนุมัติแล้ว สามารถเข้าสู่ระบบได้' : 'คำขอสมัครไม่ได้รับการอนุมัติ',
         ...(options.note ? [`หมายเหตุ: ${options.note}`] : []),
         ...(approved ? [`เข้าสู่ระบบ: ${options.loginUrl}`] : []),
     ].join('\n');

@@ -40,15 +40,6 @@ const PENDING_DEMO_ADMINS = [
         age: 35,
         phone: '0850001049',
     },
-    {
-        username: 'demo_admin_pending04',
-        email: 'demo.admin.pending04@telebot-pharmacy.test',
-        firstname: 'รัตนา',
-        lastname: 'พิทักษ์ไทย',
-        gender: 'หญิง',
-        age: 30,
-        phone: '0850001050',
-    },
 ];
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -85,10 +76,12 @@ try {
         UPDATE account_admin
         SET is_deleted = 1
         WHERE (is_deleted IS NULL OR is_deleted = 0)
-          AND admin_status = 'pending'
           AND (
-              email_account LIKE '%@example.test'
-              OR username_account LIKE 'dummy_admin%'
+              (admin_status = 'pending' AND (
+                  email_account LIKE '%@example.test'
+                  OR username_account LIKE 'dummy_admin%'
+              ))
+              OR email_account = 'demo.admin.pending04@telebot-pharmacy.test'
           )
         RETURNING id_account_admin, username_account, email_account
     `;

@@ -239,9 +239,27 @@ const displayPatientSymptom = (id) => {
     return raw || 'ทั่วไป';
 };
 
-const getSidebarStorageKey = () => {
-    const pharmaId = user.value?.id_pharma || user.value?.id || 'guest';
+const getSidebarCacheKey = () => {
+    const pharmaId = resolvePharmaIdForCache() || 'guest';
+    return `pharma-sidebar-v2-${pharmaId}`;
+};
+
+/** @deprecated คีย์เก่า (เก็บแค่ id[]) — ใช้ migrate ครั้งแรก */
+const getSidebarLegacyKey = () => {
+    const pharmaId = resolvePharmaIdForCache() || 'guest';
     return `pharma-sidebar-patients-${pharmaId}`;
+};
+
+const resolvePharmaIdForCache = () => {
+    const fromUser = Number(user.value?.id_pharma || user.value?.id || 0);
+    if (fromUser > 0) return fromUser;
+    if (!import.meta.client) return 0;
+    try {
+        const u = JSON.parse(localStorage.getItem('user_data') || 'null');
+        return Number(u?.id_pharma || ((u?.role || u?.role_account) === 'pharmacist' ? u?.id : 0) || 0);
+    } catch {
+        return 0;
+    }
 };
 
 // กล่องเก็บข้อมูลรายละเอียดคนไข้ (ดึงชื่อจริงจากฐานข้อมูล)
@@ -347,7 +365,7 @@ const ensurePatientInSidebar = (id) => {
     if (!sidebarPatientIds.value.includes(normalized)) {
         // เปลี่ยนมาสร้างก้อน Array สดใหม่ทับลงไป เพื่อส่งสัญญาณ Reactivity ลั่นแจ้งเตือนสเตตทันที
         sidebarPatientIds.value = [...sidebarPatientIds.value, normalized].sort((a, b) => a - b);
-        saveSidebarPatients(); // เขียนเก็บลงกล่องถาวร
+        saveSidebarCache();
     }
     if (!patientListGroupMap.value[normalized]) {
         setPatientListGroup(normalized, 'consult');
@@ -389,63 +407,116 @@ const checkExternalBellTrigger = async () => {
     }
 };
 
+const applyPatientRowFromApi = (p) => {
+    const pid = normalizePatientId(p.id_account);
+    if (!pid) return null;
+    if (p.patient_name) {
+        setPatientDisplayName(pid, p.patient_name);
+    }
+    if (p.image_url) {
+        setPatientImage(pid, p.image_url);
+    }
+    setPatientListGroup(pid, p.list_group || 'consult');
+    setPatientRoundMeta(pid, {
+        consultId: p.consult_id || p.request_id || 0,
+        serviceCode: p.service_code || '',
+    });
+    const roundCid = Number(p.consult_id || p.request_id || 0);
+    fetchPatientInfo(pid, {
+        consultId: p.list_group === 'tracking' ? roundCid : 0,
+        markLoaded: true,
+    });
+    return pid;
+};
+
+const restoreSidebarCache = () => {
+    if (!import.meta.client) return false;
+    try {
+        const cacheRaw = localStorage.getItem(getSidebarCacheKey());
+        if (cacheRaw) {
+            const data = JSON.parse(cacheRaw);
+            if (data?.v === 2 && Array.isArray(data.ids)) {
+                sidebarPatientIds.value = data.ids
+                    .map((v) => normalizePatientId(v))
+                    .filter((v) => v !== null);
+                if (data.groups && typeof data.groups === 'object') {
+                    patientListGroupMap.value = { ...data.groups };
+                }
+                if (data.meta && typeof data.meta === 'object') {
+                    patientRoundMetaMap.value = { ...data.meta };
+                }
+                if (data.names && typeof data.names === 'object') {
+                    patientDetailsMap.value = { ...data.names };
+                }
+                if (data.images && typeof data.images === 'object') {
+                    patientImagesMap.value = { ...data.images };
+                }
+                return sidebarPatientIds.value.length > 0;
+            }
+        }
+
+        const legacyRaw = localStorage.getItem(getSidebarLegacyKey());
+        if (!legacyRaw) return false;
+        const legacy = JSON.parse(legacyRaw);
+        if (!Array.isArray(legacy) || !legacy.length) return false;
+        sidebarPatientIds.value = legacy
+            .map((v) => normalizePatientId(v))
+            .filter((v) => v !== null);
+        legacy.forEach((id) => {
+            const pid = normalizePatientId(id);
+            if (pid && !patientListGroupMap.value[pid]) {
+                setPatientListGroup(pid, 'consult');
+            }
+        });
+        return sidebarPatientIds.value.length > 0;
+    } catch {
+        return false;
+    }
+};
+
+const saveSidebarCache = () => {
+    if (!import.meta.client) return;
+    const payload = {
+        v: 2,
+        ids: sidebarPatientIds.value,
+        groups: patientListGroupMap.value,
+        meta: patientRoundMetaMap.value,
+        names: patientDetailsMap.value,
+        images: patientImagesMap.value,
+        savedAt: Date.now(),
+    };
+    localStorage.setItem(getSidebarCacheKey(), JSON.stringify(payload));
+};
+
 const loadSidebarPatients = async () => {
     if (!import.meta.client) return;
+
     try {
         const res = await $fetch(apiUrl('consult-handler.php?action=list_my_patients'), {
-            credentials: 'include'
+            credentials: 'include',
         });
         if (res?.status === 'success' && Array.isArray(res.data)) {
-            sidebarPatientIds.value = res.data
-                .map((p) => normalizePatientId(p.id_account))
-                .filter((v) => v !== null);
+            if (!res.data.length) {
+                if (!sidebarPatientIds.value.length) restoreSidebarCache();
+                return res.data;
+            }
+
+            const mergedIds = new Set(sidebarPatientIds.value);
             res.data.forEach((p) => {
-                const pid = normalizePatientId(p.id_account);
-                if (!pid) return;
-                if (p.patient_name) {
-                    setPatientDisplayName(pid, p.patient_name);
-                }
-                if (p.image_url) {
-                    setPatientImage(pid, p.image_url);
-                }
-                setPatientListGroup(pid, p.list_group || 'consult');
-                setPatientRoundMeta(pid, {
-                    consultId: p.consult_id || p.request_id || 0,
-                    serviceCode: p.service_code || '',
-                });
-                const roundCid = Number(p.consult_id || p.request_id || 0);
-                fetchPatientInfo(pid, {
-                    consultId: p.list_group === 'tracking' ? roundCid : 0,
-                    markLoaded: true,
-                });
+                const pid = applyPatientRowFromApi(p);
+                if (pid) mergedIds.add(pid);
             });
-            saveSidebarPatients();
+            sidebarPatientIds.value = [...mergedIds].sort((a, b) => a - b);
+            saveSidebarCache();
             return res.data;
         }
     } catch (e) {
         console.warn('loadSidebarPatients API', e);
     }
 
-    try {
-        const raw = localStorage.getItem(getSidebarStorageKey());
-        if (!raw) return;
-        const list = JSON.parse(raw);
-        if (!Array.isArray(list)) return;
-        sidebarPatientIds.value = list
-            .map((v) => normalizePatientId(v))
-            .filter((v) => v !== null);
-        sidebarPatientIds.value.forEach((id) => {
-            if (!patientListGroupMap.value[id]) setPatientListGroup(id, 'consult');
-            fetchPatientInfo(id, { markLoaded: true });
-        });
-    } catch {
-        // ignore
+    if (!sidebarPatientIds.value.length) {
+        restoreSidebarCache();
     }
-};
-
-const saveSidebarPatients = () => {
-    if (!import.meta.client) return;
-    localStorage.setItem(getSidebarStorageKey(), JSON.stringify(sidebarPatientIds.value));
 };
 
 /** เปิดแชทคนไข้ติดตามคนแรกอัตโนมัติเมื่อเข้าหน้า (ไม่ต้องไป /tracking ก่อน) */
@@ -464,7 +535,19 @@ const removePatientFromSidebar = (id) => {
     const normalized = normalizePatientId(id);
     if (!normalized) return;
     sidebarPatientIds.value = sidebarPatientIds.value.filter((p) => p !== normalized);
-    saveSidebarPatients();
+    const nextGroups = { ...patientListGroupMap.value };
+    const nextMeta = { ...patientRoundMetaMap.value };
+    const nextNames = { ...patientDetailsMap.value };
+    const nextImages = { ...patientImagesMap.value };
+    delete nextGroups[normalized];
+    delete nextMeta[normalized];
+    delete nextNames[normalized];
+    delete nextImages[normalized];
+    patientListGroupMap.value = nextGroups;
+    patientRoundMetaMap.value = nextMeta;
+    patientDetailsMap.value = nextNames;
+    patientImagesMap.value = nextImages;
+    saveSidebarCache();
     if (import.meta.client) {
         const key = `consult-pharma-${normalized}-deadline`;
         localStorage.removeItem(key);
@@ -1535,11 +1618,17 @@ watch(
     }
 );
 
-watch(sidebarPatientIds, () => {
-    saveSidebarPatients();
-}, { deep: true });
+watch(
+    [sidebarPatientIds, patientListGroupMap, patientRoundMetaMap, patientDetailsMap, patientImagesMap],
+    () => {
+        saveSidebarCache();
+    },
+    { deep: true },
+);
 
 onMounted(async () => {
+    restoreSidebarCache();
+
     if (route.query.consult_done === '1' || route.query.consult_done === 'true') {
         const pid = normalizePatientId(route.query.patient_id);
         if (pid) removePatientFromSidebar(pid);
@@ -1848,10 +1937,6 @@ const closePreview = () => { isShowPreview.value = false; };
                                     </span>
                                     {{ consultTimeLeftText }}
                                 </div>
-                                <button v-if="!isInCall" @click="makeCall('voice')" class="btn-call-header" title="โทรเสียง">
-                                    <i class="fa-solid fa-phone"></i>
-                                    <span class="btn-label">โทร</span>
-                                </button>
                                 <button
                                     v-if="activePatientId"
                                     type="button"
@@ -1865,6 +1950,10 @@ const closePreview = () => { isShowPreview.value = false; };
                                     <span v-if="activePatientBotMeta.bot_message_count > 0" class="msg-count-badge">
                                         {{ activePatientBotMeta.bot_message_count }}
                                     </span>
+                                </button>
+                                <button v-if="!isInCall" @click="makeCall('voice')" class="btn-call-header" title="โทรเสียง">
+                                    <i class="fa-solid fa-phone"></i>
+                                    <span class="btn-label">โทร</span>
                                 </button>
                                 <button class="video-call-btn" @click="makeCall('video')" title="วิดีโอคอล">
                                     <i class="fa-solid fa-video"></i>

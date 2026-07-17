@@ -69,22 +69,25 @@ export async function ensureStoreReviewNoticeColumns(sql: ReturnType<typeof post
     }
 }
 
-async function fetchAdminNotifyEmails(): Promise<string[]> {
+async function fetchSuperAdminNotifyEmails(): Promise<string[]> {
     const fromEnv = String(process.env.ADMIN_NOTIFY_EMAIL || '')
         .split(/[,;]/)
         .map((v) => v.trim())
         .filter(Boolean);
-    if (fromEnv.length) return [...new Set(fromEnv)];
 
     const rows = await dbQuery(async (sql) => sql`
         SELECT email_account
         FROM account_admin
         WHERE admin_status = 'approved'
+          AND COALESCE(is_super_admin, 0) = 1
           AND (is_deleted IS NULL OR is_deleted = 0)
           AND email_account IS NOT NULL
           AND TRIM(email_account) <> ''
     `);
-    return [...new Set((rows || []).map((r) => String(r.email_account || '').trim()).filter(Boolean))];
+    const fromDb = [...new Set((rows || []).map((r) => String(r.email_account || '').trim()).filter(Boolean))];
+    if (fromDb.length) return fromDb;
+    if (fromEnv.length) return [...new Set(fromEnv)];
+    return [];
 }
 
 function adminReviewUrl(origin: string, role: RegistrationRole): string {
@@ -112,9 +115,9 @@ export async function notifyAdminsNewRegistration(options: {
     origin?: string;
 }) {
     try {
-        const admins = await fetchAdminNotifyEmails();
+        const admins = await fetchSuperAdminNotifyEmails();
         if (!admins.length) {
-            console.warn('[registration] no admin emails configured for new registration alert');
+            console.warn('[registration] no super admin emails for new registration alert');
             return;
         }
 

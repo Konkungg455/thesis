@@ -6,12 +6,14 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, copyFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { N8N_WEBHOOK_ID, N8N_WORKFLOW_ID } from './n8n-config.mjs';
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const projectRoot = join(scriptDir, '..');
 const dbPath = join(projectRoot, '.tools', 'n8n-data', '.n8n', 'database.sqlite');
 const workflowFile = join(projectRoot, 'n8n_workflow_32_symptoms.json');
-const webhookId = '1f5ea30f-2ff0-4d32-b211-eccb342ee0df';
+const webhookId = N8N_WEBHOOK_ID;
+const preferredWorkflowId = process.env.N8N_WORKFLOW_ID || N8N_WORKFLOW_ID;
 const targetModel = process.argv[2] || process.env.OLLAMA_MODEL || 'gemma4:latest';
 
 const TOOL_NODE_TYPES = new Set([
@@ -46,15 +48,22 @@ function prepareWorkflow(wf, model) {
 const wf = JSON.parse(readFileSync(workflowFile, 'utf8'));
 const db = new DatabaseSync(dbPath);
 
-const hook = db.prepare(
-  "SELECT workflowId FROM webhook_entity WHERE webhookPath LIKE ? LIMIT 1",
-).get(`${webhookId}%`);
-if (!hook?.workflowId) {
-  console.error('Webhook not registered in DB — start n8n first, then re-run');
-  process.exit(1);
+function resolveWorkflowId() {
+    if (preferredWorkflowId) {
+        const row = db.prepare('SELECT id FROM workflow_entity WHERE id = ? LIMIT 1').get(preferredWorkflowId);
+        if (row?.id) return row.id;
+    }
+    const hook = db.prepare(
+        'SELECT workflowId FROM webhook_entity WHERE webhookPath LIKE ? LIMIT 1',
+    ).get(`${webhookId}%`);
+    return hook?.workflowId || null;
 }
 
-const workflowId = hook.workflowId;
+const workflowId = resolveWorkflowId();
+if (!workflowId) {
+    console.error('Webhook/workflow not registered — start n8n first, then re-run');
+    process.exit(1);
+}
 copyFileSync(dbPath, `${dbPath}.bak-sync-${Date.now()}`);
 
 const { nodes, connections } = prepareWorkflow(wf, targetModel);

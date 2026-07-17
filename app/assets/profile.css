@@ -197,6 +197,36 @@
     margin-top: 4px;
 }
 
+.profile-schedule-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.profile-schedule-fill-all {
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #00469c;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.profile-schedule-fill-all:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+}
+
 .profile-schedule-row {
     display: grid;
     grid-template-columns: minmax(128px, 1.5fr) 104px auto 104px 40px;

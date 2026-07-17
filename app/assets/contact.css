@@ -424,12 +424,37 @@ textarea {
     max-width: 100%;
 }
 
-/* ข้อความยาว (เช่น อีเมล) ให้ตัดบรรทัดแทนการล้นออกนอกการ์ด */
+/* ข้อความยาว (ที่อยู่) ให้ตัดบรรทัดได้ — ยกเว้นอีเมล/เบอร์โทร */
 .info-card h3,
-.info-card p,
+.info-card p:not(.contact-email),
 .brand-name {
     overflow-wrap: anywhere;
     word-break: break-word;
+}
+
+.info-card.small h3,
+.info-card.small p {
+    padding-left: 0;
+}
+
+.info-card .contact-email {
+    overflow-wrap: normal;
+    word-break: keep-all;
+    padding-left: 0;
+}
+
+.info-card .contact-email a {
+    color: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+@media (max-width: 420px) {
+    .info-card .contact-email a {
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-all;
+    }
 }
 
 /* iPad gen 9 และแท็บเล็ตทั่วไป: เรียงเป็นคอลัมน์เดียว ไม่ให้คอนเทนต์โดนตัดขวา */

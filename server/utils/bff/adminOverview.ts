@@ -1,7 +1,6 @@
 import type { H3Event } from 'h3';
 import { getAuthContext } from './sessionContext';
-
-const PRESENCE_ONLINE_SEC = 15;
+import { PRESENCE_ONLINE_SEC } from './presence';
 
 type OverviewPeriod = 'day' | 'week' | 'month' | 'year';
 
@@ -70,6 +69,12 @@ export async function handleGetAdminOverviewActivity(event: H3Event) {
                     WHERE p.id_account IS NOT NULL
                       AND p.created_at >= b.start_at
                       AND p.created_at <= b.end_at
+                    UNION
+                    SELECT up.entity_id AS id_account
+                    FROM user_presence up, bounds b
+                    WHERE up.role = 'user'
+                      AND up.last_seen_at >= b.start_at
+                      AND up.last_seen_at <= b.end_at
                 ) u
                 WHERE id_account IS NOT NULL
             ),
@@ -101,6 +106,12 @@ export async function handleGetAdminOverviewActivity(event: H3Event) {
                     WHERE p.id_pharma IS NOT NULL
                       AND p.created_at >= b.start_at
                       AND p.created_at <= b.end_at
+                    UNION
+                    SELECT up.entity_id AS id_pharma
+                    FROM user_presence up, bounds b
+                    WHERE up.role = 'pharmacist'
+                      AND up.last_seen_at >= b.start_at
+                      AND up.last_seen_at <= b.end_at
                 ) p
                 WHERE id_pharma IS NOT NULL
             )
@@ -108,16 +119,30 @@ export async function handleGetAdminOverviewActivity(event: H3Event) {
                 (SELECT COUNT(*)::int FROM active_users) AS active_users,
                 (SELECT COUNT(*)::int FROM active_pharmas) AS active_pharmas,
                 (
-                    SELECT COUNT(DISTINCT id_account)::int
-                    FROM consult_chat_timer
-                    WHERE id_account IS NOT NULL
-                      AND user_last_seen > NOW() - (${PRESENCE_ONLINE_SEC} * INTERVAL '1 second')
+                    SELECT COUNT(*)::int FROM (
+                        SELECT entity_id
+                        FROM user_presence
+                        WHERE role = 'user'
+                          AND last_seen_at > NOW() - (${PRESENCE_ONLINE_SEC} * INTERVAL '1 second')
+                        UNION
+                        SELECT id_account AS entity_id
+                        FROM consult_chat_timer
+                        WHERE id_account IS NOT NULL
+                          AND user_last_seen > NOW() - (${PRESENCE_ONLINE_SEC} * INTERVAL '1 second')
+                    ) u_now
                 ) AS online_users_now,
                 (
-                    SELECT COUNT(DISTINCT id_pharma)::int
-                    FROM consult_chat_timer
-                    WHERE id_pharma IS NOT NULL
-                      AND pharma_last_seen > NOW() - (${PRESENCE_ONLINE_SEC} * INTERVAL '1 second')
+                    SELECT COUNT(*)::int FROM (
+                        SELECT entity_id
+                        FROM user_presence
+                        WHERE role = 'pharmacist'
+                          AND last_seen_at > NOW() - (${PRESENCE_ONLINE_SEC} * INTERVAL '1 second')
+                        UNION
+                        SELECT id_pharma AS entity_id
+                        FROM consult_chat_timer
+                        WHERE id_pharma IS NOT NULL
+                          AND pharma_last_seen > NOW() - (${PRESENCE_ONLINE_SEC} * INTERVAL '1 second')
+                    ) p_now
                 ) AS online_pharmas_now
         `;
         return rows[0] as Record<string, unknown> | undefined;

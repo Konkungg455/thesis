@@ -1,3 +1,5 @@
+import { isAdultContentInput } from '../../utils/chatAdultContentFilter';
+
 type ValidateInput = {
     symptom: string;
     questionNum: number;
@@ -75,6 +77,7 @@ function isJokeAnswerInput(text: string): boolean {
 function heuristicValidate(input: ValidateInput): ValidateResult | null {
     const answer = String(input.userAnswer || '').trim();
     if (!answer) return { valid: false, source: 'heuristic', hint: 'empty' };
+    if (isAdultContentInput(answer)) return { valid: false, source: 'heuristic', hint: 'adult' };
     if (PROFANITY_RE.test(answer)) return { valid: false, source: 'heuristic', hint: 'profanity' };
     if (isGibberishInput(answer)) return { valid: false, source: 'heuristic', hint: 'gibberish' };
     if (isJokeAnswerInput(answer)) return { valid: false, source: 'heuristic', hint: 'joke' };

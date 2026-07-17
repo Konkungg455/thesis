@@ -9,6 +9,7 @@
  *  - กรณีปกติ → ส่งให้ n8n วินิจฉัย (n8n จะถามทีละข้อ 5 section ข้อละ 1 คำถามย่อย)
  */
 import { repairScreeningFormat } from '../../utils/repairScreeningFormat';
+import { isAdultContentInput, REPLY_ADULT } from '../../utils/chatAdultContentFilter';
 import {
   formatFixedScreeningQuestion,
   isHallucinatedScreeningText,
@@ -433,10 +434,11 @@ export function useAiChatRules() {
 
   /**
    * จำแนกประเภทข้อความ — red flag, คำหยาบ, พิมพ์มั่ว, มุก/คำตอบแกล้ง
-   * @returns {'redflag' | 'profanity' | 'gibberish' | 'thanks' | 'normal'}
+   * @returns {'redflag' | 'adult' | 'profanity' | 'gibberish' | 'thanks' | 'normal'}
    */
   const classifyInput = (text) => {
     if (isRedFlagInput(text)) return 'redflag';
+    if (isAdultContentInput(text)) return 'adult';
     if (isProfanityInput(text)) return 'profanity';
     if (isGibberishInput(text)) return 'gibberish';
     if (isJokeAnswerInput(text)) return 'gibberish';
@@ -468,6 +470,9 @@ export function useAiChatRules() {
     'Sorry, please use polite language with telebot. ' +
     'Describe your symptoms politely and telebot will continue the screening.';
 
+  const REPLY_ADULT_TH = REPLY_ADULT.th;
+  const REPLY_ADULT_EN = REPLY_ADULT.en;
+
   const REPLY_GIBBERISH =
     'ขออภัยค่ะ คำตอบนี้ไม่เกี่ยวกับอาการที่กำลังซักอยู่ กรุณาพิมพ์คำตอบเรื่องอาการให้ชัดเจนอีกครั้งนะคะ';
   const REPLY_GIBBERISH_EN =
@@ -495,6 +500,7 @@ export function useAiChatRules() {
     const loc = resolveChatLocale(locale);
     const map = {
       redflag: loc === 'en' ? REPLY_REDFLAG_EN : REPLY_REDFLAG,
+      adult: loc === 'en' ? REPLY_ADULT_EN : REPLY_ADULT_TH,
       irrelevant: loc === 'en' ? REPLY_IRRELEVANT_EN : REPLY_IRRELEVANT,
       profanity: loc === 'en' ? REPLY_PROFANITY_EN : REPLY_PROFANITY,
       gibberish: loc === 'en' ? REPLY_GIBBERISH_EN : REPLY_GIBBERISH,
@@ -1099,6 +1105,7 @@ export function useAiChatRules() {
     PROFANITY,
     classifyInput,
     isRedFlagInput,
+    isAdultContentInput,
     isProfanityInput,
     isGibberishInput,
     isJokeAnswerInput,

@@ -4,7 +4,7 @@
  *    เนื้อหาคือ Overview (สถิติรวม, กราฟใบสรุปรายการยา 7 วัน, อันดับเภสัชกร)
  *    ส่วน tab อื่น ๆ ถูกแยกไปไว้ในโฟลเดอร์ /app/pages/admin/
  */
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 
 definePageMeta({ middleware: 'admin-only' })
 
@@ -29,7 +29,7 @@ const ONLINE_PERIOD_LABELS = {
 }
 
 const CHART_PERIOD_OPTIONS = [
-  { value: 'day', label: 'วัน', statLabel: 'ใบสรุปรายการยาวันนี้', title: 'วันนี้ (รายชั่วโมง)', empty: 'ยังไม่มีการบันทึกใบสรุปรายการยาวันนี้' },
+  { value: 'day', label: 'วัน', statLabel: 'ใบสรุปรายการยาวันนี้', title: 'วันนี้ (ชั่วโมง 1–24)', empty: 'ยังไม่มีการบันทึกใบสรุปรายการยาวันนี้' },
   { value: 'week', label: 'สัปดาห์', statLabel: 'ใบสรุปรายการยา 7 วันล่าสุด', title: '7 วันล่าสุด', empty: 'ยังไม่มีการบันทึกใบสรุปรายการยาในช่วง 7 วันที่ผ่านมา' },
   { value: 'month', label: 'เดือน', statLabel: 'ใบสรุปรายการยา 30 วันล่าสุด', title: '30 วันล่าสุด', empty: 'ยังไม่มีการบันทึกใบสรุปรายการยาในช่วง 30 วันที่ผ่านมา' },
 ]
@@ -159,11 +159,14 @@ const chartPeriodData = computed(() => {
   const dayNames = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.']
 
   if (period === 'day') {
+    const nowHour = new Date().getHours()
     const buckets = Array.from({ length: 24 }, (_, hour) => ({
-      key: `h-${hour}`,
-      label: `${hour}`,
-      dateLabel: 'น.',
+      key: `h-${hour + 1}`,
+      label: `${hour + 1}`,
+      dateLabel: '',
+      hourRange: `${String(hour).padStart(2, '0')}:00–${String(hour).padStart(2, '0')}:59`,
       count: 0,
+      isCurrent: hour === nowHour,
     }))
     periodFilteredData.value.forEach((item) => {
       const created = parseCreatedAt(item)
@@ -232,6 +235,17 @@ const chartColumnClass = computed(() => ({
   'bar-chart-bars--month': chartPeriod.value === 'month',
   'bar-chart-bars--year': chartPeriod.value === 'year',
 }))
+
+const dayChartPeakCount = computed(() => {
+  if (chartPeriod.value !== 'day') return 0
+  return Math.max(...chartPeriodData.value.map((d) => d.count), 0)
+})
+
+const formatHourTooltip = (bucket) => {
+  const range = bucket.hourRange || ''
+  const count = bucket.count || 0
+  return `ชั่วโมงที่ ${bucket.label} (${range}) • ${count} ใบ`
+}
 
 const resolvePharmaRankKey = (item) => String(
   item.id_pharma || item.pharmacist_username || item.pharmacist_name || item.doctor_name || ''
@@ -380,9 +394,16 @@ watch(chartPeriod, () => {
   fetchOnlineActivity()
 })
 
+let onlinePollTimer = null
+
 onMounted(() => {
   fetchOverview()
   fetchOnlineActivity()
+  onlinePollTimer = setInterval(fetchOnlineActivity, 20_000)
+})
+
+onBeforeUnmount(() => {
+  if (onlinePollTimer) clearInterval(onlinePollTimer)
 })
 </script>
 
@@ -474,30 +495,40 @@ onMounted(() => {
             <i class="fa-regular fa-folder-open"></i>
             <span>{{ activePeriodMeta.empty }}</span>
           </div>
-          <div v-else class="bar-chart" :class="{ 'bar-chart--compact': chartPeriod === 'month' || chartPeriod === 'day' }">
+          <div v-else class="bar-chart" :class="{ 'bar-chart--compact': chartPeriod === 'month' || chartPeriod === 'day', 'bar-chart--day': chartPeriod === 'day' }">
             <div class="bar-chart-grid">
               <div class="bar-chart-line" v-for="n in 4" :key="n"></div>
             </div>
-            <div class="bar-chart-scroll">
+            <div class="bar-chart-scroll" :class="{ 'bar-chart-scroll--day': chartPeriod === 'day' }">
               <div class="bar-chart-bars" :class="chartColumnClass">
                 <div
                   v-for="bucket in chartPeriodData"
                   :key="bucket.key"
                   class="bar-column"
+                  :class="{
+                    'bar-column--current': bucket.isCurrent,
+                    'bar-column--peak': chartPeriod === 'day' && bucket.count > 0 && bucket.count === dayChartPeakCount,
+                  }"
+                  :title="chartPeriod === 'day' ? formatHourTooltip(bucket) : undefined"
                 >
                   <div class="bar-track">
                     <div
                       class="bar"
-                      :class="{ 'bar-zero': bucket.count === 0 }"
+                      :class="{
+                        'bar-zero': bucket.count === 0,
+                        'bar-current': bucket.isCurrent && bucket.count > 0,
+                        'bar-peak': chartPeriod === 'day' && bucket.count > 0 && bucket.count === dayChartPeakCount,
+                      }"
                       :style="{ height: ((bucket.count / maxChartCount) * 100) + '%' }"
                     >
-                      <span class="bar-value">{{ bucket.count }}</span>
+                      <span class="bar-value">{{ bucket.count > 0 ? bucket.count : '' }}</span>
                       <div class="bar-fill"></div>
                     </div>
                   </div>
-                  <div class="bar-label">
+                  <div class="bar-label" :class="{ 'bar-label--current': bucket.isCurrent, 'bar-label--day-hour': chartPeriod === 'day' }">
                     <span class="bar-day">{{ bucket.label }}</span>
-                    <span v-if="bucket.dateLabel" class="bar-date">{{ bucket.dateLabel }}</span>
+                    <span v-if="chartPeriod === 'day'" class="bar-hour-unit">ชั่วโมง</span>
+                    <span v-if="bucket.dateLabel && chartPeriod !== 'day'" class="bar-date">{{ bucket.dateLabel }}</span>
                   </div>
                 </div>
               </div>

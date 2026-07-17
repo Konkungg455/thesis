@@ -3,11 +3,14 @@
  * ใช้ regex/heuristic ไม่ใช้ LLM → ไม่หลอน
  */
 
+import { REPLY_ADULT, isAdultContentInput, ADULT_KEYWORDS, ADULT_CONTENT_RE } from './chatAdultContentFilter.js';
+
 export const REPLY = {
   th: {
     profanity:
       'ขออภัยค่ะ กรุณาใช้ภาษาสุภาพในการสนทนากับ telebot นะคะ '
       + 'พิมพ์อธิบายอาการด้วยถ้อยคำสุภาพ แล้ว telebot จะช่วยคัดกรองให้ค่ะ',
+    adult: REPLY_ADULT.th,
     gibberish:
       'ขออภัยค่ะ คำตอบนี้ไม่เกี่ยวกับอาการที่กำลังซักอยู่ กรุณาพิมพ์คำตอบเรื่องอาการให้ชัดเจนอีกครั้งนะคะ',
     redflag:
@@ -18,6 +21,7 @@ export const REPLY = {
     profanity:
       'Sorry, please use polite language with telebot. '
       + 'Describe your symptoms politely and telebot will continue the screening.',
+    adult: REPLY_ADULT.en,
     gibberish:
       'Sorry, that reply is not about the symptom being screened. Please answer about your symptom clearly.',
     redflag:
@@ -61,6 +65,8 @@ export function extractUserAnswer(chatInput) {
 
   return text.trim();
 }
+
+export { isAdultContentInput } from './chatAdultContentFilter.js';
 
 export function isProfanityInput(text) {
   const t = String(text || '').trim();
@@ -138,6 +144,9 @@ export function classifyN8nInput(chatInput) {
 
   if (isRedFlagInput(userText)) {
     return { blocked: true, filterKind: 'redflag', message: msg.redflag, userText };
+  }
+  if (isAdultContentInput(userText)) {
+    return { blocked: true, filterKind: 'adult', message: msg.adult, userText };
   }
   if (isProfanityInput(userText)) {
     return { blocked: true, filterKind: 'profanity', message: msg.profanity, userText };
@@ -255,6 +264,19 @@ function isRedFlagInput(text) {
   if (!t) return false;
   return /เลือดไหลไม่หยุด|หายใจไม่ออก|หายใจลำบาก|หอบ(?:เหนื่อย|มาก)|แน่นหน้าอก|เจ็บหน้าอก|หมดสติ|หน้ามืด|ชัก|แขนขาอ่อนแรง|พูดไม่ชัด|ปากเบี้ยว|อาเจียนพุ่ง|ตามัวเฉียบพลัน|ผื่นทั่วตัว|แพ้รุนแรง|ไข้\\s*4[0-9]|งูกัด|สุนัขกัด/i.test(t);
 }
+function isClinicalSexContext(text) {
+  return /(?:หลัง(?:จาก)?|หลัง\\s*มี|เจ็บ|ปวด|แสบ|คัน|อักเสบ|มี\\s*แผล|ตกขาว|เลือดออก|discharge|bleed|burn|itch|pain|sore).{0,48}(?:เพศสัมพันธ์|มี\\s*sex|after\\s*sex|intercourse|sexual\\s*activity)/i.test(String(text || ''))
+    || /(?:เพศสัมพันธ์|intercourse|after\\s*sex|sexual\\s*activity).{0,48}(?:หลัง|เจ็บ|ปวด|แสบ|คัน|อักเสบ|แผล|ตกขาว|เลือด|discharge|pain|sore|burn|itch)/i.test(String(text || ''));
+}
+function isAdultContentInput(text) {
+  const t = String(text || '').trim();
+  if (!t) return false;
+  if (isClinicalSexContext(t)) return false;
+  const adultKeywords = ${JSON.stringify(ADULT_KEYWORDS)};
+  const lower = t.toLowerCase();
+  if (adultKeywords.some((k) => lower.includes(String(k).toLowerCase()))) return true;
+  return ${ADULT_CONTENT_RE.toString()}.test(t);
+}
 function classifyN8nInput(chatInput) {
   const locale = resolveLocale(chatInput);
   const userText = extractUserAnswer(chatInput);
@@ -263,6 +285,7 @@ function classifyN8nInput(chatInput) {
   const msg = locale === 'en' ? en : th;
   if (!userText || userText === 'ping') return { blocked: false, filterKind: 'normal', message: '', userText };
   if (isRedFlagInput(userText)) return { blocked: true, filterKind: 'redflag', message: msg.redflag, userText };
+  if (isAdultContentInput(userText)) return { blocked: true, filterKind: 'adult', message: msg.adult, userText };
   if (isProfanityInput(userText)) return { blocked: true, filterKind: 'profanity', message: msg.profanity, userText };
   if (isGibberishInput(userText)) return { blocked: true, filterKind: 'gibberish', message: msg.gibberish, userText };
   if (isJokeAnswerInput(userText)) return { blocked: true, filterKind: 'gibberish', message: msg.gibberish, userText };

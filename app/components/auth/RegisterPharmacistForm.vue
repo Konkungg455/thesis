@@ -40,17 +40,62 @@ const makeDefaultRows = () =>
 const workRows = ref(makeDefaultRows());
 
 const stores = ref([]);
+const storePickerOpen = ref(false);
+const storePickerRef = ref(null);
+
+const storeDisplayName = (store) => {
+    const name = String(store?.store_name || '').trim();
+    if (name) return name;
+    const id = Number(store?.id || 0);
+    return id > 0 ? `ร้าน #${id}` : '';
+};
+
+const selectedStoreLabel = computed(() => {
+    if (!form.value.id_store) return 'ไม่มี';
+    const hit = stores.value.find((s) => String(s.id) === String(form.value.id_store));
+    return hit ? storeDisplayName(hit) || 'ไม่มี' : 'ไม่มี';
+});
+
+const pickStore = (id) => {
+    form.value.id_store = id ? String(id) : '';
+    storePickerOpen.value = false;
+};
+
 const loadStores = async () => {
     try {
         const data = await $fetch(`${apiBase.value}/get-stores.php`, { credentials: 'include' });
         if (data?.status === 'success' && Array.isArray(data.stores)) {
-            stores.value = data.stores;
+            stores.value = data.stores
+                .filter((s) => {
+                    const status = String(s.admin_status || 'approved');
+                    return status === 'approved' && Number(s.is_deleted || 0) === 0 && Number(s.id) > 0;
+                })
+                .map((s) => ({
+                    ...s,
+                    store_name: storeDisplayName(s),
+                }))
+                .filter((s) => String(s.store_name || '').trim())
+                .sort((a, b) => String(a.store_name).localeCompare(String(b.store_name), 'th'));
         }
     } catch (e) {
         console.error('โหลดรายชื่อร้านไม่สำเร็จ:', e);
     }
 };
-onMounted(loadStores);
+
+const onStorePickerDocClick = (event) => {
+    if (!storePickerRef.value?.contains(event.target)) {
+        storePickerOpen.value = false;
+    }
+};
+
+onMounted(() => {
+    loadStores();
+    document.addEventListener('click', onStorePickerDocClick);
+});
+
+onBeforeUnmount(() => {
+    document.removeEventListener('click', onStorePickerDocClick);
+});
 
 const addWorkRow = () => {
     // ขึ้นวันถัดไปต่อจากแถวล่าสุด และใช้เวลาเดียวกับแถวล่าสุด
@@ -62,6 +107,13 @@ const addWorkRow = () => {
 };
 const removeWorkRow = (i) => {
     if (workRows.value.length > 1) workRows.value.splice(i, 1);
+};
+
+const fillAllWorkDays = () => {
+    const ref = workRows.value[0] || { start: '08:00', end: '17:00' };
+    const start = ref.start || '08:00';
+    const end = ref.end || '17:00';
+    workRows.value = DAY_ORDER.map((day) => ({ day, start, end }));
 };
 
 const onFileChange = (e) => {
@@ -194,11 +246,44 @@ const submit = async () => {
                     <label>อีเมล <span class="req">*</span></label>
                     <input v-model="form.email" type="email" required />
                 </div>
+                <div ref="storePickerRef" class="auth-field full store-picker-field">
+                    <label>ร้านยาที่ทำงานอยู่</label>
+                    <button
+                        type="button"
+                        class="store-picker-trigger"
+                        :class="{ open: storePickerOpen }"
+                        :aria-expanded="storePickerOpen"
+                        @click.stop="storePickerOpen = !storePickerOpen"
+                    >
+                        <span class="store-picker-value">{{ selectedStoreLabel }}</span>
+                        <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                    </button>
+                    <ul v-if="storePickerOpen" class="store-picker-list" role="listbox">
+                        <li role="option">
+                            <button type="button" :class="{ active: !form.id_store }" @click="pickStore('')">ไม่มี</button>
+                        </li>
+                        <li v-for="s in stores" :key="s.id" role="option">
+                            <button
+                                type="button"
+                                :class="{ active: String(form.id_store) === String(s.id) }"
+                                @click="pickStore(s.id)"
+                            >
+                                {{ s.store_name }}
+                            </button>
+                        </li>
+                    </ul>
+                </div>
                 <div class="auth-field full">
-                    <label>เวลาทำงาน <span class="req">*</span></label>
+                    <div class="auth-work-label-row">
+                        <label>เวลาทำงาน <span class="req">*</span></label>
+                        <button type="button" class="auth-work-fill-all" @click="fillAllWorkDays">
+                            <i class="fa-regular fa-calendar-plus" aria-hidden="true"></i>
+                            เพิ่มทุกวัน
+                        </button>
+                    </div>
                     <div v-for="(row, i) in workRows" :key="i" class="auth-work-row">
                         <select v-model="row.day" :required="i === 0 || !!row.start || !!row.end">
-                            <option value="">วัน</option>
+                            <option value="" disabled hidden>เลือกวัน</option>
                             <option value="Monday">จันทร์</option>
                             <option value="Tuesday">อังคาร</option>
                             <option value="Wednesday">พุธ</option>
@@ -213,13 +298,6 @@ const submit = async () => {
                         <button v-if="i === workRows.length - 1" type="button" class="auth-btn-small auth-btn-add" @click="addWorkRow">+</button>
                         <button v-else type="button" class="auth-btn-small auth-btn-remove" @click="removeWorkRow(i)">×</button>
                     </div>
-                </div>
-                <div class="auth-field full">
-                    <label>ร้านยาที่ทำงานอยู่</label>
-                    <select v-model="form.id_store">
-                        <option value="">ไม่มี</option>
-                        <option v-for="s in stores" :key="s.id" :value="s.id">{{ s.store_name }}</option>
-                    </select>
                 </div>
                 <div class="auth-field full">
                     <label>ใบประกอบวิชาชีพ <span class="req">*</span></label>
@@ -239,4 +317,129 @@ const submit = async () => {
 
 <style scoped>
 @import "@/assets/auth-login.css";
+
+.auth-card.auth-form-wide {
+    overflow: visible;
+}
+
+.store-picker-field {
+    position: relative;
+    z-index: 1;
+}
+
+.store-picker-field:focus-within,
+.store-picker-field:has(.store-picker-trigger.open) {
+    z-index: 40;
+}
+
+.store-picker-trigger {
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: #fff;
+    color: #0f172a;
+    font: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.store-picker-trigger.open,
+.store-picker-trigger:focus-visible {
+    outline: none;
+    border-color: #00469c;
+    box-shadow: 0 0 0 3px rgba(0, 70, 156, 0.12);
+}
+
+.store-picker-value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.store-picker-trigger i {
+    color: #94a3b8;
+    transition: transform 0.2s ease;
+}
+
+.store-picker-trigger.open i {
+    transform: rotate(180deg);
+}
+
+.store-picker-list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 50;
+    margin: 0;
+    padding: 6px;
+    list-style: none;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.store-picker-list button {
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: #0f172a;
+    text-align: left;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font: inherit;
+    cursor: pointer;
+}
+
+.store-picker-list button:hover,
+.store-picker-list button.active {
+    background: #eff6ff;
+    color: #00469c;
+}
+
+.auth-work-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.auth-work-label-row label {
+    margin-bottom: 0;
+}
+
+.auth-work-fill-all {
+    border: 1px solid #bfdbfe;
+    background: #eff6ff;
+    color: #00469c;
+    border-radius: 999px;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.auth-work-fill-all:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+}
 </style>

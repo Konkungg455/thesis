@@ -3,8 +3,11 @@
 
 $ErrorActionPreference = "Continue"
 $WebhookId = "1f5ea30f-2ff0-4d32-b211-eccb342ee0df"
+$WorkflowUrl = "http://127.0.0.1:5678/workflow/kqH5LmZvBvgerQFY"
 
-& (Join-Path $PSScriptRoot "ensure-ai-local.ps1")
+# Use Node launcher (portable Node 22 for n8n when system Node is 23+)
+node (Join-Path $PSScriptRoot "ensure-ai-local.mjs")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "[3/3] Webhook test..." -NoNewline
 Start-Sleep -Seconds 2
@@ -20,6 +23,7 @@ try {
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  Workflow: $WorkflowUrl" -ForegroundColor Gray
 Write-Host "  Webhook: http://127.0.0.1:5678/webhook/$WebhookId/chat" -ForegroundColor Gray
 Write-Host "  Nuxt AI: /api/ai-chat (via npm run dev)" -ForegroundColor Gray
 Write-Host "========================================" -ForegroundColor Cyan

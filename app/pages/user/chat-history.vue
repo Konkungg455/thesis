@@ -600,6 +600,13 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
             return;
         }
 
+        if (kind === 'adult') {
+            const last = chatMessages.value[chatMessages.value.length - 1];
+            if (last?.role === 'user') last.skipProgress = true;
+            await addMessage('assistant', getReply('adult', chatLocale.value));
+            return;
+        }
+
         if (kind === 'gibberish') {
             const last = chatMessages.value[chatMessages.value.length - 1];
             if (last?.role === 'user') last.skipProgress = true;

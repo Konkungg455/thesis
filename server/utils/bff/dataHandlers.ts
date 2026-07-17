@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import type { H3Event } from 'h3';
 import type postgres from 'postgres';
 import { resolvePharmacistLicenseFile, resolveProfileImageFile, resolveStoreLicenseFile } from '#shared/utils/mediaDefaults';
+import { joinThaiAddressParts } from '#shared/utils/formatThaiAddress';
 import { readMultipartRequest, readRequestFields } from './formData';
 import { getAuthContext, parsePositiveInt } from './sessionContext';
 import { consolidateDuplicateActiveTracking } from './consultTracking';
@@ -158,9 +159,9 @@ export async function handleGetPharmacistDetail(event: H3Event) {
     const name = `${String(row.firstname_pharma || '').trim()} ${String(row.lastname_pharma || '').trim()}`.trim()
         || `เภสัชกร #${id}`;
 
-    const address = [row.house_no, row.road, row.sub_district, row.district, row.province]
-        .filter(Boolean)
-        .join(' ');
+    const address = joinThaiAddressParts(
+        row.house_no, row.road, row.sub_district, row.district, row.province,
+    );
 
     return {
         status: 'success',
@@ -222,7 +223,7 @@ export async function handleGetStores(event: H3Event) {
             close_time: String(r.close_time || '').slice(0, 5),
             is_open: Number(r.is_open) === 1,
         }));
-        store.details = store;
+        store.details = { ...mapStoreRow(row) };
         return { status: 'success', store, data: store };
     }
 
@@ -660,6 +661,7 @@ export async function handleVerifyPharma(event: H3Event) {
             return { error: 'ไม่พบเภสัชกร' };
         }
 
+        const previousStatus = Number(pharma.status_verify || 0);
         const reviewResult = status === 1 ? 'approved' : 'rejected';
         await ensurePharmacistReviewNoticeColumns(sql);
         await sql`
@@ -675,6 +677,7 @@ export async function handleVerifyPharma(event: H3Event) {
             email: String(pharma.email_pharma || ''),
             name: `${String(pharma.firstname_pharma || '').trim()} ${String(pharma.lastname_pharma || '').trim()}`.trim(),
             reviewResult,
+            shouldNotify: previousStatus !== status,
         };
     });
 
@@ -682,7 +685,7 @@ export async function handleVerifyPharma(event: H3Event) {
         return { status: 'error', message: result.error };
     }
 
-    if (result.email) {
+    if (result.email && result.shouldNotify) {
         void notifyRegistrationReview({
             role: 'pharmacist',
             to: result.email,
@@ -1547,9 +1550,9 @@ function mapPharmaAdminRow(data: Record<string, unknown>) {
 }
 
 function mapStoreRow(row: Record<string, unknown>) {
-    const address = [row.house_no, row.road, row.sub_district, row.district, row.province, row.zipcode]
-        .filter(Boolean)
-        .join(' ');
+    const address = joinThaiAddressParts(
+        row.house_no, row.road, row.sub_district, row.district, row.province, row.zipcode,
+    );
     return {
         id: Number(row.id),
         username: row.username ?? '',

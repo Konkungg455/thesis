@@ -349,6 +349,14 @@ const sendMessage = async (overrideText = null, isSilent = false) => {
             return;
         }
 
+        if (kind === 'adult') {
+            const last = chatMessages.value[chatMessages.value.length - 1];
+            if (last?.role === 'user') last.skipProgress = true;
+            await new Promise(r => setTimeout(r, 400));
+            await pushAssistant(getReply('adult', chatLocale.value));
+            return;
+        }
+
         if (kind === 'gibberish') {
             const last = chatMessages.value[chatMessages.value.length - 1];
             if (last?.role === 'user') last.skipProgress = true;

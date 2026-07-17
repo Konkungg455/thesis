@@ -1,6 +1,7 @@
 import type { H3Event } from 'h3';
 import { issueAgoraRtcToken } from '../agora/issueToken';
 import { resolveGoogleMapsSearchUrl } from '#shared/utils/googleMapsLinks';
+import { joinThaiAddressParts } from '#shared/utils/formatThaiAddress';
 import {
     handleGetPrescriptionDetail,
     handleSavePrescription,
@@ -8,6 +9,7 @@ import {
     handlePreviewPrescriptionEmail,
 } from './savePrescription';
 import { parsePositiveInt } from './sessionContext';
+import { handleTouchPresence } from './presence';
 
 function normalizePath(pathname: string): string {
     return pathname.split('?')[0].replace(/^\/+/, '');
@@ -129,6 +131,10 @@ export async function dispatchBff(event: H3Event, pathname: string) {
 
     if (pathLower === 'get-admin-overview-activity.php') {
         return handleGetAdminOverviewActivity(event);
+    }
+
+    if (pathLower === 'touch-presence.php') {
+        return handleTouchPresence(event);
     }
 
     if (pathLower === 'verify-pharma.php') {
@@ -329,6 +335,10 @@ export async function dispatchBff(event: H3Event, pathname: string) {
 
     if (pathLower === 'agora-token.php') {
         return issueAgoraRtcToken(event);
+    }
+
+    if (pathLower === 'send-contact.php' && method === 'POST') {
+        return handleSendContact(event);
     }
 
     return handleFallback(pathLower, method);
@@ -734,9 +744,9 @@ async function handleGetPharmacists(event: H3Event) {
     }
 
     const pharmacists = rows.map((row) => {
-        const address = [row.house_no, row.road, row.sub_district, row.district, row.province]
-            .filter(Boolean)
-            .join(' ');
+        const address = joinThaiAddressParts(
+            row.house_no, row.road, row.sub_district, row.district, row.province,
+        );
         let distance_km: number | null = null;
         const storeLat = row.latitude != null ? Number(row.latitude) : null;
         const storeLng = row.longitude != null ? Number(row.longitude) : null;
@@ -809,9 +819,9 @@ async function handleGetNearbyPharmacies(event: H3Event) {
         const name = String(row.store_name || '').trim();
         if (!name) continue;
 
-        const address = [
+        const address = joinThaiAddressParts(
             row.house_no, row.road, row.sub_district, row.district, row.province, row.zipcode,
-        ].filter((v) => v != null && String(v).trim() !== '').join(' ').trim();
+        );
 
         const storeLat = row.latitude != null && row.latitude !== ''
             ? Number(row.latitude) : null;

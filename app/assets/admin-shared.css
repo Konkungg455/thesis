@@ -838,22 +838,129 @@
   min-width: 22px;
   flex: 0 0 auto;
 }
+.bar-chart-bars--day {
+  display: grid;
+  grid-template-columns: repeat(24, minmax(34px, 1fr));
+  gap: 4px;
+  min-width: 816px;
+  justify-content: stretch;
+  padding: 0 4px 4px;
+}
+.bar-chart-bars--day .bar-column {
+  max-width: none;
+  min-width: 0;
+}
+.bar-chart-scroll--day {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+}
+.bar-chart-scroll--day::-webkit-scrollbar {
+  height: 6px;
+}
+.bar-chart-scroll--day::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 999px;
+}
+.bar-chart--day {
+  min-height: 280px;
+}
+.bar-chart--day .bar-chart-grid {
+  top: 0;
+}
+.bar-chart--day .bar-chart-grid .bar-chart-line:first-child {
+  display: none;
+}
+.bar-label--current .bar-day {
+  color: #4318FF;
+  font-weight: 800;
+}
+.bar-label--current .bar-date {
+  color: #6366f1;
+  font-weight: 600;
+}
+.bar-column--current {
+  position: relative;
+}
+.bar-current .bar-fill {
+  background: linear-gradient(180deg, #2563eb 0%, #4318FF 55%, #7c3aed 100%);
+  box-shadow: 0 -4px 16px rgba(37, 99, 235, 0.45);
+}
+.bar-peak .bar-fill {
+  background: linear-gradient(180deg, #7c3aed 0%, #4318FF 45%, #2563eb 100%);
+  box-shadow: 0 -6px 20px rgba(124, 58, 237, 0.5);
+}
+.bar-chart-bars--day .bar {
+  max-width: 22px;
+  border-radius: 10px 10px 3px 3px;
+}
+.bar-chart-bars--day .bar-zero {
+  min-height: 3px;
+  height: 3px !important;
+  max-height: 3px;
+}
+.bar-chart-bars--day .bar-zero .bar-fill {
+  background: #e2e8f0;
+  border-radius: 999px;
+}
+.bar-chart-bars--day .bar-zero .bar-value {
+  display: none;
+}
+.bar-chart-bars--day .bar-label {
+  font-size: 0.72rem;
+  min-height: 34px;
+  gap: 0;
+}
+.bar-chart-bars--day .bar-label--day-hour {
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+.bar-chart-bars--day .bar-hour-unit {
+  font-size: 0.58rem;
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.bar-chart-bars--day .bar-day {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.bar-chart-bars--day .bar-column:nth-child(6n) .bar-day,
+.bar-chart-bars--day .bar-column--current .bar-day {
+  color: #2B3674;
+}
+.bar-chart-bars--day .bar-column:not(:nth-child(6n)):not(.bar-column--current) .bar-day {
+  color: #94a3b8;
+}
+.bar-chart-bars--day .bar-column:nth-child(6n) .bar-hour-unit,
+.bar-chart-bars--day .bar-column--current .bar-hour-unit {
+  color: #64748b;
+}
+.bar-chart-bars--day .bar-column:not(:nth-child(6n)):not(.bar-column--current) .bar-hour-unit {
+  color: #cbd5e1;
+}
+.bar-chart-bars--day .bar-column--current .bar-day {
+  color: #4318FF;
+}
+.bar-chart-bars--day .bar-column--current .bar-hour-unit {
+  color: #4318FF;
+}
+.bar-chart-bars--day .bar-value {
+  font-size: 0.68rem;
+  top: 6px;
+}
 .bar-chart-bars--year .bar-column {
   max-width: 52px;
 }
 .bar-chart-bars--year {
   justify-content: flex-start;
 }
-.bar-chart-bars--day .bar,
 .bar-chart-bars--month .bar {
   max-width: 28px;
 }
-.bar-chart-bars--day .bar-label,
 .bar-chart-bars--month .bar-label {
   font-size: 0.68rem;
-}
-.bar-chart-bars--day .bar-day {
-  font-size: 0.72rem;
 }
 .bar-column {
   flex: 1 1 0;
@@ -926,6 +1033,9 @@
 .bar-column:hover .bar-fill {
   background: linear-gradient(180deg, #3A0CFF 0%, #5A30FF 60%, #7C3AED 100%);
   box-shadow: 0 -6px 18px rgba(67, 24, 255, 0.5);
+}
+.bar-chart-bars--day .bar-column:hover .bar-fill {
+  background: linear-gradient(180deg, #3A0CFF 0%, #5A30FF 60%, #7C3AED 100%);
 }
 .bar-label {
   margin-top: 10px;
